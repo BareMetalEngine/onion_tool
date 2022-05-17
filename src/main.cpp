@@ -59,15 +59,17 @@ static void PrintUsage(const char* argv0)
 	ToolLibrary().printUsage(argv0);
 	std::cout << "---------------------------------------------------------\n";
 	ToolRelease().printUsage(argv0);
-}	
+}
 
 int main(int argc, char** argv)
 {
+    const auto executablePath = GetExecutablePath();
+
     Commandline cmdLine;
     if (!cmdLine.parse(MergeCommandline(argc, argv)) || cmdLine.commands.size() != 1)
     {
 		std::cout << "Onion Build Tool v1.0\n";
-        PrintUsage(argv[0]);
+        PrintUsage(executablePath.c_str());
         return 1;
     }
 
@@ -80,47 +82,47 @@ int main(int argc, char** argv)
 	if (tool == "configure")
 	{
 		ToolConfigure tool;
-		return tool.run(argv[0], cmdLine);
+		return tool.run(executablePath.c_str(), cmdLine);
 	}
     else if (tool == "make")
     {
         ToolMake tool;
-        return tool.run(argv[0], cmdLine);
+        return tool.run(executablePath.c_str(), cmdLine);
     }	
     else if (tool == "reflection")
     {
         ToolReflection tool;
-        return tool.run(argv[0], cmdLine);
+        return tool.run(executablePath.c_str(), cmdLine);
     }
 	else if (tool == "embed")
 	{
 		ToolEmbed tool;
-		return tool.run(argv[0], cmdLine);
+		return tool.run(executablePath.c_str(), cmdLine);
 	}
 	else if (tool == "build")
 	{
 		ToolBuild tool;
-		return tool.run(argv[0], cmdLine);
+		return tool.run(executablePath.c_str(), cmdLine);
 	}
 	else if (tool == "library")
 	{
 		ToolLibrary tool;
-		return tool.run(argv[0], cmdLine);
+		return tool.run(executablePath.c_str(), cmdLine);
 	}
 	else if (tool == "release")
 	{
 		ToolRelease tool;
-		return tool.run(argv[0], cmdLine);
+		return tool.run(executablePath.c_str(), cmdLine);
 	}
 	else if (tool == "glue")
 	{
 		ToolGlueFiles tool;
-		return tool.run(argv[0], cmdLine);
+		return tool.run(executablePath.c_str(), cmdLine);
 	}
 	else if (tool == "sign")
 	{
 		ToolSign tool;
-		return tool.run(argv[0], cmdLine);
+		return tool.run(executablePath.c_str(), cmdLine);
 	}
     else
     {

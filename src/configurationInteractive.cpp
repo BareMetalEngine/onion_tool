@@ -331,3 +331,19 @@ bool RunWithArgsAndCaptureOutputIntoLines(std::string_view cmd, std::vector<std:
 
     return true;
 }
+
+std::string GetExecutablePath()
+{
+    char exepath[1024];
+    memset(exepath, 0, sizeof(exepath));
+
+#ifdef _WIN32
+    GetModuleFileNameA(GetModuleHandle(NULL), exepath, sizeof(exepath));
+#else
+    char arg1[20];
+    sprintf(arg1, "/proc/%d/exe", getpid());
+    readlink(arg1, exepath, sizeof(exepath));
+#endif
+
+    return std::string(exepath);
+}

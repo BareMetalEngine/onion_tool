@@ -102,6 +102,10 @@ private:
 
 //--
 
+extern std::string GetExecutablePath();
+
+//--
+
 extern bool LoadFileToString(const fs::path& path, std::string& outText);
 
 extern bool LoadFileToBuffer(const fs::path& path, std::vector<uint8_t>& outBuffer);

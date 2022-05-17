@@ -64,14 +64,14 @@ bool Configuration::load(const fs::path& path)
 
 bool Configuration::parseOptions(const char* path, const Commandline& cmd)
 {
-    /*builderExecutablePath = fs::absolute(path);
+    builderExecutablePath = fs::absolute(path);
     if (!fs::is_regular_file(builderExecutablePath))
     {
         std::cout << "Invalid local executable name: " << builderExecutablePath << "\n";
         return false;
     }
 
-    builderEnvPath = builderExecutablePath.parent_path().parent_path();
+    /*builderEnvPath = builderExecutablePath.parent_path().parent_path();
     //std::cout << "EnvPath: " << builderEnvPath << "\n";
 
     if (!fs::is_directory(builderEnvPath / "vs"))

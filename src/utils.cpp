@@ -2057,7 +2057,7 @@ bool DecompressLZ4(const void* data, uint32_t size, std::vector<uint8_t>& outBuf
         return true;
     }
 
-    int decompressedSize = LZ4_decompress_safe((const char*)data, (char*)outBuffer.data(), size, outBuffer.size());
+    int decompressedSize = LZ4_decompress_safe((const char*)data, (char*)outBuffer.data(), size, (int)outBuffer.size());
 	if (!decompressedSize)
 	{
 		std::cerr << KRED << "[BREAKING] Decompression failed for buffer of size " << size << "\n" << RST;
