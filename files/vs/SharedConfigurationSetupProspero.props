@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BoomerEngine MS-Build configuration script -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- Define the common project confugrations - Debug, Checked, Release and Final -->
+  <ItemGroup Label="ProjectConfigurations">
+    
+    <ProjectConfiguration Include="Debug|Prospero">
+      <Configuration>Debug</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+    
+    <ProjectConfiguration Include="Checked|Prospero">
+      <Configuration>Checked</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+    
+    <ProjectConfiguration Include="Release|Prospero">
+      <Configuration>Release</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+
+    <ProjectConfiguration Include="Final|Prospero">
+      <Configuration>Final</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+
+  </ItemGroup>
+  
+</Project>

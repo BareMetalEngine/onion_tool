@@ -1,0 +1,131 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="common.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="utils.cpp" />
+    <ClCompile Include="configuration.cpp" />
+    <ClCompile Include="configurationInteractive.cpp" />
+    <ClCompile Include="externalLibrary.cpp" />
+    <ClCompile Include="externalLibraryRepository.cpp" />
+    <ClCompile Include="fileGenerator.cpp" />
+    <ClCompile Include="moduleManifest.cpp" />
+    <ClCompile Include="moduleRepository.cpp" />
+    <ClCompile Include="project.cpp" />
+    <ClCompile Include="projectCollection.cpp" />
+    <ClCompile Include="projectManifest.cpp" />
+    <ClCompile Include="solutionGenerator.cpp" />
+    <ClCompile Include="solutionGeneratorCMAKE.cpp" />
+    <ClCompile Include="solutionGeneratorVS.cpp" />
+    <ClCompile Include="toolEmbed.cpp" />
+    <ClCompile Include="toolMake.cpp" />
+    <ClCompile Include="toolReflection.cpp" />
+    <ClCompile Include="codeParser.cpp" />
+    <ClCompile Include="moduleConfiguration.cpp" />
+    <ClCompile Include="toolConfigure.cpp" />
+    <ClCompile Include="toolBuild.cpp" />
+    <ClCompile Include="configurationList.cpp" />
+    <ClCompile Include="libraryManifest.cpp" />
+    <ClCompile Include="toolLibrary.cpp" />
+    <ClCompile Include="toolRelease.cpp" />
+    <ClCompile Include="json.cpp" />
+    <ClCompile Include="git.cpp" />
+    <ClCompile Include="toolGlueFiles.cpp" />
+    <ClCompile Include="fileRepository.cpp" />
+    <ClCompile Include="lz4\lz4frame.c">
+      <Filter>lz4</Filter>
+    </ClCompile>
+    <ClCompile Include="lz4\lz4hc.c">
+      <Filter>lz4</Filter>
+    </ClCompile>
+    <ClCompile Include="lz4\xxhash.c">
+      <Filter>lz4</Filter>
+    </ClCompile>
+    <ClCompile Include="lz4\lz4.c">
+      <Filter>lz4</Filter>
+    </ClCompile>
+    <ClCompile Include="lz4\lz4file.c">
+      <Filter>lz4</Filter>
+    </ClCompile>
+    <ClCompile Include="toolSign.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="common.h" />
+    <ClInclude Include="utils.h" />
+    <ClInclude Include="xmlUtils.h" />
+    <ClInclude Include="xml\rapidxml.hpp">
+      <Filter>xml</Filter>
+    </ClInclude>
+    <ClInclude Include="xml\rapidxml_iterators.hpp">
+      <Filter>xml</Filter>
+    </ClInclude>
+    <ClInclude Include="xml\rapidxml_print.hpp">
+      <Filter>xml</Filter>
+    </ClInclude>
+    <ClInclude Include="xml\rapidxml_utils.hpp">
+      <Filter>xml</Filter>
+    </ClInclude>
+    <ClInclude Include="codeParser.h" />
+    <ClInclude Include="configuration.h" />
+    <ClInclude Include="configurationInteractive.h" />
+    <ClInclude Include="externalLibrary.h" />
+    <ClInclude Include="externalLibraryRepository.h" />
+    <ClInclude Include="fileGenerator.h" />
+    <ClInclude Include="moduleManifest.h" />
+    <ClInclude Include="moduleRepository.h" />
+    <ClInclude Include="project.h" />
+    <ClInclude Include="projectCollection.h" />
+    <ClInclude Include="projectManifest.h" />
+    <ClInclude Include="solutionGenerator.h" />
+    <ClInclude Include="solutionGeneratorCMAKE.h" />
+    <ClInclude Include="solutionGeneratorVS.h" />
+    <ClInclude Include="toolEmbed.h" />
+    <ClInclude Include="toolMake.h" />
+    <ClInclude Include="toolReflection.h" />
+    <ClInclude Include="moduleConfiguration.h" />
+    <ClInclude Include="toolConfigure.h" />
+    <ClInclude Include="toolBuild.h" />
+    <ClInclude Include="configurationList.h" />
+    <ClInclude Include="libraryManifest.h" />
+    <ClInclude Include="toolLibrary.h" />
+    <ClInclude Include="toolRelease.h" />
+    <ClInclude Include="json.h" />
+    <ClInclude Include="git.h" />
+    <ClInclude Include="toolGlueFiles.h" />
+    <ClInclude Include="fileRepository.h" />
+    <ClInclude Include="lz4\lz4frame.h">
+      <Filter>lz4</Filter>
+    </ClInclude>
+    <ClInclude Include="lz4\lz4frame_static.h">
+      <Filter>lz4</Filter>
+    </ClInclude>
+    <ClInclude Include="lz4\lz4hc.h">
+      <Filter>lz4</Filter>
+    </ClInclude>
+    <ClInclude Include="lz4\xxhash.h">
+      <Filter>lz4</Filter>
+    </ClInclude>
+    <ClInclude Include="lz4\lz4.h">
+      <Filter>lz4</Filter>
+    </ClInclude>
+    <ClInclude Include="lz4\lz4file.h">
+      <Filter>lz4</Filter>
+    </ClInclude>
+    <ClInclude Include="toolSign.h" />
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\..\src\base\config\build.lua" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="xml">
+      <UniqueIdentifier>{328bebbc-3735-4d69-95dd-71498a14c55b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lz4">
+      <UniqueIdentifier>{7cd0ee31-b0ac-4fca-8365-ab9681d0df72}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resources.rc" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,152 @@
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- PRE BUILD TARGETS  -->
+  <!-- PRE BUILD TARGETS  -->
+  <!-- PRE BUILD TARGETS  -->
+  
+  <!-- Prevent compilation if WindowsSDK is not detected -->
+  <Target Name="CheckWindowsSDK" BeforeTargets="ClCompile">
+    <Error Condition="'$(WindowsTargetPlatformVersion)'==''" Text="Windows 10 SDK not detected!"/>
+    <Message Text="Using Windows SDK version $(WindowsTargetPlatformVersion)" Importance="high"/>
+  </Target>
+
+  <!-- Embedded media compiler -->
+  <!--<Target Name="CompileEmbeddedMedia" BeforeTargets="ClCompile" Inputs="@(EmbeddedMedia)" Outputs="@(EmbeddedMedia->'$(ProjectGeneratedPath)EmbeddedMedia_$(ProjectName)_%(Filename)_data.cpp');@(EmbeddedMedia->'$(ProjectGeneratedPath)EmbeddedMedia_$(ProjectName)_%(Filename)_meta.xml')">
+    <Message Text="Compiling embedded media '%(EmbeddedMedia.Filename)%(Extension)'..." Importance="high" />
+    <Error Text="No tool to compile embedded media found, was tool_embedd compiled properly?" Condition="!Exists('$(ProjectPublishPath)tool_fxc.exe')" />
+    <Exec Command="$(ProjectPublishPath)tool_fxc.exe pack -input=&quot;%(EmbeddedMedia.FullPath)&quot; -output=&quot;$(ProjectGeneratedPath)EmbeddedMedia_$(ProjectName)_%(Filename)_data.cpp&quot; -meta=&quot;$(ProjectGeneratedPath)EmbeddedMedia_$(ProjectName)_%(Filename)_meta.xml&quot; -platform=windows -project=$(ProjectName)"/>
+    <Error Text="Failed to compile embedded media from '%(EmbeddedMedia.Filename)%(Extension)'" Condition="!Exists('$(ProjectGeneratedPath)EmbeddedMedia_$(ProjectName)_%(Filename)_data.cpp')" />
+  </Target>-->
+
+  <!-- Bison grammar compiler -->
+  <Target Name="_WriteBisonTlogs" Condition="'@(BisonScripts)' != ''">
+	<ItemGroup Condition="'@(BisonScripts)' != ''">
+		<_BisonReadTlog Include="^%(BisonScripts.FullPath)" />
+		<_BisonWriteTlog Include="^$(ProjectGeneratedPath)%(BisonScripts.Filename)_Parser.cpp;^$(ProjectGeneratedPath)%(BisonScripts.Filename)_Symbols.h" />
+	</ItemGroup>
+	<WriteLinesToFile
+		Condition="'@(_BisonReadTlog)' != ''"
+		File="$(TLogLocation)Bison.read.1u.tlog"
+		Lines="@(_BisonReadTlog->MetaData('Identity')->ToUpperInvariant());"
+		Overwrite="true"
+		Encoding="Unicode"/>
+	  <WriteLinesToFile
+		  Condition="'@(_BisonReadTlog)' != ''"
+		  File="$(TLogLocation)Bison.read.1u.tlog"
+		  Lines="$(ProjectBisonToolPath)"
+		  Overwrite="false"
+		  Encoding="Unicode"/>
+	  <WriteLinesToFile
+		Condition="'@(_BisonWriteTlog)' != ''"
+		File="$(TLogLocation)Bison.write.1u.tlog"
+		Lines="@(_BisonWriteTlog->MetaData('Identity')->ToUpperInvariant());"
+		Overwrite="true"
+		Encoding="Unicode"/>
+	<ItemGroup>
+		<_BisonReadTlog Remove="@(_BisonReadTlog)" />
+		<_BisonWriteTlog Remove="@(_BisonWriteTlog)" />
+	</ItemGroup>
+  </Target>
+	
+  <Target Name="CompileBisonScripts" BeforeTargets="ClCompile" DependsOnTargets="_WriteBisonTlogs;_SelectedFiles"
+		Inputs="@(BisonScripts)" 
+        Condition="'@(BisonScripts)' != '' and '$(ProjectBisonToolPath)' != ''"
+		Outputs="@(BisonScripts->'$(ProjectGeneratedPath)%(Filename)_Parser.cpp');@(BisonScripts->'$(ProjectGeneratedPath)%(Filename)_Symbols.h')">
+	<Message Text="Generating grammar '@(BisonScripts)'..." Importance="high" />
+	<Error Text="Bison tool was not found, was the Onion Build Tool installed properly?" Condition="!Exists('$(ProjectBisonToolPath)')" />
+	<Exec Command="$(ProjectBisonToolPath) &quot;%(BisonScripts.FullPath)&quot; -o&quot;$(ProjectGeneratedPath)%(Filename)_Parser.cpp&quot; --defines=&quot;$(ProjectGeneratedPath)%(Filename)_Symbols.h&quot; --verbose"/>
+  </Target>
+
+  <Target Name="CleanBisonScripts" BeforeTargets="Clean"
+	  Condition="'@(BisonScripts)' != '' and '$(ProjectBisonToolPath)' != ''">
+	  <Message Text="Deleting grammar '@(BisonScripts)'..." Importance="high" />
+	  <Delete Files="@(BisonScripts->'$(ProjectGeneratedPath)%(Filename)_Parser.cpp')" />
+	  <Delete Files="@(BisonScripts->'$(ProjectGeneratedPath)%(Filename)_Symbols.h')" />
+	  <Delete Files="@(BisonScripts->'$(ProjectGeneratedPath)%(Filename)_Parser.output')" />
+  </Target>
+
+  <!-- Reflection builder -->
+  <Target Name="_WriteReflectionTlogs">
+	<WriteLinesToFile
+		File="$(TLogLocation)Reflection.read.1u.tlog"
+		Lines="$(ProjectOnionExecutable);"
+		Overwrite="true"
+		Encoding="Unicode"/>
+  </Target>
+	
+  <Target Name="GenerateReflection" BeforeTargets="ClCompile" DependsOnTargets="_WriteReflectionTlogs"
+	Inputs="@(ClCompile)"
+	Condition="'@(ClCompile)' != '' and '$(ProjectOnionExecutable)' != ''"
+	Outputs="$(ProjectGeneratedPath)reflection.cpp">
+	<Message Text="Generating reflection..." Importance="high" />
+	<Error Text="Onion tool was not found, was the Onion Build Tool installed properly?" Condition="!Exists('$(ProjectOnionExecutable)')" />
+	<WriteLinesToFile File="$(ProjectGeneratedPath)reflection.txt" Lines="@(ClCompile)" Overwrite="true" WriteOnlyWhenDifferent="true"/>
+    <Exec Command="$(ProjectOnionExecutable) reflection -nologo -project=$(ProjectName) -list=&quot;$(ProjectGeneratedPath)reflection.txt&quot; -output=&quot;$(ProjectGeneratedPath)reflection.cpp&quot;"/>
+  </Target>
+
+  <Target Name="CleanReflection" BeforeTargets="Clean"
+      Condition="'$(ProjectOnionExecutable)' != ''">
+	<Delete Files="$(ProjectGeneratedPath)reflection.cpp" />
+    <Delete Files="$(ProjectGeneratedPath)reflection.txt" />
+  </Target>
+
+  <!-- Media file embedder -->
+  <Target Name="_WriteMediaTlogs" Condition="'@(MediaFile)' != ''">
+	<ItemGroup Condition="'@(MediaFile)' != ''">
+		<_MediaReadTlog Include="^%(MediaFile.FullPath)" />
+		<_MediaWriteTlog Include="^%(MediaFile.FullPath);$(ProjectGeneratedPath)media\$([MSBuild]::MakeRelative('$(ProjectMediaRoot)', '%(MediaFile.FullPath)')).cxx" />
+	</ItemGroup>
+	<WriteLinesToFile
+		Condition="'@(_MediaReadTlog)' != ''"
+		File="$(TLogLocation)Media.read.1u.tlog"
+		Lines="@(_MediaReadTlog->MetaData('Identity')->ToUpperInvariant());"
+		Overwrite="true"
+		Encoding="Unicode"/>
+	<WriteLinesToFile
+		Condition="'@(_MediaReadTlog)' != ''"
+		File="$(TLogLocation)Media.read.1u.tlog"
+		Lines="$(ProjectOnionExecutable)"
+		Overwrite="false"
+		Encoding="Unicode"/>
+	<WriteLinesToFile
+		Condition="'@(_MediaWriteTlog)' != ''"
+		File="$(TLogLocation)Media.write.1u.tlog"
+		Lines="@(_MediaWriteTlog->MetaData('Identity')->ToUpperInvariant());"
+		Overwrite="true"
+		Encoding="Unicode"/>
+	<ItemGroup>
+		<_MediaReadTlog Remove="@(_MediaReadTlog)" />
+		<_MediaWriteTlog Remove="@(_MediaWriteTlog)" />
+	</ItemGroup>
+  </Target>
+
+  <Target Name="EmbedMediaFiles" BeforeTargets="ClCompile" DependsOnTargets="_WriteMediaTlogs;_SelectedFiles"
+		Inputs="@(MediaFile)"
+        Condition="'@(MediaFile)' != '' and '$(ProjectOnionExecutable)' != ''"
+		Outputs="@(MediaFile->'$(ProjectGeneratedPath)media\$([MSBuild]::MakeRelative('$(ProjectMediaRoot)', '%(MediaFile.FullPath)')).cxx')">
+    <Message Text="Embedding file '@(MediaFile)'" Importance="high" />
+    <Error Text="Onion tool was not found, was the Onion Build Tool installed properly?" Condition="!Exists('$(ProjectOnionExecutable)')" />
+    <Exec Command="$(ProjectOnionExecutable) embed -nologo -project=$(ProjectName) -source=&quot;%(MediaFile.FullPath)&quot; -output=&quot;$(ProjectGeneratedPath)media\$([MSBuild]::MakeRelative('$(ProjectMediaRoot)', '%(MediaFile.FullPath)')).cxx&quot; -relative=&quot;$([MSBuild]::MakeRelative('$(ProjectMediaRoot)', '%(MediaFile.FullPath)'))&quot;"/>
+  </Target>
+
+  <Target Name="CleanMediaFiles" BeforeTargets="Clean"
+		Condition="'@(MediaFile)' != '' and '$(ProjectOnionExecutable)' != ''">
+	<Delete Files="@(MediaFile->'$(ProjectGeneratedPath)media\$([MSBuild]::MakeRelative('$(ProjectMediaRoot)', '%(MediaFile.FullPath)')).cxx')" />
+  </Target>	
+	  
+  <!-- POST BUILD TARGETS  -->
+  <!-- POST BUILD TARGETS  -->
+  <!-- POST BUILD TARGETS  -->
+  
+  <!-- Copy txt,bat files with DeploymentContent set to true -->
+  <Target Name="CopyDeploymentContent" AfterTargets="Build"  Condition="'@(None)' != ''" Inputs="@(None)" Outputs="@(None->'$(BinDir)%(Filename)%(Extension)')">
+    <Message Condition="'%(None.DeploymentContent)' == 'true'" Text="%(None.Identity) -> @(None->'$(BinDir)%(Filename)%(Extension)')" Importance="high" />
+    <Copy Condition="'%(None.DeploymentContent)' == 'true'" SourceFiles="@(None)" DestinationFolder="$(BinDir)" />
+  </Target>
+  
+  <!-- Clean txt,bat files with DeploymentContent set to true -->
+  <Target Name="CleanDeploymentContent" AfterTargets="Clean"  Condition="'@(None)' != ''">
+    <Delete Condition="'%(None.DeploymentContent)' == 'true'" Files="@(None->'$(BinDir)%(Filename)%(Extension)')"/>
+  </Target>
+
+</Project>

@@ -1,0 +1,19 @@
+version: 2.1
+
+orbs:
+  win: circleci/windows@2.2.0
+
+jobs:
+  compile_windows:    
+    executor: win/default
+    steps:
+      - checkout
+      - run: choco install cmake -y
+      - run: $env:Path+=";$Env:ProgramFiles\CMake\bin"; ./build_windows.bat
+
+workflows:
+  say-hello-workflow:
+    jobs:
+      - compile_windows:
+          context: 
+            - main

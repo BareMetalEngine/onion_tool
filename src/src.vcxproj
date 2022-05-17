@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{07f80e9f-268d-4dfd-9b26-b62bcead1a78}</ProjectGuid>
+    <RootNamespace>main</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup>
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OutDir>$(SolutionDir)bin\</OutDir>
+    <IntDir>$(SolutionDir).temp\</IntDir>
+    <TargetName>onion</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>common.h</PrecompiledHeaderFile>
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Disabled</Optimization>
+      <OpenMPSupport Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</OpenMPSupport>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="codeParser.cpp" />
+    <ClCompile Include="common.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <PrecompiledHeaderFile>common.h</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="configuration.cpp" />
+    <ClCompile Include="configurationInteractive.cpp" />
+    <ClCompile Include="configurationList.cpp" />
+    <ClCompile Include="externalLibrary.cpp" />
+    <ClCompile Include="externalLibraryRepository.cpp" />
+    <ClCompile Include="fileGenerator.cpp" />
+    <ClCompile Include="fileRepository.cpp" />
+    <ClCompile Include="git.cpp" />
+    <ClCompile Include="json.cpp" />
+    <ClCompile Include="libraryManifest.cpp" />
+    <ClCompile Include="lz4\lz4.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="lz4\lz4file.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="lz4\lz4frame.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="lz4\lz4hc.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="lz4\xxhash.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+    </ClCompile>
+    <ClCompile Include="moduleConfiguration.cpp" />
+    <ClCompile Include="moduleManifest.cpp" />
+    <ClCompile Include="moduleRepository.cpp" />
+    <ClCompile Include="project.cpp" />
+    <ClCompile Include="projectCollection.cpp" />
+    <ClCompile Include="projectManifest.cpp" />
+    <ClCompile Include="solutionGenerator.cpp" />
+    <ClCompile Include="solutionGeneratorCMAKE.cpp" />
+    <ClCompile Include="solutionGeneratorVS.cpp" />
+    <ClCompile Include="toolBuild.cpp" />
+    <ClCompile Include="toolConfigure.cpp" />
+    <ClCompile Include="toolEmbed.cpp" />
+    <ClCompile Include="toolGlueFiles.cpp" />
+    <ClCompile Include="toolLibrary.cpp" />
+    <ClCompile Include="toolMake.cpp" />
+    <ClCompile Include="toolRelease.cpp" />
+    <ClCompile Include="toolReflection.cpp" />
+    <ClCompile Include="toolSign.cpp" />
+    <ClCompile Include="utils.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="codeParser.h" />
+    <ClInclude Include="common.h" />
+    <ClInclude Include="configuration.h" />
+    <ClInclude Include="configurationInteractive.h" />
+    <ClInclude Include="configurationList.h" />
+    <ClInclude Include="externalLibrary.h" />
+    <ClInclude Include="externalLibraryRepository.h" />
+    <ClInclude Include="fileGenerator.h" />
+    <ClInclude Include="fileRepository.h" />
+    <ClInclude Include="git.h" />
+    <ClInclude Include="json.h" />
+    <ClInclude Include="libraryManifest.h" />
+    <ClInclude Include="lz4\lz4.h" />
+    <ClInclude Include="lz4\lz4file.h" />
+    <ClInclude Include="lz4\lz4frame.h" />
+    <ClInclude Include="lz4\lz4frame_static.h" />
+    <ClInclude Include="lz4\lz4hc.h" />
+    <ClInclude Include="lz4\xxhash.h" />
+    <ClInclude Include="moduleConfiguration.h" />
+    <ClInclude Include="moduleManifest.h" />
+    <ClInclude Include="moduleRepository.h" />
+    <ClInclude Include="project.h" />
+    <ClInclude Include="projectCollection.h" />
+    <ClInclude Include="projectManifest.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="solutionGenerator.h" />
+    <ClInclude Include="solutionGeneratorCMAKE.h" />
+    <ClInclude Include="solutionGeneratorVS.h" />
+    <ClInclude Include="toolBuild.h" />
+    <ClInclude Include="toolConfigure.h" />
+    <ClInclude Include="toolEmbed.h" />
+    <ClInclude Include="toolGlueFiles.h" />
+    <ClInclude Include="toolLibrary.h" />
+    <ClInclude Include="toolMake.h" />
+    <ClInclude Include="toolRelease.h" />
+    <ClInclude Include="toolReflection.h" />
+    <ClInclude Include="toolSign.h" />
+    <ClInclude Include="utils.h" />
+    <ClInclude Include="xmlUtils.h" />
+    <ClInclude Include="xml\rapidxml.hpp" />
+    <ClInclude Include="xml\rapidxml_iterators.hpp" />
+    <ClInclude Include="xml\rapidxml_print.hpp" />
+    <ClInclude Include="xml\rapidxml_utils.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\..\src\base\config\build.lua" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resources.rc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

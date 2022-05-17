@@ -1,0 +1,142 @@
+{
+  "FileVersion": 2,
+  "Id": "07f80e9f-268d-4dfd-9b26-b62bcead1a78",
+  "Items": [
+    {
+      "Id": "bd10dc9a-2a1d-4c4a-86d8-e8f9ab13d8b8",
+      "Command": "-interactive"
+    },
+    {
+      "Id": "b034bffb-e6fa-4d34-8a38-9895cb133222",
+      "Command": "-generator=cmake"
+    },
+    {
+      "Id": "d6abe501-f45e-47d1-8c03-74f0664049a9",
+      "Command": "-force"
+    },
+    {
+      "Id": "d422b8f9-482f-4df2-bb00-f9a2e14528f0",
+      "Command": "build"
+    },
+    {
+      "Id": "8b048d70-c195-4606-99f1-9abda2f8c1a7",
+      "Command": "make"
+    },
+    {
+      "Id": "77e22798-2e62-428d-b5c0-08ed7a43cf72",
+      "Command": "configure"
+    },
+    {
+      "Id": "39188646-5802-43cd-8ff2-fc7fa797486c",
+      "Command": "reflection"
+    },
+    {
+      "Id": "1270abad-e98d-4df0-8d18-9c1b5d941edc",
+      "Command": "library"
+    },
+    {
+      "Id": "58756693-b3c5-4994-aeed-6e9a93e52b9c",
+      "Command": "glue -source=\"Z:\\internal\\onion\\files\""
+    },
+    {
+      "Id": "d63bacc8-690e-4a9f-abda-0dad08aa2f3e",
+      "Command": "autoRelease"
+    },
+    {
+      "Id": "3dfb0a0d-73dd-4cc2-8f0b-4050ca6cad31",
+      "Command": "release"
+    },
+    {
+      "Id": "7916a755-7d2f-45bf-90e2-bfd44499d835",
+      "Command": "-module=\"Z:\\internal\\onion_test\\app_self_contained\""
+    },
+    {
+      "Id": "71c57d14-0de9-470e-a371-e38d750e8083",
+      "Command": "-file=\"Z:\\internal\\onion_packing\\test.dat\""
+    },
+    {
+      "Id": "20606617-a94d-47e1-80e1-90d66f378e81",
+      "Command": "-file=\"Z:\\internal\\onion\\.release\\onion.exe\""
+    },
+    {
+      "Id": "85148701-ce47-4c8d-8dde-c43123f6e36f",
+      "Command": "-target=\"Z:\\test\""
+    },
+    {
+      "Id": "1410c703-d13c-41c5-87f1-c9d343dadec1",
+      "Command": "-action=create"
+    },
+    {
+      "Id": "fc686cd0-0453-471d-a221-d7a04baccd0d",
+      "Command": "-action=add"
+    },
+    {
+      "Id": "80d820b9-513e-43de-9f42-c88875940822",
+      "Command": "-action=clear"
+    },
+    {
+      "Id": "54323276-a5ff-4e65-bd12-091c7ff30e39",
+      "Command": "-action=pack"
+    },
+    {
+      "Id": "c1f04eab-ace1-4f19-a612-a5c33c79a9b7",
+      "Command": "-action=list"
+    },
+    {
+      "Id": "fd561f7c-1b1c-4f67-9122-31f36475ff9a",
+      "Command": "-action=unpack"
+    },
+    {
+      "Id": "76b55ef7-3e4d-4856-b580-2bebfdf2635b",
+      "Command": "-action=discard"
+    },
+    {
+      "Id": "d38ec489-4073-47e1-b028-4498ac3f65d1",
+      "Command": "-action=publish"
+    },
+    {
+      "Id": "73e0868b-3e7f-4bd4-b8f5-fafaf152f817",
+      "Command": "-module=\"Z:\\internal\\onion_test\\app_with_lib\""
+    },
+    {
+      "Id": "6afa2e3a-cf12-439b-aaf0-a00bce7de937",
+      "Command": "-module=\"Z:\\internal\\onion_test\\app_with_external_static_lib\""
+    },
+    {
+      "Id": "cd2e0635-146b-426f-9fb9-b60f22102373",
+      "Command": "-library=Z:\\internal\\libraries_common\\zlib.onion"
+    },
+    {
+      "Id": "c4352e5f-d24c-4c23-b884-c8fcd520a7f1",
+      "Command": "-module=\"Z:\\internal\\onion_test\\common_static_lib\""
+    },
+    {
+      "Id": "7b10fe39-c1d4-4530-9c02-f97696704499",
+      "Command": "-module=\"Z:\\internal\\onion_test\\detached_lib\""
+    },
+    {
+      "Id": "99c0834a-aec8-4ed3-ba94-e77757e76e71",
+      "Command": "-module=\"Z:\\internal\\onion_test\\app_with_lib_and_tests\""
+    },
+    {
+      "Id": "eda88dd4-9e01-413f-baad-5d88653b18ae",
+      "Command": "-module=\"Z:\\internal\\onion_test\\bison_file\""
+    },
+    {
+      "Id": "694395c6-a8f2-4755-8a07-7b474fa3bb53",
+      "Command": "-module=\"Z:\\internal\\onion_test\\embed_file\""
+    },
+    {
+      "Id": "8084b8fd-a979-4f5e-b62c-8672d08a2b70",
+      "Command": "-module=\"Z:\\internal\\onion_test\\app_with_another_module_lib\""
+    },
+    {
+      "Id": "981d2835-43fd-47f2-94c8-5a0ff6b48617",
+      "Command": "-static"
+    },
+    {
+      "Id": "e4bca3cd-71df-482d-870c-81cd767aab08",
+      "Command": "-release"
+    }
+  ]
+}
