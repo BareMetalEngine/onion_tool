@@ -310,7 +310,7 @@ bool FileRepository::initialize(const fs::path& executablePath, const fs::path& 
 	return false;
 }
 
-bool FileRepository::extractLocalFile(const GluedFile* file)
+bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActualPath)
 {
 	// no extraction supported
 	if (m_extractedFilesPath.empty())
@@ -330,6 +330,7 @@ bool FileRepository::extractLocalFile(const GluedFile* file)
 		if (fileTime == file->timestamp)
 		{
 			std::cout << "Skipping file '" << file->name << "' as it's up to date\n";
+			outActualPath = targetFilePath;
 			return true;
 		}
 		else
@@ -357,6 +358,7 @@ bool FileRepository::extractLocalFile(const GluedFile* file)
 	}
 
 	// saved
+	outActualPath = targetFilePath;
 	return true;
 }
 
@@ -369,9 +371,11 @@ bool FileRepository::resolveDirectoryPath(std::string_view localPath, fs::path& 
 		const auto files = m_archive.findFiles(localPath);
 
 		bool valid = true;
+		fs::path tempPath;
 		for (const auto* it : files)
-			valid &= extractLocalFile(it);
+			valid &= extractLocalFile(it, tempPath);
 
+		outActualPath = (m_extractedFilesPath / localPath).make_preferred();
 		return valid;
 	}
 
@@ -399,7 +403,7 @@ bool FileRepository::resolveFilePath(std::string_view localPath, fs::path& outAc
 		// extract all files that begin with the prefix
 		if (const auto* file = m_archive.findFile(localPath))
 		{
-			return extractLocalFile(file);
+			return extractLocalFile(file, outActualPath);
 		}
 		else
 		{

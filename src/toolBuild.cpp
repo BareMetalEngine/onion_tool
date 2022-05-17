@@ -66,7 +66,7 @@ static bool BuildConfigurationVS(const Configuration& cfg, const Commandline& cm
 {
 	// get the path to the ms build
 	std::stringstream msBuildPathStr;
-	if (0 != RunWithArgsAndCaptureOutput("\"\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\"\" -latest -prerelease -products * -requires Microsoft.Component.MSBuild -find MSBuild\\**\\Bin\\MSBuild.exe", msBuildPathStr))
+	if (!RunWithArgsAndCaptureOutput("\"\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\"\" -latest -prerelease -products * -requires Microsoft.Component.MSBuild -find MSBuild\\**\\Bin\\MSBuild.exe", msBuildPathStr))
 	{
 		std::cerr << KRED << "[BREAKING] Failed to determine path to MSBuild.exe, is the Visual Studio installed?\n" << RST;
 		return false;

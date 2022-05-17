@@ -52,7 +52,7 @@ private:
 	fs::path m_rootFileSystemPath;
 	fs::path m_extractedFilesPath;
 
-	bool extractLocalFile(const GluedFile* file);
+	bool extractLocalFile(const GluedFile* file, fs::path& outActualPath);
 };
 
 //--
