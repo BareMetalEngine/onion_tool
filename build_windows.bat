@@ -10,9 +10,11 @@ IF "%ONION_GIT_PUBLIC_TOKEN%" == "" (
 set MAIN_DIR=%cd%
 set OUTPUT_BINARY=%MAIN_DIR%\.build\bin\Release\onion.exe
 set RELEASE_DIR=%MAIN_DIR%\.release
-set RELEASE_BINARY=%MAIN_DIR%\.release\onion.exe
+set RELEASE_BINARY=%MAIN_DIR%\.release\onion\onion.exe
 set FILES_DIR=%MAIN_DIR%\files
 set BUILD_DIR=%MAIN_DIR%\.build
+
+GOTO Here
 
 REM -------------------------------------------
 
@@ -58,12 +60,28 @@ if ERRORLEVEL 1 goto Error
 
 REM -------------------------------------------
 
-ECHO Package...
+ECHO Sync...
+
+:Here
 
 if NOT EXIST %RELEASE_DIR% (
 	mkdir %RELEASE_DIR%
 	if ERRORLEVEL 1 goto Error
 )
+
+if EXIST %RELEASE_DIR%\onion (
+	rmdir /s/q %RELEASE_DIR%\onion
+)
+
+git clone https://github.com/BareMetalEngine/onion.git %RELEASE_DIR%\onion
+if ERRORLEVEL 1 goto Error
+
+if NOT EXIST %RELEASE_DIR%\onion (
+	echo Failed to sync the build output directory
+	goto Error
+)
+
+ECHO Package...
 
 if NOT EXIST %RELEASE_BINARY% (
 	copy %OUTPUT_BINARY% %RELEASE_BINARY%
@@ -74,17 +92,40 @@ if NOT EXIST %RELEASE_BINARY% (
 %OUTPUT_BINARY% glue -action=pack -file="%RELEASE_BINARY%" -source="%FILES_DIR%"
 if ERRORLEVEL 1 goto Error
 
+ECHO Submit...
+
+PUSHD %RELEASE_DIR%\\onion
+GIT add -f onion.exe
+if ERRORLEVEL 1 (
+	popd
+	goto Error
+)
+
+GIT commit -m "Updated compiled windows binaries"
+if ERRORLEVEL 1 (
+	popd
+	goto Error
+)
+
+GIT push
+if ERRORLEVEL 1 (
+	popd
+	goto Error
+)
+
+POPD
+
 REM -------------------------------------------
 
-ECHO Publish...
-%OUTPUT_BINARY% release -action=create
-if ERRORLEVEL 1 goto Error
+REM ECHO Publish...
+REM %OUTPUT_BINARY% release -action=create
+REM if ERRORLEVEL 1 goto Error
 
-%OUTPUT_BINARY% release -action=add -file="%RELEASE_BINARY%"
-if ERRORLEVEL 1 goto CancelRelease
+REM %OUTPUT_BINARY% release -action=add -file="%RELEASE_BINARY%"
+REM if ERRORLEVEL 1 goto CancelRelease
 
-%OUTPUT_BINARY% release -action=publish
-if ERRORLEVEL 1 goto CancelRelease
+REM %OUTPUT_BINARY% release -action=publish
+REM if ERRORLEVEL 1 goto CancelRelease
 
 REM -------------------------------------------
 
@@ -104,11 +145,11 @@ ECHO ----------------------------------------
 CD %MAIN_DIR%
 
 IF EXIST %RELEASE_DIR% (
-rmdir /s/q %RELEASE_DIR%
+REM rmdir /s/q %RELEASE_DIR%
 )
 
 IF EXIST %BUILD_DIR% (
-	rmdir /s/q %BUILD_DIR%
+REM rmdir /s/q %BUILD_DIR%
 )
 
 EXIT /B 1
