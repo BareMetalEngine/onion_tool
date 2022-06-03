@@ -182,7 +182,11 @@ extern bool CreateDirectories(const fs::path& path);
 
 extern bool CopyNewerFile(const fs::path& source, const fs::path& target, bool* outActuallyCopied = nullptr);
 
+extern bool CopyFile(const fs::path& source, const fs::path& target);
+
 extern bool CopyNewerFilesRecursive(const fs::path& sourceDir, const fs::path& targetDir, uint32_t* outActuallyCopied = nullptr);
+
+extern bool CopyFilesRecursive(const fs::path& sourceDir, const fs::path& targetDir, uint32_t* outActuallyCopied = nullptr);
 
 extern std::string ReplaceAll(std::string_view txt, std::string_view what, std::string_view replacement);
 

@@ -4,16 +4,27 @@ orbs:
   win: circleci/windows@2.2.0
 
 jobs:
-  compile_windows:    
+  compile_windows:
     executor: win/default
+    parameters:
+      lib:
+        type: string
     steps:
       - checkout
       - run: choco install cmake -y
-      - run: $env:Path+=";$Env:ProgramFiles\CMake\bin"; ./build_windows.bat
+      - run: git clone httsp://github.com/BareMetalEngine/onion C:\onion
+      - run: C:\onion\onion.exe library -library=<<parameters.lib>>
 
 workflows:
   say-hello-workflow:
     jobs:
       - compile_windows:
-          context: 
-            - main
+          lib: "scripts/zlib.onion"
+      - compile_windows:
+          lib: "scripts/lz4.onion"
+      - compile_windows:
+          lib: "scripts/ofbx.onion"
+      - compile_windows:
+          lib: "scripts/lua.onion"
+      - compile_windows:
+          lib: "scripts/imgui.onion"

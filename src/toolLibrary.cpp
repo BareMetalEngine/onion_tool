@@ -5,16 +5,22 @@
 #include "libraryManifest.h"
 #include "externalLibrary.h"
 #include "git.h"
+#include <thread>
 
 //--
 
 struct ToolLibraryConfig
 {
 	fs::path libraryManifestPath; // file path
-	fs::path srcRootPath;
-	fs::path buildRootPath;
-	fs::path deployRootPath;
-	fs::path packageRootPath;
+	fs::path tempRootPath; // ($ManifsetDir)/.temp
+	fs::path srcRootPath; // ($ManifsetDir)/.temp/source
+	fs::path buildRootPath; // ($ManifsetDir)/.temp/build
+	fs::path deployRootPath; // ($ManifsetDir)/.temp/out
+	fs::path packageRootPath; // ($ManifsetDir)/.temp/package
+	fs::path commitRootPath; // ($ManifsetDir)/.temp/commit
+	fs::path downloadRootPath; // ($ManifsetDir)/.temp/download
+	fs::path dependenciesRootPath; // ($ManifsetDir)/.temp/dependencies
+	fs::path hacksRootPath; // ($ManifsetDir)/hacks
 	PlatformType platform = DefaultPlatform();
 
 	bool performClone = true;
@@ -26,12 +32,16 @@ struct ToolLibraryConfig
 	bool ignorePullErrors = false;
 	bool forceOperation = false;
 	bool releaseToGitHub = false;
+	bool commitToGitHub = false;
 
-	fs::path srcPath;
-	fs::path buildPath;
-	fs::path deployPath;
+	fs::path srcPath; // {$ManifsetDir}/.source/{$LibraryName}
+	fs::path buildPath; // {$ManifsetDir}/.build/{$LibraryName}
+	fs::path deployPath; // {$ManifsetDir}/.out/{$LibraryName}
+	fs::path hackPath; // {$ManifsetDir}/hacks/{$LibraryName}
 	
 	std::string releaseName;
+	std::string commitRepo;
+	std::string commitToken;
 };
 
 static std::string FormatReleaseName()
@@ -68,7 +78,7 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 		const auto libraryPath = fs::weakly_canonical(fs::path(str).make_preferred());
 		if (!fs::is_regular_file(libraryPath))
 		{
-			std::cerr << KRED "[BREAKING] File \"" << libraryPath << "\" does not exit\n" << RST;
+			std::cerr << KRED "[BREAKING] File " << libraryPath << " does not exist\n" << RST;
 			return false;
 		}
 
@@ -76,10 +86,28 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 	}
 
 	{
+		const auto str = cmdline.get("tempPath");
+		if (str.empty())
+		{
+			outConfig.tempRootPath = (outConfig.libraryManifestPath.parent_path() / ".temp").make_preferred();
+		}
+		else
+		{
+			outConfig.tempRootPath = fs::weakly_canonical(fs::path(str).make_preferred());
+		}
+
+		if (!CreateDirectories(outConfig.tempRootPath))
+		{
+			std::cerr << KRED "[BREAKING] Failed to create directory \"" << outConfig.tempRootPath << "\n" << RST;
+			return false;
+		}
+	}
+
+	{
 		const auto str = cmdline.get("srcPath");
 		if (str.empty())
 		{
-			outConfig.srcRootPath = (outConfig.libraryManifestPath.parent_path() / ".source").make_preferred();
+			outConfig.srcRootPath = (outConfig.tempRootPath / "source").make_preferred();
 		}
 		else
 		{
@@ -97,7 +125,7 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 		const auto str = cmdline.get("buildPath");
 		if (str.empty())
 		{
-			outConfig.buildRootPath = (outConfig.libraryManifestPath.parent_path() / ".build").make_preferred();
+			outConfig.buildRootPath = (outConfig.tempRootPath / "build").make_preferred();
 		}
 		else
 		{
@@ -112,10 +140,28 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 	}
 
 	{
+		const auto str = cmdline.get("commitPath");
+		if (str.empty())
+		{
+			outConfig.commitRootPath = (outConfig.tempRootPath / "commit").make_preferred();
+		}
+		else
+		{
+			outConfig.commitRootPath = fs::weakly_canonical(fs::path(str).make_preferred());
+		}
+
+		if (!CreateDirectories(outConfig.commitRootPath))
+		{
+			std::cerr << KRED "[BREAKING] Failed to create directory \"" << outConfig.commitRootPath << "\n" << RST;
+			return false;
+		}
+	}
+
+	{
 		const auto str = cmdline.get("deployPath");
 		if (str.empty())
 		{
-			outConfig.deployRootPath = (outConfig.libraryManifestPath.parent_path() / ".out").make_preferred();
+			outConfig.deployRootPath = (outConfig.tempRootPath / "deploy").make_preferred();
 		}
 		else
 		{
@@ -133,7 +179,7 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 		const auto str = cmdline.get("packagePath");
 		if (str.empty())
 		{
-			outConfig.packageRootPath = (outConfig.libraryManifestPath.parent_path() / ".packages").make_preferred();
+			outConfig.packageRootPath = (outConfig.tempRootPath / "packages").make_preferred();
 		}
 		else
 		{
@@ -144,6 +190,54 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 		{
 			std::cerr << KRED "[BREAKING] Failed to create directory \"" << outConfig.packageRootPath << "\n" << RST;
 			return false;
+		}
+	}
+
+	{
+		const auto str = cmdline.get("downloadPath");
+		if (str.empty())
+		{
+			outConfig.downloadRootPath = (outConfig.tempRootPath / "download").make_preferred();
+		}
+		else
+		{
+			outConfig.downloadRootPath = fs::weakly_canonical(fs::path(str).make_preferred());
+		}
+
+		if (!CreateDirectories(outConfig.downloadRootPath))
+		{
+			std::cerr << KRED "[BREAKING] Failed to create directory \"" << outConfig.downloadRootPath << "\n" << RST;
+			return false;
+		}
+	}
+
+	{
+		const auto str = cmdline.get("dependenciesPath");
+		if (str.empty())
+		{
+			outConfig.dependenciesRootPath = (outConfig.tempRootPath / "dependencies").make_preferred();
+		}
+		else
+		{
+			outConfig.dependenciesRootPath = fs::weakly_canonical(fs::path(str).make_preferred());
+		}
+
+		if (!CreateDirectories(outConfig.dependenciesRootPath))
+		{
+			std::cerr << KRED "[BREAKING] Failed to create directory \"" << outConfig.dependenciesRootPath << "\n" << RST;
+			return false;
+		}
+	}	
+
+	{
+		const auto str = cmdline.get("hacksPath");
+		if (str.empty())
+		{
+			outConfig.hacksRootPath = (outConfig.libraryManifestPath.parent_path() / "hacks").make_preferred();
+		}
+		else
+		{
+			outConfig.hacksRootPath = fs::weakly_canonical(fs::path(str).make_preferred());
 		}
 	}
 
@@ -171,6 +265,19 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 			outConfig.releaseName = FormatReleaseName();
 		else
 			outConfig.releaseName = str;
+	}
+
+	if (cmdline.has("commit"))
+	{
+		outConfig.commitToGitHub = true;
+
+		const auto str = cmdline.get("commit");
+		if (str.empty())
+			outConfig.commitRepo = DEFAULT_DEPENDENCIES_REPO;
+		else
+			outConfig.commitRepo = str;
+
+		outConfig.commitToken = cmdline.get("token");
 	}
 
 	outConfig.forceOperation = cmdline.has("force");
@@ -247,13 +354,81 @@ static bool LibraryCloneRepo_GitHub(const LibraryManifest& lib, ToolLibraryConfi
 		lib.rootHash = Trim(hash.str());
 	}
 
+	// apply hacks
+	if (fs::is_directory(config.hackPath))
+	{
+		std::cout << KYEL << "Applying hacks to library!\n" << RST;
+
+		uint32_t numCopied = 0;
+		if (!CopyFilesRecursive(config.hackPath, config.srcPath, &numCopied))
+		{
+			std::cerr << KRED << "[BREAKING] Failed to apply hack to library '" << lib.name << "' in directory " << config.srcPath << "\n" << RST;
+			return false;
+		}
+
+		std::cout << KYEL << "Applied " << numCopied << " hack files to library '" << lib.name << "'\n" << RST;
+	}
+
 	std::cout << KGRN << "Fetched library '" << lib.name << "' from repository " << lib.sourceURL << "' at hash " << lib.rootHash << "\n" << RST;
 	return true;
 }
 
 static bool LibraryCloneRepo_URL(const LibraryManifest& lib, ToolLibraryConfig& config)
 {
-	return false;
+	const auto downloadPathName = PartAfterLast(lib.sourceURL, "/");
+	if (downloadPathName.empty())
+	{
+		std::cerr << KRED << "[BREAKING] Download URL '" << lib.sourceURL << "' does not contain valid file name\n" << RST;
+		return false;
+	}
+
+	const auto downloadFileName = (config.downloadRootPath / downloadPathName).make_preferred();
+	{
+		// curl --silent -z onion.exe -L -O https://github.com/BareMetalEngine/onion_tool/releases/latest/download/onion.exe
+		std::stringstream cmd;
+		cmd << "curl --silent -z ";
+		cmd << downloadFileName;
+		cmd << " -L -o ";
+		cmd << downloadFileName;
+		cmd << " ";
+		cmd << lib.sourceURL;
+
+		std::cout << cmd.str() << "\n";
+
+		if (!RunWithArgs(cmd.str()))
+		{
+			std::cerr << KRED << "[BREAKING] Failed to download file from '" << lib.sourceURL << "\n" << RST;
+			return false;
+		}
+
+		if (!fs::is_regular_file(downloadFileName))
+		{ 
+			std::cerr << KRED << "[BREAKING] Downloaded file '" << downloadFileName << "' does not exist\n" << RST;
+			return false;
+		}
+	}
+
+	if (!fs::is_directory(config.srcPath))
+	{
+		if (!CreateDirectories(config.srcPath))
+			return false;
+
+		std::stringstream cmd;
+		cmd << "tar -xvf ";
+		cmd << downloadFileName;
+		cmd << " -C ";
+		cmd << config.srcPath;
+
+		std::cout << cmd.str() << "\n";
+
+		if (!RunWithArgs(cmd.str()))
+		{
+			std::cerr << KRED << "[BREAKING] Failed to download file from '" << lib.sourceURL << "\n" << RST;
+			return false;
+		}
+	}
+
+	return true;
 }
 
 static bool LibraryCloneRepo(const LibraryManifest& lib, ToolLibraryConfig& config)
@@ -268,11 +443,215 @@ static bool LibraryCloneRepo(const LibraryManifest& lib, ToolLibraryConfig& conf
 
 //--
 
+static std::string MakeDependencyArchiveFileName(ToolLibraryConfig& config, const LibraryDependencyInfo& dep)
+{
+	std::stringstream str;
+	str << "libs/";
+	str << NameEnumOption(config.platform);
+	str << "/";
+	str << dep.name;
+	str << ".zip";
+	return str.str();
+}
+
+struct DependencySymbol
+{
+	std::string name;
+	fs::path value;
+};
+
+static bool LibraryInstallDependency(const LibraryManifest& lib, ToolLibraryConfig& config, const LibraryDependencyInfo& dep, std::vector<DependencySymbol>& outDefines)
+{
+	const auto dependencyDownloadDirectory = (config.dependenciesRootPath / "download").make_preferred();
+	const auto dependencyUnpackDirectory = (config.dependenciesRootPath / "unpacked" / dep.name).make_preferred();
+
+	if (!CreateDirectories(dependencyDownloadDirectory))
+		return false;
+	if (!CreateDirectories(dependencyUnpackDirectory))
+		return false;
+
+	const auto dependencyDirectory = (dependencyDownloadDirectory / dep.name).make_preferred();
+	const auto dependencyFile = MakeDependencyArchiveFileName(config, dep);
+	const auto dependencyFileFullPath = (dependencyDirectory / dependencyFile).make_preferred();
+
+	// sync only if not there already
+	if (!fs::is_directory(dependencyDirectory))
+	{
+		// partial sync of the target repo
+		// git clone --no-checkout --filter=blob:none https://github.com/BareMetalEngine/dependencies.git
+		{
+			std::stringstream command;
+			command << "git clone --sparse --no-checkout --filter=blob:none ";
+			command << dep.repo;
+			command << " ";
+			command << dep.name;
+			if (!RunWithArgsInDirectory(dependencyDownloadDirectory, command.str()))
+			{
+				std::cout << KRED << "Failed to fetch dependency repository " << dep.repo << "\n" << RST;
+				return false;
+			}
+		}
+
+		// setup the partial checkout
+		{
+			// git sparse-checkout set "/windows/zlib.zip"
+			std::stringstream command;
+			command << "git sparse-checkout set \"/"; // NOTE the / !!!
+			command << dependencyFile;
+			command << "\"";
+			if (!RunWithArgsInDirectory(dependencyDirectory, command.str()))
+			{
+				std::cout << KRED << "Failed to download dependency library for " << dep.name << "\n" << RST;
+				return false;
+			}
+		}
+
+		// checkout the current lib file
+		{
+			// git sparse-checkout set "/windows/zlib.zip"
+			std::stringstream command;
+			command << "git checkout";
+			if (!RunWithArgsInDirectory(dependencyDirectory, command.str()))
+			{
+				std::cout << KRED << "Failed to download dependency library for " << dep.name << "\n" << RST;
+				return false;
+			}
+		}
+	}
+
+	// pull the latest file
+	{
+		// git sparse-checkout set "/windows/zlib.zip"
+		std::stringstream command;
+		command << "git pull";
+		if (!RunWithArgsInDirectory(dependencyDirectory, command.str()))
+		{
+			std::cout << KRED << "Failed to download dependency library for " << dep.name << "\n" << RST;
+			return false;
+		}
+	}
+
+	// check if file exists 
+	if (!fs::is_regular_file(dependencyFileFullPath))
+	{
+		std::cout << KRED << "Failed to download dependency archive " << dependencyFileFullPath << "\n" << RST;
+		return false;
+	}
+
+	// decompress the directory
+	{
+		if (!CreateDirectories(dependencyUnpackDirectory))
+			return false;
+
+		std::stringstream cmd;
+		cmd << "tar -xvf ";
+		cmd << dependencyFileFullPath;
+		cmd << " -C ";
+		cmd << dependencyUnpackDirectory;
+
+		std::cout << cmd.str() << "\n";
+
+		if (!RunWithArgs(cmd.str()))
+		{
+			std::cerr << KRED << "[BREAKING] Failed to decompress downloaded dependency file '" << dependencyFileFullPath << "\n" << RST;
+			return false;
+		}
+	}
+
+	// check if library was properly unpacked
+	const auto dependencyManifestPath = (dependencyUnpackDirectory / (dep.name + ".onion")).make_preferred();
+	if (!fs::is_regular_file(dependencyManifestPath))
+	{
+		std::cerr << KRED << "[BREAKING] No library manifest found in unpacked dependency library at '" << dependencyManifestPath << "\n" << RST;
+		return false;
+	}
+
+	// load the library manifest
+	auto dependencyManifest = ExternalLibraryManifest::Load(dependencyManifestPath);
+	if (!dependencyManifest)
+	{
+		std::cerr << KRED << "[BREAKING] Failed to load library manifest found in unpacked dependency library at '" << dependencyManifestPath << "\n" << RST;
+		return false;
+	}
+
+	// include var ?
+	if (!dep.includeVar.empty())
+	{
+		if (!dependencyManifest->includePath.empty())
+		{
+			std::cout << "Found include '" << dep.includeVar << "' as " << dependencyManifest->includePath << "\n";
+			outDefines.push_back({ dep.includeVar, dependencyManifest->includePath });
+		}
+	}
+
+	// libraries ?
+	for (const auto& libVar : dep.libraryVars)
+	{
+		fs::path foundPath;
+
+		if (libVar.fileName.empty())
+		{
+			if (dependencyManifest->libraryFiles.size() == 1)
+			{
+				foundPath = dependencyManifest->libraryFiles[0];
+			}
+		}
+		else
+		{
+			for (const auto& libFile : dependencyManifest->libraryFiles)
+			{
+				if (libFile.filename().u8string() == libVar.fileName)
+				{
+					foundPath = libFile;
+					break;
+				}
+			}
+		}
+
+		if (foundPath.empty())
+		{
+			std::cerr << KRED << "[BREAKING] Dependency library '" << dep.name << "' has no library file named '" << libVar.fileName << "'\n" << RST;
+			return false;
+		}
+		else
+		{
+			std::cout << "Found library '" << libVar.varName << "' as " << foundPath << "\n";
+			outDefines.push_back({ libVar.varName, foundPath });
+		}
+	}
+
+	return true;
+}
+
+//--
+
+static std::string FormatAdditionalDefines(const std::vector<DependencySymbol>& defs)
+{
+	std::stringstream str;
+
+	for (const auto& def : defs)
+	{
+		str << "-D";
+		str << def.name;
+		str << "=";
+		str << def.value;
+		str << " ";
+	}
+
+	return str.str();
+}
+
 static bool LibraryConfigure(const LibraryManifest& lib, ToolLibraryConfig& config)
 {
 	// make sure build directory exists
 	if (!CreateDirectories(config.buildPath))
 		return false;
+
+	// install dependencies
+	std::vector<DependencySymbol> additionalDefines;
+	for (const auto& dep : lib.dependencies)
+		if (!LibraryInstallDependency(lib, config, dep, additionalDefines))
+			return false;
 	
 	// run the config command in the build directory
 	const auto runDirectory = fs::weakly_canonical((config.buildPath / lib.configRelativePath).make_preferred());
@@ -284,6 +663,7 @@ static bool LibraryConfigure(const LibraryManifest& lib, ToolLibraryConfig& conf
 	auto command = lib.configCommand;
 	command = ReplaceAll(command, "${SourcePath}", sourceRelativeToBuild.u8string());
 	command = ReplaceAll(command, "${SourceAbsPath}", config.srcPath.u8string());
+	command = ReplaceAll(command, "${AdditionalDefines}", FormatAdditionalDefines(additionalDefines));
 
 	// run the command
 	if (!RunWithArgsInDirectory(runDirectory, command))
@@ -310,11 +690,15 @@ static bool LibraryBuild(const LibraryManifest& lib, ToolLibraryConfig& config)
 
 	// determine the relative path
 	const auto buildRelativeToRun = fs::relative(config.buildPath, runDirectory).make_preferred();
+	const auto sourceRelativeToRun = fs::relative(config.srcPath, runDirectory).make_preferred();
 
 	// replace some stuff in the command
 	auto command = lib.buildCommand;
+	command = ReplaceAll(command, "${SourcePath}", sourceRelativeToRun.u8string());
+	command = ReplaceAll(command, "${SourceAbsPath}", config.srcPath.u8string());
 	command = ReplaceAll(command, "${BuildPath}", buildRelativeToRun.u8string());
-	command = ReplaceAll(command, "${BuildAbsPath}", config.srcPath.u8string());
+	command = ReplaceAll(command, "${BuildAbsPath}", config.buildPath.u8string());
+	command = ReplaceAll(command, "${NumThreads}", std::to_string(std::thread::hardware_concurrency()));
 
 	// run the command
 	if (!RunWithArgsInDirectory(runDirectory, command))
@@ -633,9 +1017,9 @@ static bool LibraryPackage(const LibraryManifest& lib, ToolLibraryConfig& config
 	}
 
 	// package
-	{
+	{	
 		std::stringstream command;
-		command << "tar -acf ";
+		command << "tar -cavf ";
 		command << EscapeArgument(archivePath.u8string());
 		command << " .";
 
@@ -716,6 +1100,190 @@ static bool LibraryRelease(GitHubConfig& git, const LibraryManifest& lib, ToolLi
 
 //--
 
+static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLibraryConfig& config)
+{
+	// get manifest for the library and load it
+	const auto manifestPath = LibraryManifestPath(lib, config);
+	const auto manifest = ExternalLibraryManifest::Load(manifestPath);
+	if (!manifest)
+	{
+		std::cerr << KRED << "[BREAKING] Failed to load output manifest for library '" << lib.name << "', was the library built and deployed correctly?\n" << RST;
+		return false;
+	}
+
+	// get archive name
+	const auto archivePath = LibraryArchivePath(*manifest, config);
+	if (!fs::is_regular_file(archivePath))
+	{
+		std::cerr << KRED << "[BREAKING] Archived library file " << archivePath << " does not exist, there's nothing to publish" << RST;
+		return false;
+	}
+
+	// target file for publishing
+	std::string libraryFile;
+	libraryFile += "libs/";
+	libraryFile += NameEnumOption(config.platform);
+	libraryFile += "/";
+	libraryFile += lib.name;
+	libraryFile += ".zip";
+
+	// determine checkout directory
+	uint32_t count = 1;
+	auto checkoutDirName = std::string("upload");
+	auto checkoutDir = (config.commitRootPath / checkoutDirName).make_preferred();
+	while (fs::is_directory(checkoutDir))
+	{
+		checkoutDirName = std::string("upload") + std::to_string(count);
+		checkoutDir = (config.commitRootPath / checkoutDirName).make_preferred();
+		count += 1;
+	}
+
+	// list found directory
+	std::cout << "Found unused upload directory at " << checkoutDir << "\n";
+
+	// partial sync of the target repo
+	// git clone --no-checkout --filter=blob:none https://github.com/BareMetalEngine/dependencies.git
+	{
+		std::stringstream command;
+		command << "git clone --sparse --no-checkout --filter=blob:none ";
+		command << config.commitRepo;
+		command << " ";
+		command << checkoutDirName;
+		if (!RunWithArgsInDirectory(config.commitRootPath, command.str()))
+		{
+			std::cout << KRED << "Failed to package " << archivePath << "\n" << RST;
+			return false;
+		}
+	}
+
+	// setup the partial checkout
+	{
+		// git sparse-checkout set "/windows/zlib.zip"
+		std::stringstream command;
+		command << "git sparse-checkout set \"/"; // NOTE the / !!!
+		command << libraryFile;
+		command << "\"";
+		if (!RunWithArgsInDirectory(checkoutDir, command.str()))
+		{
+			std::cout << KRED << "Failed to setup sparse checkout\n" << RST;
+			return false;
+		}
+	}
+
+	// checkout the current lib file
+	{
+		// git sparse-checkout set "/windows/zlib.zip"
+		std::stringstream command;
+		command << "git checkout";
+		if (!RunWithArgsInDirectory(checkoutDir, command.str()))
+		{
+			std::cout << KRED << "Failed to setup sparse checkout\n" << RST;
+			return false;
+		}
+	}
+
+	// copy the file
+	const auto targetFile = (checkoutDir / libraryFile).make_preferred();
+	if (!CopyFile(archivePath, targetFile))
+	{
+		std::cout << KRED << "Failed to copy " << archivePath << "\n" << RST;
+		return false;
+	}
+
+	// add to commit
+	{
+		// git add "windows/zlib.zip"
+		std::stringstream command;
+		command << "git add \"";
+		command << libraryFile;
+		command << "\"";
+		if (!RunWithArgsInDirectory(checkoutDir, command.str()))
+		{
+			std::cout << KRED << "Failed to setup sparse checkout\n" << RST;
+			return false;
+		}
+	}
+
+	// nothing to commit ?
+	// git diff --exit-code
+	{
+		int outCode = 0;
+
+		// git add "windows/zlib.zip"
+		std::stringstream command;
+		command << "git diff --cached --exit-code";
+		RunWithArgsInDirectory(checkoutDir, command.str(), &outCode);
+
+		if (0 == outCode)
+		{
+			std::cout << "Nothing to submit!\n";
+			return true;
+		}
+	}
+
+	// make a commit
+	{
+		// git add "windows/zlib.zip"
+		std::stringstream command;
+		command << "git commit -m \"[ci skip] Uploaded ";
+		command << lib.name;
+		command << " for ";
+		command << NameEnumOption(config.platform);
+		if (!lib.rootHash.empty())
+			command << " (built from hash " << lib.rootHash << ")";
+		command << "\"";
+		if (!RunWithArgsInDirectory(checkoutDir, command.str()))
+		{
+			std::cout << KRED << "Failed to create commit\n" << RST;
+			return false;
+		}
+	}
+
+	// push the update
+	double waitTime = 1.0;
+	int numRetries = 20;
+	while (numRetries-- > 0)
+	{
+		// push the update
+		{
+			// git add "windows/zlib.zip"
+			std::stringstream command;
+			command << "git push ";
+			if (!config.commitToken.empty())
+			{
+				const auto coreRepoName = PartAfter(config.commitToken, "https://");
+				command << "-q https://" << config.commitToken << "@" << coreRepoName;
+			}
+
+			if (RunWithArgsInDirectory(checkoutDir, command.str()))
+				break;
+		}
+
+		// wait
+		std::cout << "Initial push failed, waiting for " << waitTime << "\n";
+		std::this_thread::sleep_for(std::chrono::duration<double>(waitTime));
+		waitTime = waitTime * 1.5f;
+
+		// pull with rebase
+		{
+			// git add "windows/zlib.zip"
+			std::stringstream command;
+			command << "git pull --rebase";
+			if (!RunWithArgsInDirectory(checkoutDir, command.str()))
+			{
+				std::cout << KRED << "Failed to rebase after failed push\n" << RST;
+				return false;
+			}
+		}
+	}
+
+	// updated
+	std::cout << KRED << "Failed to push file\n" << RST;
+	return false;
+}
+
+//--
+
 ToolLibrary::ToolLibrary()
 {}
 
@@ -768,6 +1336,8 @@ int ToolLibrary::run(const char* argv0, const Commandline& cmdline)
 	else
 		config.buildPath = (config.buildRootPath / library->name).make_preferred();
 	config.deployPath = (config.deployRootPath / library->name).make_preferred();
+	config.hackPath = (config.hacksRootPath / library->name).make_preferred();
+	std::cout << "Hack path: " << config.hackPath << " " << fs::is_directory(config.hackPath) << "\n";
 
 	//--
 
@@ -830,6 +1400,15 @@ int ToolLibrary::run(const char* argv0, const Commandline& cmdline)
 		if (!LibraryPackage(*library, config))
 		{
 			std::cerr << KRED << "[BREAKING] Package step for library " << library->name << " failed\n" << RST;
+			return 1;
+		}
+	}
+
+	if (config.commitToGitHub)
+	{
+		if (!LibraryCommit(git, *library, config))
+		{
+			std::cerr << KRED << "[BREAKING] Release step for library " << library->name << " failed\n" << RST;
 			return 1;
 		}
 	}

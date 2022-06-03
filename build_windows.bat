@@ -14,22 +14,16 @@ set RELEASE_BINARY=%MAIN_DIR%\.release\onion\onion.exe
 set FILES_DIR=%MAIN_DIR%\files
 set BUILD_DIR=%MAIN_DIR%\.build
 
-GOTO Here
-
 REM -------------------------------------------
 
 if EXIST %RELEASE_DIR% (
 	ECHO Cleanup release dir...
-
 	rmdir /s/q %RELEASE_DIR%
-	if ERRORLEVEL 1 goto Error
 )
 
 if EXIST %BUILD_DIR% (
 	ECHO Cleanup build dir...
-
 	rmdir /s/q %BUILD_DIR%
-	if ERRORLEVEL 1 goto Error
 )
 
 REM -------------------------------------------
@@ -87,6 +81,7 @@ if NOT EXIST %RELEASE_BINARY% (
 	copy %OUTPUT_BINARY% %RELEASE_BINARY%
 	if ERRORLEVEL 1 goto Error
 	if NOT EXIST %RELEASE_BINARY% goto Error
+	ECHO Copied into '%RELEASE_BINARY%'
 )
 
 %OUTPUT_BINARY% glue -action=pack -file="%RELEASE_BINARY%" -source="%FILES_DIR%"
@@ -101,16 +96,21 @@ if ERRORLEVEL 1 (
 	goto Error
 )
 
-GIT commit -m "Updated compiled windows binaries"
+GIT diff --exit-code
 if ERRORLEVEL 1 (
-	popd
-	goto Error
-)
+	GIT commit -m "Updated compiled windows binaries
+	if ERRORLEVEL 1 (
+		popd
+		goto Error
+	)
 
-GIT push
-if ERRORLEVEL 1 (
-	popd
-	goto Error
+	GIT push
+	if ERRORLEVEL 1 (
+		popd
+		goto Error
+	)
+) else (
+	ECHO Nothing to update!
 )
 
 POPD

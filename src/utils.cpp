@@ -1709,6 +1709,27 @@ bool CopyNewerFile(const fs::path& source, const fs::path& target, bool* outActu
     }
 }
 
+bool CopyFile(const fs::path& source, const fs::path& target)
+{
+	try
+	{
+		if (!fs::is_regular_file(source))
+			return false;
+
+		std::cout << "Copying " << target << "\n";
+		fs::remove(target);
+		fs::create_directories(target.parent_path());
+		fs::copy(source, target);
+
+		return true;
+	}
+	catch (std::exception& e)
+	{
+		std::cerr << KRED << "[BREAKING] Failed to copy file: " << e.what() << "\n" << RST;
+		return false;
+	}
+}
+
 bool CopyNewerFilesRecursive(const fs::path& sourceDir, const fs::path& targetDir, uint32_t* outActuallyCopied)
 {
 	try
@@ -1756,6 +1777,51 @@ bool CopyNewerFilesRecursive(const fs::path& sourceDir, const fs::path& targetDi
 	}
 }
 
+bool CopyFilesRecursive(const fs::path& sourceDir, const fs::path& targetDir, uint32_t* outActuallyCopied)
+{
+	try
+	{
+		if (!fs::is_directory(sourceDir))
+			return false;
+
+		if (!fs::is_directory(targetDir))
+		{
+			std::error_code ec;
+			if (!fs::create_directories(targetDir, ec))
+			{
+				std::cerr << KRED << "[BREAKING] Failed to create directory: " << targetDir << ": " << ec << "\n" << RST;
+				return false;
+			}
+		}
+
+		for (const auto& entry : fs::directory_iterator(sourceDir))
+		{
+			const auto name = entry.path().filename().u8string();
+			const auto targetChildName = targetDir / name;
+
+			if (entry.is_directory())
+			{
+				if (!CopyFilesRecursive(entry.path(), targetChildName, outActuallyCopied))
+					return false;
+			}
+			else if (entry.is_regular_file())
+			{
+				if (!CopyFile(entry.path(), targetChildName))
+					return false;
+
+				if (outActuallyCopied)
+					*outActuallyCopied += 1;
+			}
+		}
+
+		return true;
+	}
+	catch (std::exception& e)
+	{
+		std::cerr << KRED << "[BREAKING] Failed to copy directories: " << e.what() << "\n" << RST;
+		return false;
+	}
+}
 
 //--
 

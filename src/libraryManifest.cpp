@@ -128,6 +128,53 @@ static bool EvalLibraryArtifact(LibraryManifest* manifest, const XMLNode* node, 
 	return true;
 }
 
+static bool EvalLibraryDependency(LibraryManifest* manifest, const XMLNode* node, const LibraryFilters& filters)
+{
+	LibraryDependencyInfo info;
+	info.repo = DEFAULT_DEPENDENCIES_REPO;
+
+	bool valid = true;
+	XMLNodeIterate(node, [&valid, &info, &filters](const XMLNode* node, std::string_view option)
+		{
+			if (!EvalFilters(node, filters))
+				return;
+
+			if (option == "Library")
+				info.name = XMLNodeValue(node);
+			else if (option == "Repository")
+				info.repo = XMLNodeValue(node);
+			else if (option == "IncludeVar")
+				info.includeVar = XMLNodeValue(node);
+			else if (option == "LibraryVar")
+			{
+				LibraryDependencyVar var;
+				var.varName = XMLNodeValue(node);
+				var.fileName = XMLNodeAttrbiute(node, "file");
+				info.libraryVars.push_back(var);
+			}
+			else
+			{
+				std::cerr << "Unknown library's manifest option '" << option << "'\n";
+				valid = false;
+			}
+		});
+
+	if (info.name.empty())
+	{
+		std::cerr << KRED << "[BREAKING] Missing name of the library dependency in a library manifest from '" << manifest->loadPath << "\n" << RST;
+		return false;
+	}
+	
+	if (!valid)
+	{
+		std::cerr << KRED << "[BREAKING] There were errors parsing artifact definition in a library manifest from '" << manifest->loadPath << "\n" << RST;
+		return false;
+	}
+
+	manifest->dependencies.push_back(info);
+	return true;
+}
+
 //--
 
 LibraryFilters::LibraryFilters()
@@ -192,8 +239,12 @@ std::unique_ptr<LibraryManifest> LibraryManifest::Load(const fs::path& manifestP
 				ret->configCommand = XMLNodeValue(node);
 			else if (option == "BuildCommand")
 				ret->buildCommand = XMLNodeValue(node);
+			else if (option == "SourceBuild")
+				ret->sourceBuild = XMLNodeValueBool(node);
 			else if (option == "Artifact")
 				valid &= EvalLibraryArtifact(ret.get(), node, filters);
+			else if (option == "Dependency")
+				valid &= EvalLibraryDependency(ret.get(), node, filters);
 			else
 			{
 				std::cerr << "Unknown library's manifest option '" << option << "'\n";

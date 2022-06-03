@@ -1,8 +1,8 @@
 #pragma once
 
-
-
 //--
+
+#define DEFAULT_DEPENDENCIES_REPO "https://github.com/BareMetalEngine/dependencies"
 
 /*
 Old python definition
@@ -70,6 +70,21 @@ struct LibraryArtifactInfo
 	bool recursive = false;
 };
 
+struct LibraryDependencyVar
+{
+	std::string fileName;
+	std::string varName;
+};
+
+struct LibraryDependencyInfo
+{
+	std::string name; // name of the library
+	std::string repo; // repository
+
+	std::string includeVar;
+	std::vector<LibraryDependencyVar> libraryVars;
+};
+
 struct LibraryFilters
 {
 	PlatformType platform;
@@ -107,6 +122,7 @@ struct LibraryManifest
 	//--
 
 	std::vector<LibraryArtifactInfo> artifacts;
+	std::vector<LibraryDependencyInfo> dependencies;
 
 	//--
 
