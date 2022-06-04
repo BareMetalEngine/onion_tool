@@ -1109,34 +1109,42 @@ bool LoadFileToBuffer(const fs::path& path, std::vector<uint8_t>& outBuffer)
 	}
 }
 
-bool SaveFileFromString(const fs::path& path, std::string_view txt, bool print /*=true*/, bool force /*= false*/, uint32_t* outCounter, fs::file_time_type customTime /*= fs::file_time_type()*/)
+bool SaveFileFromString(const fs::path& path, std::string_view txt, bool force /*= false*/, bool print /*=true*/, uint32_t* outCounter, fs::file_time_type customTime /*= fs::file_time_type()*/)
 {
     std::string newContent(txt);
 
     if (!force)
     {
-        std::string currentContent;
-        if (LoadFileToString(path, currentContent))
+        if (fs::is_regular_file(path))
         {
-            if (currentContent == txt)
+            std::string currentContent;
+            if (LoadFileToString(path, currentContent))
             {
-                if (customTime != fs::file_time_type())
+                if (currentContent == txt)
                 {
-                    if (print)
+                    if (customTime != fs::file_time_type())
                     {
-                        const auto currentTimeStamp = fs::last_write_time(path);
-                        std::cout << "File " << path << " is the same, updating timestamp only to " << customTime.time_since_epoch().count() << ", current: " << currentTimeStamp.time_since_epoch().count() << "\n";
+                        if (print)
+                        {
+                            const auto currentTimeStamp = fs::last_write_time(path);
+                            std::cout << "File " << path << " is the same, updating timestamp only to " << customTime.time_since_epoch().count() << ", current: " << currentTimeStamp.time_since_epoch().count() << "\n";
+                        }
+
+                        fs::last_write_time(path, customTime);
                     }
 
-                    fs::last_write_time(path, customTime);
+                    return true;
                 }
-
-                return true;
             }
-        }
 
-        if (print)
-            std::cout << "File " << path << " has changed and has to be saved\n";
+            if (print)
+                std::cout << "File " << path << " has changed and has to be saved\n";
+        }
+        else
+        {
+            if (print)
+                std::cout << "File " << path << " does not exist and has to be saved\n";
+        }
     }
 
     {
@@ -1155,13 +1163,16 @@ bool SaveFileFromString(const fs::path& path, std::string_view txt, bool print /
         return false;
     }
 
+    if (print)
+        std::cout << "File " << path << " saved!\n";
+
     if (outCounter)
         (*outCounter) += 1;
 
     return true;
 }
 
-bool SaveFileFromBuffer(const fs::path& path, const std::vector<uint8_t>& buffer, bool print /*=true*/, bool force /*= false*/, uint32_t* outCounter, fs::file_time_type customTime /*= fs::file_time_type()*/)
+bool SaveFileFromBuffer(const fs::path& path, const std::vector<uint8_t>& buffer, bool force /*= false*/, bool print /*=true*/, uint32_t* outCounter, fs::file_time_type customTime /*= fs::file_time_type()*/)
 {
 	if (!force)
 	{

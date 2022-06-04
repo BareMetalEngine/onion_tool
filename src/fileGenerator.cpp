@@ -17,25 +17,27 @@ bool FileGenerator::saveFiles(bool print)
 {
     bool valid = true;
 
-    uint32_t numSavedFiles = 0;
+    std::atomic<uint32_t> numSavedFiles = 0;
 
-    if (files.size() < 6)
+    /*if (files.size() < 6)
     {
 		for (const auto* file : files)
 			valid &= SaveFileFromString(file->absolutePath, file->content.str(), false, print, & numSavedFiles, file->customtTime);
     }
-    else
+    else*/
     {
         #pragma omp parallel for
         for (int i = 0; i < files.size(); ++i)
         {
             const auto* file = files[i];
-            valid &= SaveFileFromString(file->absolutePath, file->content.str(), false, print, &numSavedFiles, file->customtTime);
+            uint32_t saved = 0;
+            valid &= SaveFileFromString(file->absolutePath, file->content.str(), false, print, &saved, file->customtTime);
+            numSavedFiles += saved;
         }
     }
 
     if (print)
-        std::cout << "Saved " << numSavedFiles << " files\n";
+        std::cout << "Saved " << numSavedFiles << " files (" << files.size() << " total)\n";
 
     if (!valid)
     {

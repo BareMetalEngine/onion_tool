@@ -247,17 +247,18 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
     writeln(f, "# Project files");
     for (const auto* pf : p->files)
     {
-        if (fs::is_regular_file(pf->absolutePath))
+        //if (fs::is_regular_file(pf->absolutePath) || pf->)
         {
             if (pf->type == ProjectFileType::CppSource)
                 writelnf(f, "list(APPEND FILE_SOURCES %s)", EscapePath(pf->absolutePath).c_str());
             else if (pf->type == ProjectFileType::CppHeader)
                 writelnf(f, "list(APPEND FILE_HEADERS %s)", EscapePath(pf->absolutePath).c_str());
         }
-        else
+        /*else
         {
-            std::cerr << "Missing file in sources " << pf->absolutePath << "\n";
-        }
+            std::cerr << "Missing file " << pf->absolutePath << " that is referenced in sources, was the file generated ?\n";
+            return false;
+        }*/
     }
     writeln(f, "");
 

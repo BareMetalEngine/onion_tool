@@ -3,7 +3,9 @@
 #include "fileRepository.h"
 
 #ifndef _WIN32
+#ifndef _POSIX_SOURCE
 #define _POSIX_SOURCE
+#endif
 #include <sys/stat.h>
 #endif
 
@@ -52,13 +54,8 @@ std::vector<const GluedFile*> GluedArchive::findFiles(std::string_view localPref
 	std::vector<const GluedFile*> ret;
 
 	for (const auto& it : m_files)
-	{
-		const bool shouldExtract = BeginsWith(it.second.name, localPrefixPath);
-		std::cout << "Glued file '" << it.second.name << "', should extract for '" << localPrefixPath << "': " << shouldExtract << "\n";
-
-		if (shouldExtract)
+		if (BeginsWith(it.second.name, localPrefixPath))
 			ret.push_back(&it.second);
-	}
 
 	return ret;
 }
