@@ -77,17 +77,16 @@ if NOT EXIST %RELEASE_DIR%\onion (
 
 ECHO Package...
 
-if NOT EXIST %RELEASE_BINARY% (
-	copy %OUTPUT_BINARY% %RELEASE_BINARY%
-	if ERRORLEVEL 1 goto Error
-	if NOT EXIST %RELEASE_BINARY% goto Error
-	ECHO Copied into '%RELEASE_BINARY%'
-)
+copy %OUTPUT_BINARY% %RELEASE_BINARY%
+if ERRORLEVEL 1 goto Error
+
+if NOT EXIST %RELEASE_BINARY% goto Error
+ECHO Copied into '%RELEASE_BINARY%'
 
 %OUTPUT_BINARY% glue -action=pack -file="%RELEASE_BINARY%" -source="%FILES_DIR%"
 if ERRORLEVEL 1 goto Error
 
-ECHO Submit...
+ECHO Submit at %RELEASE_DIR%\\onion ...
 
 PUSHD %RELEASE_DIR%\\onion
 GIT add -f onion.exe
@@ -96,21 +95,16 @@ if ERRORLEVEL 1 (
 	goto Error
 )
 
-GIT diff --exit-code
+GIT commit --allow-empty -m "Updated compiled windows binaries"
 if ERRORLEVEL 1 (
-	GIT commit -m "Updated compiled windows binaries
-	if ERRORLEVEL 1 (
-		popd
-		goto Error
-	)
+	popd
+	goto Error
+)
 
-	GIT push
-	if ERRORLEVEL 1 (
-		popd
-		goto Error
-	)
-) else (
-	ECHO Nothing to update!
+GIT push
+if ERRORLEVEL 1 (
+	popd
+	goto Error
 )
 
 POPD

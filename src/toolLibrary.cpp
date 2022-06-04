@@ -297,6 +297,8 @@ static bool LibraryCloneRepo_GitHub(const LibraryManifest& lib, ToolLibraryConfi
 	// clone/pull
 	if (fs::is_directory(config.srcPath))
 	{
+		std::cout << "Source directory " << config.srcPath << " already exists, syncing only\n";
+
 		if (!lib.sourceBuild)
 		{
 			RunWithArgsInDirectory(config.srcPath, "git reset --hard");
@@ -332,6 +334,9 @@ static bool LibraryCloneRepo_GitHub(const LibraryManifest& lib, ToolLibraryConfi
 			return false;
 		}
 	}
+
+	// cloned
+	std::cout << "Source directory " << config.srcPath << " cloned from '" << lib.sourceURL << "'\n";
 
 	// verify repository
 	{
@@ -1206,7 +1211,7 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 
 	// nothing to commit ?
 	// git diff --exit-code
-	{
+	/*{
 		int outCode = 0;
 
 		// git add "windows/zlib.zip"
@@ -1219,13 +1224,13 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 			std::cout << "Nothing to submit!\n";
 			return true;
 		}
-	}
+	}*/
 
 	// make a commit
 	{
 		// git add "windows/zlib.zip"
 		std::stringstream command;
-		command << "git commit -m \"[ci skip] Uploaded ";
+		command << "git commit --allow-empty -m \"[ci skip] Uploaded ";
 		command << lib.name;
 		command << " for ";
 		command << NameEnumOption(config.platform);
@@ -1251,12 +1256,17 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 			command << "git push ";
 			if (!config.commitToken.empty())
 			{
-				const auto coreRepoName = PartAfter(config.commitToken, "https://");
+				const auto coreRepoName = PartAfter(config.commitRepo, "https://");
+				std::cout << "Repo name: '" << config.commitRepo << "'\n";
+				std::cout << "Repo core: '" << coreRepoName << "'\n";
 				command << "-q https://" << config.commitToken << "@" << coreRepoName;
 			}
 
 			if (RunWithArgsInDirectory(checkoutDir, command.str()))
-				break;
+			{
+				std::cout << KGRN << "New packed library pushed\n" << RST;
+				return true;
+			}
 		}
 
 		// wait

@@ -183,6 +183,8 @@ bool RunInteractiveConfig(Configuration& cfg)
 
 bool RunWithArgs(std::string_view cmd, int* outCode /*= nullptr*/)
 {
+    std::cout << "Running: '" << cmd << "'\n";
+
     auto code = std::system(std::string(cmd).c_str());
 
     if (outCode)
