@@ -9,4 +9,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v1
       - uses: lukka/get-cmake@v3.23.0
-      - run: ./build_windows.bat 
+      - run: |
+              git config --global user.email "actions@github.com"
+              git config --global user.name "GitHub Actions"
+              ./build_windows.bat 
