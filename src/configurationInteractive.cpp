@@ -1,6 +1,7 @@
 #ifndef _MSC_VER
 #include <stdio.h>
 #include <termios.h>
+#include <unistd.h>
 #endif
 
 #include "common.h"
@@ -342,7 +343,8 @@ std::string GetExecutablePath()
 #else
     char arg1[20];
     sprintf(arg1, "/proc/%d/exe", getpid());
-    readlink(arg1, exepath, sizeof(exepath));
+    if (readlink(arg1, exepath, sizeof(exepath)) < 0)
+	return "";
 #endif
 
     return std::string(exepath);

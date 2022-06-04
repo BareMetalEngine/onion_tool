@@ -8,6 +8,10 @@
 #include "lz4/lz4.h"
 #include "lz4/lz4hc.h"
 
+#ifndef _WIN32
+#define localtime_s(res, timep) localtime_r(timep, res)
+#endif
+
 //--
 
 namespace prv
@@ -1910,7 +1914,7 @@ int GetCurrentWeek()
 	tm today;
 	time_t now;
 	time(&now);
-	errno_t error = ::localtime_s(&today, &now);
+	::localtime_s(&today, &now);
 	return GetWeek(&today);
 }
 

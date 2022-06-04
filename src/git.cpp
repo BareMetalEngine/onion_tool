@@ -130,10 +130,7 @@ std::string GitHubConfig::GetPublicToken(const fs::path& path)
 
 	const char* str = std::getenv("ONION_GIT_PUBLIC_TOKEN");
 	if (str && *str)
-	{
-		std::system("echo Token is: '%ONION_GIT_PUBLIC_TOKEN%'");
 		return str;
-	}
 
 	std::cerr << KRED << "[BREAKING] Failed to retrieve GitHub access token\n" << RST;
 	return "";

@@ -73,6 +73,7 @@ static inline const std::string_view BUILD_LIST_NAME = ".builds";
 #define _stricmp strcasecmp
 #define vsprintf_s(x, size, txt, args) vsprintf(x, txt, args)
 #define sprintf_s(x, size, txt, ...) sprintf(x, txt, __VA_ARGS__)
+#define sscanf_s(x, txt, ...) sscanf(x, txt, __VA_ARGS__)
 #endif
 
 #ifdef _WIN32
