@@ -52,8 +52,13 @@ std::vector<const GluedFile*> GluedArchive::findFiles(std::string_view localPref
 	std::vector<const GluedFile*> ret;
 
 	for (const auto& it : m_files)
-		if (BeginsWith(it.second.name, localPrefixPath))
+	{
+		const bool shouldExtract = BeginsWith(it.second.name, localPrefixPath);
+		std::cout << "Glued file '" << it.second.name << "', should extract for '" << localPrefixPath << "': " << shouldExtract << "\n";
+
+		if (shouldExtract)
 			ret.push_back(&it.second);
+	}
 
 	return ret;
 }
@@ -83,6 +88,7 @@ bool GluedArchive::storeFile(const std::string& name, fs::file_time_type timesta
 	file.uncompressedSize = (uint32_t)data.size();
 	m_files[file.name] = file;
 
+	std::cout << "Stored file '" << name << "' (size: " << data.size() << ", compressed: " << compressedData.size() << ")\n";
 	return true;
 }
 
@@ -315,6 +321,27 @@ bool FileRepository::initialize(const fs::path& executablePath, const fs::path& 
 	return false;
 }
 
+
+static std::vector<uint8_t> FixupLineEndingsToLinuxOnes(std::vector<uint8_t> data)
+{
+	std::vector<uint8_t> ret;
+	ret.reserve(data.size());
+
+	const auto* ptr = data.data();
+	const auto* ptrEnd = ptr + data.size();
+	while (ptr < ptrEnd)
+	{
+		auto ch = *ptr++;
+
+		if (ch == 13 && (ptr < ptrEnd) && *ptr == 10)
+			ch = *ptr++;
+
+		ret.push_back(ch);
+	}
+
+	return ret;
+}
+
 bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActualPath)
 {
 	// no extraction supported
@@ -334,18 +361,18 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 		const auto fileTime = fs::last_write_time(targetFilePath, ec);
 		if (fileTime == file->timestamp)
 		{
-			std::cout << "Skipping file '" << file->name << "' as it's up to date\n";
+			//std::cout << "Skipping file '" << file->name << "' as it's up to date\n";
 			outActualPath = targetFilePath;
 			return true;
 		}
 		else
 		{
-			std::cout << "Not skipping file '" << file->name << "' as it's NOT up to date\n";
+			//std::cout << "Not skipping file '" << file->name << "' as it's NOT up to date\n";
 		}
 	}
 	else
 	{
-		std::cout << "Not skipping file '" << file->name << "' as it's NOT extracted yet\n";
+		//std::cout << "Not skipping file '" << file->name << "' as it's NOT extracted yet\n";
 	}
 
 	// decompress file content
@@ -353,6 +380,13 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 	decompresedContent.resize(file->uncompressedSize);
 	if (!DecompressLZ4(file->compressedData, decompresedContent))
 		return false;
+
+	// fixup line endings...
+	{
+		const auto fileExtension = targetFilePath.extension().u8string();
+		if (fileExtension == ".sh")
+			decompresedContent = FixupLineEndingsToLinuxOnes(decompresedContent);
+	}
 
 	// write data to the file
 	uint32_t saved = 0;
@@ -380,6 +414,7 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 
 	// saved
 	outActualPath = targetFilePath;
+	std::cout << "Extracted glued file '" << file->name << "'\n";
 	return true;
 }
 

@@ -1165,28 +1165,31 @@ bool SaveFileFromBuffer(const fs::path& path, const std::vector<uint8_t>& buffer
 {
 	if (!force)
 	{
-		std::vector<uint8_t> currentContent;
-		if (LoadFileToBuffer(path, currentContent))
-		{
-			if (currentContent == buffer)
-			{
-				if (customTime != fs::file_time_type())
-				{
-					if (print)
-					{
-						const auto currentTimeStamp = fs::last_write_time(path);
-						std::cout << "File " << path << " is the same, updating timestamp only to " << customTime.time_since_epoch().count() << ", current: " << currentTimeStamp.time_since_epoch().count() << "\n";
-					}
+        if (fs::is_regular_file(path))
+        {
+            std::vector<uint8_t> currentContent;
+            if (LoadFileToBuffer(path, currentContent))
+            {
+                if (currentContent == buffer)
+                {
+                    if (customTime != fs::file_time_type())
+                    {
+                        if (print)
+                        {
+                            const auto currentTimeStamp = fs::last_write_time(path);
+                            std::cout << "File " << path << " is the same, updating timestamp only to " << customTime.time_since_epoch().count() << ", current: " << currentTimeStamp.time_since_epoch().count() << "\n";
+                        }
 
-					fs::last_write_time(path, customTime);
-				}
+                        fs::last_write_time(path, customTime);
+                    }
 
-				return true;
-			}
-		}
+                    return true;
+                }
+            }
 
-		if (print)
-			std::cout << "File " << path << " has changed and has to be saved\n";
+            if (print)
+                std::cout << "File " << path << " has changed and has to be saved\n";
+        }
 	}
 
 	{
@@ -1201,7 +1204,7 @@ bool SaveFileFromBuffer(const fs::path& path, const std::vector<uint8_t>& buffer
 	}
 	catch (std::exception& e)
 	{
-		std::cout << "Error writing file " << path << ": " << e.what() << "\n";
+		std::cerr << KRED << "[BREAKING] Error writing file " << path << ": " << e.what() << "\n" << RST;
 		return false;
 	}
 
@@ -2108,7 +2111,6 @@ bool CompressLZ4(const void* data, uint32_t size, std::vector<uint8_t>& outBuffe
         return false;
     }
 
-    std::cout << "Compressed " << size << "->" << compressedSize << "\n";
     outBuffer.resize(compressedSize);
 
     return true;

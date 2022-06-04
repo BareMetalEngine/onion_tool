@@ -1,21 +1,8 @@
 name: Build Onion Tool
 on: [push]
 jobs:
-  BuildWindows:
-    runs-on: windows-2022
-    env:
-      GITHUB_TOKEN: ${{secrets.ONION_GIT_PUBLIC_TOKEN}}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v1
-      - uses: lukka/get-cmake@v3.23.0
-      - run: |
-              git config --global user.email "actions@github.com"
-              git config --global user.name "GitHub Actions"
-              ./build_windows.bat 
   BuildLinux:
     runs-on: ubuntu-latest
-    needs: BuildWindows
     env:
       GITHUB_TOKEN: ${{secrets.ONION_GIT_PUBLIC_TOKEN}}
     steps:
@@ -26,3 +13,16 @@ jobs:
               git config --global user.email "actions@github.com"
               git config --global user.name "GitHub Actions"
               ./build_linux.sh
+  BuildWindows:
+    runs-on: windows-2022
+    needs: BuildLinux
+    env:
+      GITHUB_TOKEN: ${{secrets.ONION_GIT_PUBLIC_TOKEN}}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v1
+      - uses: lukka/get-cmake@v3.23.0
+      - run: |
+              git config --global user.email "actions@github.com"
+              git config --global user.name "GitHub Actions"
+              ./build_windows.bat 
