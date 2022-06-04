@@ -1,10 +1,10 @@
 @ECHO OFF
 
-IF "%ONION_GIT_PUBLIC_TOKEN%" == "" (
-	ECHO "No ONION_GIT_PUBLIC_TOKEN set"
+IF "%GITHUB_TOKEN%" == "" (
+	ECHO "No GITHUB_TOKEN set"
 	EXIT /B 1
 ) else (
-	ECHO Using git token: "%ONION_GIT_PUBLIC_TOKEN%"	
+	ECHO Using git token: "%GITHUB_TOKEN%"
 )
 
 set MAIN_DIR=%cd%
@@ -67,7 +67,7 @@ if EXIST %RELEASE_DIR%\onion (
 	rmdir /s/q %RELEASE_DIR%\onion
 )
 
-git clone https://github.com/BareMetalEngine/onion.git %RELEASE_DIR%\onion
+git clone https://%GITHUB_TOKEN%@github.com/BareMetalEngine/onion.git %RELEASE_DIR%\onion
 if ERRORLEVEL 1 goto Error
 
 if NOT EXIST %RELEASE_DIR%\onion (
