@@ -369,12 +369,16 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
 			{
                 project->additionalIncludePaths.push_back(fullPath);
 			}
+            else
+            {
+                return false;
+            }
 		}
 
         // extract the source code files
         for (const auto* sourceFileName : gtestFiles)
         {
-            const auto localPath = std::string("tools/gtest/") + sourceFileName;
+            const auto localPath = std::string("tools/gtest/src/") + sourceFileName;
 
             fs::path fullPath;
             if (m_files.resolveFilePath(localPath, fullPath))
@@ -385,6 +389,10 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
                 info->filterPath = "_gtest";
                 info->name = sourceFileName;
                 project->files.push_back(info);
+            }
+            else
+            {
+                return false;
             }
         }
     }

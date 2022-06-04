@@ -2,6 +2,11 @@
 #include "utils.h"
 #include "fileRepository.h"
 
+#ifndef _WIN32
+#define _POSIX_SOURCE
+#include <sys/stat.h>
+#endif
+
 //--
 
 #pragma pack(push)
@@ -356,6 +361,22 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 		std::cerr << KRED << "[BREAKING] Failed to extract file '" << file->name << "'\n";
 		return false;
 	}
+
+#ifndef _WIN32
+	{
+		// HASH: add the perms to the .sh and executable files...
+		const auto fileExtension = targetFilePath.extension().u8string();
+		if (fileExtension == ".sh" || fileExtension == "")
+		{
+			const auto mode = S_IRWXG | S_IRWXO | S_IRWXU;
+			if (0 != chmod(targetFilePath.u8string().c_str(), mode))
+			{
+				std::cerr << KRED << "[BREAKING] Failed to make file executable '" << file->name << "'\n";
+				return false;
+			}
+		}
+	}
+#endif
 
 	// saved
 	outActualPath = targetFilePath;

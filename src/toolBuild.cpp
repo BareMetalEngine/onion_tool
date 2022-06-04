@@ -99,9 +99,11 @@ static bool BuildConfigurationVS(const Configuration& cfg, const Commandline& cm
 	// compile the solution
 	std::stringstream args;
 	args << EscapeArgument(msBuildPath.u8string());
+	args << "/p:Platform=x64";
 	args << " ";
 	args << EscapeArgument(solutionFilePath.u8string());
 	const auto cmd = args.str();
+	std::cout << "Running: '" << cmd << "'\n";
 	if (0 != std::system(cmd.c_str()))
 	{
 		std::cerr << KRED << "[BREAKING] Building failed\n" << RST;
