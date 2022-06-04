@@ -359,7 +359,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
 		// sources 
 		static const char* gtestFiles[] = {
 			"gtest-assertion-result.cc", "gtest-death-test.cc", "gtest-filepath.cc", "gtest-matchers.cc",
-			"gtest-port.cc", "gtest-printers.cc", "gtest-test-part.cc", "gtest-typed-test.cc", "gtest.cc"
+			"gtest-port.cc", "gtest-printers.cc", "gtest-test-part.cc", "gtest-typed-test.cc", "gtest.cc", "gtest-internal-inl.h"
 		};
 
 		// extract includes
