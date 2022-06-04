@@ -4,7 +4,7 @@ jobs:
   BuildWindows:
     runs-on: windows-2022
     env:
-      GIT_TOKEN: ${{secrets.ONION_GIT_PUBLIC_TOKEN}}
+      GITHUB_TOKEN: ${{secrets.ONION_GIT_PUBLIC_TOKEN}}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v1
