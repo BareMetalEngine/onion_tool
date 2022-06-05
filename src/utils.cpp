@@ -1227,6 +1227,17 @@ bool SaveFileFromBuffer(const fs::path& path, const std::vector<uint8_t>& buffer
 
 //--
 
+bool SplitString(std::string_view txt, std::string_view delim, std::string_view& outLeft, std::string_view& outRight)
+{
+	auto pos = txt.find(delim, 0);
+    if (pos == std::string::npos)
+        return false;
+
+    outLeft = txt.substr(0, pos);
+    outRight = txt.substr(pos + delim.length());
+    return true;
+}
+
 void SplitString(std::string_view txt, std::string_view delim, std::vector<std::string_view>& outParts)
 {
     size_t prev = 0, pos = 0;

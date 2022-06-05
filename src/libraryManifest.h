@@ -2,8 +2,6 @@
 
 //--
 
-#define DEFAULT_DEPENDENCIES_REPO "https://github.com/BareMetalEngine/dependencies"
-
 /*
 Old python definition
 LIBRARY_ZLIB = {

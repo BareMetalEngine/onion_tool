@@ -19,7 +19,7 @@ bool ModuleConfigurationManifest::save(const fs::path& manifestPath)
 {
 	std::stringstream f;
 	writeln(f, "<?xml version=\"1.0\" encoding=\"utf-8\"?>");
-	writelnf(f, "<ModuleConfiguration name=\"%hs\">", name.c_str());
+	writelnf(f, "<ModuleConfiguration>");
 
 	for (const auto& entry : modules)
 	{
@@ -72,13 +72,6 @@ ModuleConfigurationManifest* ModuleConfigurationManifest::Load(const fs::path& m
 
 	auto ret = std::make_unique<ModuleConfigurationManifest>();
 	ret->rootPath = manifestPath.parent_path().make_preferred();
-
-	ret->name = XMLNodeAttrbiute(root, "name");
-	if (ret->name.empty())
-	{
-		std::cerr << KRED << "[BREAKING] Module configuration manifest XML at '" << manifestPath << "' is missing the configured name\n" << RST;
-		return nullptr;
-	}
 
 	// TODO: author string
 	// TODO: license string

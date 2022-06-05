@@ -425,8 +425,6 @@ static bool LibraryCloneRepo_URL(const LibraryManifest& lib, ToolLibraryConfig& 
 		cmd << " -C ";
 		cmd << config.srcPath;
 
-		std::cout << cmd.str() << "\n";
-
 		if (!RunWithArgs(cmd.str()))
 		{
 			std::cerr << KRED << "[BREAKING] Failed to download file from '" << lib.sourceURL << "\n" << RST;

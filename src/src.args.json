@@ -19,6 +19,10 @@
       "Command": "build"
     },
     {
+      "Id": "43b35407-5e93-440e-af78-fd8e4e76c9a3",
+      "Command": "test"
+    },
+    {
       "Id": "8b048d70-c195-4606-99f1-9abda2f8c1a7",
       "Command": "make"
     },
@@ -129,6 +133,10 @@
     {
       "Id": "8084b8fd-a979-4f5e-b62c-8672d08a2b70",
       "Command": "-module=\"Z:\\internal\\onion_test\\app_with_another_module_lib\""
+    },
+    {
+      "Id": "cb1999e7-db61-4154-a72f-01ddb697895d",
+      "Command": "-module=\"Z:\\internal\\onion_test\\app_with_thirdparty_dep\""
     },
     {
       "Id": "981d2835-43fd-47f2-94c8-5a0ff6b48617",

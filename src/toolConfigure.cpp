@@ -26,7 +26,7 @@ ModuleResolver::~ModuleResolver()
 	for (auto it : m_remoteModules)
 		delete it.second;
 
-	for (auto it : m_modules)
+	for (auto it : m_modulesByGuid)
 		delete it.second;
 
 	for (auto it : m_downloadedRepositories)
@@ -37,14 +37,11 @@ bool ModuleResolver::exportToManifest(ModuleConfigurationManifest& cfg) const
 {
 	assert(!cfg.rootPath.empty());
 
-	// configuration name is the name of first module
-	cfg.name = m_name;
-
 	// start with local dependencies
 	uint32_t numModules = 0;
 	uint32_t numProjects = 0;
 	const auto rootDir = cfg.rootPath.parent_path().make_preferred();
-	for (const auto& dep : m_modules)
+	for (const auto& dep : m_modulesByGuid)
 	{
 		ModuleConfigurationEntry entry;
 		entry.path = fs::relative(dep.second->path, rootDir).u8string();
@@ -101,39 +98,35 @@ bool ModuleResolver::processSingleModuleFile(const fs::path& moduleDirectory, bo
 		return false;
 	}
 
-	// first module
-	if (m_name.empty())
-		m_name = manifest->name;
-
 	// it's legal for a local module to override a remote one
 	{
-		auto it = m_modules.find(manifest->name);
-		if (it != m_modules.end())
+		auto it = m_modulesByGuid.find(manifest->guid);
+		if (it != m_modulesByGuid.end())
 		{
 			auto* mod = it->second;
 
 			if (mod->local || !localFile)
 			{
-				std::cerr << KRED << "[BREAKING] Duplicated module " << manifest->name << " found in configuration - same module is loaded from different sources, this is not supported\n" << RST;
+				std::cerr << KRED << "[BREAKING] Duplicated module " << manifest->guid << " found in configuration - same module is loaded from different sources, this is not supported\n" << RST;
 				return false;
 			}
 			else
 			{
-				std::cout << KYEL << "Discarded remote module " << manifest->name << " at " << mod->path << " as local version at " << moduleDirectory << " was found!\n" << RST;
-				m_modules.erase(it);
+				std::cout << KYEL << "Discarded remote module " << manifest->guid << " at " << mod->path << " as local version at " << moduleDirectory << " was found!\n" << RST;
+				m_modulesByGuid.erase(it);
 				delete mod;
 			}
 		}
 
 		// define module
 		auto* info = new ModuleInfo();
-		info->name = manifest->name;
+		info->guid = manifest->guid;
 		info->local = localFile;
 		info->path = moduleDirectory;
 		info->manifest = manifest;
-		m_modules[info->name] = info;
+		m_modulesByGuid[info->guid] = info;
 
-		std::cout << KGRN << "Registered module '" << manifest->name << "'\n" << RST;
+		std::cout << KGRN << "Registered module '" << manifest->guid << "'\n" << RST;
 	}
 
 	bool valid = true;
@@ -143,7 +136,7 @@ bool ModuleResolver::processSingleModuleFile(const fs::path& moduleDirectory, bo
 
 	if (!valid)
 	{
-		std::cerr << KRED << "[BREAKING] Failed to process dependencies of module " << manifest->name << " loaded form " << moduleDirectory << "\n" << RST;
+		std::cerr << KRED << "[BREAKING] Failed to process dependencies of module " << manifest->guid << " loaded form " << moduleDirectory << "\n" << RST;
 		return false;
 	}
 
@@ -460,6 +453,8 @@ bool ModuleResolver::ensureRepositoryDownloaded(const std::string_view repoPath,
 
 //--
 
+//--
+
 ToolConfigure::ToolConfigure()
 {}
 
@@ -547,6 +542,8 @@ int ToolConfigure::run(const char* argv0, const Commandline& cmdline)
 		std::cerr << KRED << "[BREAKING] Configuration export failed\n" << RST;
 		return-1;
 	}
+
+	//--
 
 	// write configuration file
 	if (!config.save(configPath))

@@ -9,6 +9,7 @@ enum class ProjectType : uint8_t
     TestApplication, // automatic application running tests
     StaticLibrary, // statically linked library
     SharedLibrary, // dynamically linked library
+    AutoLibrary, // automatic library
 };
 
 enum class ProjectLibraryLinkType : uint8_t
@@ -35,7 +36,8 @@ struct Configuration;
 
 struct ProjectManifest
 {
-    fs::path rootPath; // directory with the build.xml
+    std::string localRoot; // bm/core/math
+    fs::path rootPath; // full project's directory
 
     ProjectType type = ProjectType::Disabled; // type of the project
 
@@ -53,6 +55,7 @@ struct ProjectManifest
     bool optionGenerateMain = false; // generate automatic main.cpp for the project (executables only)
 	bool optionGenerateSymbols = true; // generate debug symbols for the project
     bool optionExportApplicataion = true; // application should be exported to other modules
+    bool optionSelfTest = false; // project is a self-test project (without gtest)
 
     std::vector<std::string> dependencies; // dependencies on another projects
     std::vector<std::string> optionalDependencies; // soft dependencies on another projects (we may continue if projects is NOT available)
@@ -67,7 +70,8 @@ struct ProjectManifest
     //--
 
     // load project manifest, NOTE: loading is configuration dependent due to conditions
-    static ProjectManifest* Load(const fs::path& path, const Configuration& config);
+    //static ProjectManifest* Load(const fs::path& path, const Configuration& config);
+    static ProjectManifest* Load(const void* node, const fs::path& moduleRootPath);
 
     //--
 };

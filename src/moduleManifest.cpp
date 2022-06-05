@@ -1,6 +1,7 @@
 #include "common.h"
 #include "utils.h"
 #include "moduleManifest.h"
+#include "projectManifest.h"
 #include "xml/rapidxml.hpp"
 #include "xmlUtils.h"
 
@@ -14,8 +15,12 @@ ModuleManifest::~ModuleManifest()
 
 static bool ParseDependency(const XMLNode* node, ModuleDepdencencyInfo& dep)
 {
+	dep.name = XMLNodeAttrbiute(node, "name");
 	dep.gitRepoPath = XMLNodeAttrbiute(node, "repo");
 	dep.localRelativePath = XMLNodeAttrbiute(node, "path");
+
+	if (dep.name.empty())
+		return false;
 
 	if (dep.gitRepoPath.empty() && dep.localRelativePath.empty())
 		return false;
@@ -37,6 +42,23 @@ static std::string ProjectMergedNameFromPath(const std::string_view path)
 	}
 
 	return ret;
+}
+
+static bool IsValidProjectTag(std::string_view tag)
+{
+	if (tag == "AutoLibrary" || tag == "Library")
+		return true;
+	else if (tag == "StaticLibrary")
+		return true;
+	else if (tag == "SharedLibrary")
+		return true;
+	else if (tag == "Application")
+		return true;
+	else if (tag == "TestApplication")
+		return true;
+	else if (tag == "Disabled")
+		return true;
+	return false;
 }
 
 ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath)
@@ -65,10 +87,13 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath)
 
 	auto ret = std::make_unique<ModuleManifest>();
 	ret->rootPath = manifestPath.parent_path().make_preferred();
-	ret->name = XMLNodeAttrbiute(root, "name");
-	if (ret->name.empty())
+	ret->projectsRootPath = (ret->rootPath / "code").make_preferred();
+	ret->guid = XMLNodeAttrbiute(root, "guid");
+
+	// TODO: validate guid format
+	if (ret->guid.empty())
 	{
-		std::cerr << KRED << "[BREAKING] Module manifest XML at '" << manifestPath << "' is missing the module name\n" << RST;
+		std::cerr << KRED << "[BREAKING] Module manifest XML at '" << ret->rootPath << "' has no guid specified\n" << RST;
 		return nullptr;
 	}
 
@@ -77,7 +102,7 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath)
 	// TODO: author string
 	// TODO: license string
 
-	XMLNodeIterate(root, "Dependency", [&ret, &valid](const XMLNode* node)
+	XMLNodeIterate(root, "ModuleDependency", [&ret, &valid](const XMLNode* node)
 		{
 			ModuleDepdencencyInfo dep;
 			if (ParseDependency(node, dep))
@@ -91,54 +116,28 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath)
 			}
 		});
 
-	XMLNodeIterate(root, "Library", [&ret, &valid](const XMLNode* node)
+	XMLNodeIterate(root, [&ret, &valid](const XMLNode* node, std::string_view name)
 		{
-			ModuleDepdencencyInfo dep;
-			if (ParseDependency(node, dep))
+			if (name == "ModuleDependency")
+				return;
+
+			if (!IsValidProjectTag(name))
 			{
-				ret->libraryDependencies.push_back(dep);
+				std::cerr << KRED << "[BREAKING] Module manifest XML at '" << ret->rootPath << "' has invalid project tag\n" << RST;
+				valid = false;
+				return;
+			}
+
+			if (auto project = ProjectManifest::Load(node, ret->projectsRootPath))
+			{
+				ret->projects.push_back(project);
 			}
 			else
 			{
-				std::cerr << KRED << "[BREAKING] Module manifest XML at '" << ret->rootPath << "' has invalid library definition\n" << RST;
+				std::cerr << KRED << "[BREAKING] Module manifest XML at '" << ret->rootPath << "' has invalid project definition\n" << RST;
 				valid = false;
 			}
 		});
-
-	const auto sourceRootDir = ret->rootPath / "code";
-	if (fs::is_directory(sourceRootDir))
-	{
-		ret->sourceRootPath = sourceRootDir;
-
-		XMLNodeIterate(root, "Project", [&ret, &sourceRootDir, &valid](const XMLNode* node)
-			{
-				const auto relativePath = XMLNodeValue(node);
-				if (relativePath.empty())
-				{
-					std::cerr << KRED << "[BREAKING] Module manifest XML at '" << ret->rootPath << "' has project without a path\n" << RST;
-					valid = false;
-				}
-				else
-				{
-
-					const auto projectPath = sourceRootDir / relativePath;
-					const auto projectManifestPath = projectPath / PROJECT_MANIFEST_NAME;
-
-					if (fs::is_regular_file(projectManifestPath))
-					{
-						ModuleProjectInfo project;
-						project.name = ProjectMergedNameFromPath(relativePath);
-						project.manifestPath = projectManifestPath;
-						ret->projects.push_back(project);
-					}
-					else
-					{
-						std::cerr << KRED << "[BREAKING] Module manifest XML at '" << ret->rootPath << "' references project '" << relativePath << "' but there's no manifest for it at " << projectManifestPath << "\n" << RST;
-						valid = false;
-					}
-				}
-			});
-	}
 
 	if (!valid)
 	{

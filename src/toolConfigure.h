@@ -22,7 +22,7 @@ public:
 private:
     struct ModuleInfo
     {
-        std::string name;
+        std::string guid;
         fs::path path;
         bool local = false;
         ModuleManifest* manifest;
@@ -50,10 +50,9 @@ private:
         fs::path localPath;
     };
 
-    std::string m_name;
     fs::path m_cachePath;
 
-    std::unordered_map<std::string, ModuleInfo*> m_modules;
+    std::unordered_map<std::string, ModuleInfo*> m_modulesByGuid;
     std::unordered_map<std::string, RemoteDependency*> m_remoteModules;
     std::unordered_map<std::string, LocalDependency*> m_localModules;
     std::unordered_map<std::string, DownloadedRepository*> m_downloadedRepositories;

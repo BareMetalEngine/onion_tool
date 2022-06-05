@@ -31,7 +31,7 @@ struct ExternalLibraryManifest
 
 	static std::unique_ptr<ExternalLibraryManifest> Load(const fs::path& manifestPath); // load manifest from given file (usually a LIBRARY file)
 
-	bool deployFilesToTarget(const fs::path& targetPath);
+	bool deployFilesToTarget(const fs::path& targetPath) const;
 
 	//--
 };

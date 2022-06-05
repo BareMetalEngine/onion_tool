@@ -48,6 +48,7 @@
       <Filter>lz4</Filter>
     </ClCompile>
     <ClCompile Include="toolSign.cpp" />
+    <ClCompile Include="toolTest.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.h" />
@@ -113,6 +114,7 @@
     </ClInclude>
     <ClInclude Include="toolSign.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="toolTest.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\..\src\base\config\build.lua" />

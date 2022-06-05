@@ -119,3 +119,5 @@ static inline const std::string_view BUILD_LIST_NAME = ".builds";
     #define BOLD(x) "\x1B[1m" x RST
     #define UNDL(x) "\x1B[4m" x RST
 #endif
+
+#define DEFAULT_DEPENDENCIES_REPO "https://github.com/BareMetalEngine/dependencies"

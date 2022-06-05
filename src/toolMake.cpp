@@ -107,16 +107,6 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
 
     //--
 
-    ExternalLibraryReposistory libraries(config.tempPath / "cache");
-    //libraries.installLibraryPack()
-    /*if (!modules.installLibraries(libraries))
-    {
-        std::cerr << KRED << "[BREAKING] Failed to install libraries needed by the used modules\n" << RST;
-        return -1;
-    }*/
-
-    //--
-
     ProjectCollection structure;
     if (!structure.populateFromModules(modules.modules(), config))
     {
@@ -130,9 +120,24 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
         return 1;
     }
 
-    if (!structure.resolveDependencies(libraries, config))
+    if (!structure.resolveDependencies(config))
     {
-        std::cerr << KRED << "[BREAKING] Failed to filter project structure\n" << RST;
+        std::cerr << KRED << "[BREAKING] Failed to resolve project internal dependencies\n" << RST;
+        return 1;
+    }
+
+    //--
+
+	ExternalLibraryReposistory libraries(config.tempPath / "cache", config.platform);
+	if (!structure.resolveLibraries(libraries))
+	{
+		std::cerr << KRED << "[BREAKING] Failed to resolve third party libraries\n" << RST;
+		return 1;
+	}
+
+    if (!libraries.deployFiles(config.deployPath))
+    {
+        std::cerr << KRED << "[BREAKING] Failed to deploy library files\n" << RST;
         return 1;
     }
 
@@ -149,14 +154,6 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
 
     //--
 
-    /*if (!libraries.deployFiles(config.deployPath))
-    {
-		std::cerr << KRED << "[BREAKING] Failed to deploy library files\n" << RST;
-		return 1;
-    }*/
-
-    //--
-
     FileRepository fileRepository;
     if (!fileRepository.initialize(config.builderExecutablePath, config.tempPath))
     {
@@ -166,7 +163,7 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
 
     //--
 
-	auto codeGenerator = CreateSolutionGenerator(fileRepository, config, moduleConfig->name);
+    auto codeGenerator = CreateSolutionGenerator(fileRepository, config, "onion");
     if (!codeGenerator)
     {
 		std::cerr << KRED << "[BREAKING] Failed to create code generator\n" << RST;

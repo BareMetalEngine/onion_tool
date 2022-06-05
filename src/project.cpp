@@ -86,7 +86,7 @@ bool ProjectInfo::internalTryAddFileFromPath(const fs::path& scanRootPath, const
     file->absolutePath = absolutePath;
     file->name = shortName;
     file->projectRelativePath = MakeGenericPathEx(fs::relative(absolutePath, rootPath));
-    file->rootRelativePath = MakeGenericPathEx(fs::relative(absolutePath, parentModule->sourceRootPath));
+    file->rootRelativePath = MakeGenericPathEx(fs::relative(absolutePath, parentModule->projectsRootPath));
     file->scanRelativePath = MakeGenericPathEx(fs::relative(absolutePath, scanRootPath));
     file->originalProject = this;
     files.push_back(file);
@@ -124,7 +124,7 @@ bool ProjectInfo::scanFilesAtDir(const fs::path& scanRootPath, const fs::path& d
 
 //--
 
-bool ProjectInfo::resolveDependencies(const ProjectCollection& projects, const ExternalLibraryReposistory& libs)
+bool ProjectInfo::resolveDependencies(const ProjectCollection& projects)
 {
     bool valid = true;
 
@@ -137,23 +137,30 @@ bool ProjectInfo::resolveDependencies(const ProjectCollection& projects, const E
         // resolve optional dependencies
         for (const auto& dep : manifest->optionalDependencies)
             projects.resolveDependency(dep, resolvedDependencies, true);
-
-        // resolve external libs
-        for (const auto& dep : manifest->libraryDependencies)
-        {
-            if (auto* lib = libs.findLibrary(dep))
-            {
-                PushBackUnique(resolvedLibraryDependencies, lib);
-            }
-            else
-            {
-                std::cerr << KRED << "[BREAKING] Missing library '" << dep << "' referenced in project '" << name << "'\n" << RST;
-                valid = false;
-            }
-        }
     }
 
     return valid;
 }
 
+bool ProjectInfo::resolveLibraries(ExternalLibraryReposistory& libs)
+{
+    bool valid = true;
+
+	for (const auto& dep : manifest->libraryDependencies)
+	{
+		if (auto* lib = libs.installLibrary(dep))
+		{
+			PushBackUnique(resolvedLibraryDependencies, lib);
+		}
+		else
+		{
+			std::cerr << KRED << "[BREAKING] Missing library '" << dep << "' referenced in project '" << name << "'\n" << RST;
+			valid = false;
+		}
+	}
+
+    return valid;
+}
+
 //--
+

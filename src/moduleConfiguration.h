@@ -13,8 +13,6 @@ struct ModuleConfigurationEntry
 // manifest of the module
 struct ModuleConfigurationManifest
 {
-	std::string name; // solution name
-
     fs::path rootPath; // file path
     std::vector<ModuleConfigurationEntry> modules; // configured modules
 

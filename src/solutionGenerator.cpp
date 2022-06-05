@@ -326,7 +326,8 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
 
     // extract base include directories (source code roots)
     for (const auto* mod : usedModules)
-        m_sourceRoots.push_back(mod->sourceRootPath);
+        if (!mod->projectsRootPath.empty())
+            m_sourceRoots.push_back(mod->projectsRootPath);
 
     // return final validation flag
     return validDeps;

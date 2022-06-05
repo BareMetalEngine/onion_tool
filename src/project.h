@@ -48,7 +48,7 @@ struct ProjectInfo
 	std::string name; // bm_core_math
 	fs::path rootPath; // directory with "build.xml"
 
-    ProjectManifest* manifest = nullptr; // original manifest
+    const ProjectManifest* manifest = nullptr; // original manifest
 	const ModuleManifest* parentModule = nullptr; // module this project is from (may be null for generated projects)
     
 	//--
@@ -64,7 +64,8 @@ struct ProjectInfo
 	~ProjectInfo();
 
 	bool scanContent(); // scan for actual files, fails if any of the hand-specified files are missing
-	bool resolveDependencies(const ProjectCollection& projects, const ExternalLibraryReposistory& libs);
+	bool resolveDependencies(const ProjectCollection& projects);
+	bool resolveLibraries(ExternalLibraryReposistory& libs);
 
     //--
 

@@ -174,6 +174,8 @@ extern void writelnf(std::stringstream& s, const char* txt, ...);
 
 extern void SplitString(std::string_view txt, std::string_view delim, std::vector<std::string_view>& outParts);
 
+extern bool SplitString(std::string_view txt, std::string_view delim, std::string_view& outLeft, std::string_view& outRight);
+
 extern std::string GuidFromText(std::string_view txt);
 
 extern bool IsFileSourceNewer(const fs::path& source, const fs::path& target);

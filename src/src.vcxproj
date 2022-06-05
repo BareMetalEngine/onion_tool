@@ -119,6 +119,7 @@
     <ClCompile Include="toolRelease.cpp" />
     <ClCompile Include="toolReflection.cpp" />
     <ClCompile Include="toolSign.cpp" />
+    <ClCompile Include="toolTest.cpp" />
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -159,6 +160,7 @@
     <ClInclude Include="toolRelease.h" />
     <ClInclude Include="toolReflection.h" />
     <ClInclude Include="toolSign.h" />
+    <ClInclude Include="toolTest.h" />
     <ClInclude Include="utils.h" />
     <ClInclude Include="xmlUtils.h" />
     <ClInclude Include="xml\rapidxml.hpp" />

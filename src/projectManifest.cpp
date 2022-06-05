@@ -1,21 +1,15 @@
 #include "common.h"
 #include "utils.h"
 #include "projectManifest.h"
-#include "configuration.h"
 #include "xmlUtils.h"
 
 //--
 
-static bool EvalProjectType(ProjectManifest* manifest, const XMLNode* node, const Configuration& config)
+static bool EvalProjectType(ProjectManifest* manifest, const std::string_view value)
 {
-    const auto value = XMLNodeValue(node);
-
     if (value == "AutoLibrary" || value == "Library")
     {
-        if (config.libs == LibraryType::Shared)
-            manifest->type = ProjectType::SharedLibrary;
-        else
-            manifest->type = ProjectType::StaticLibrary;
+        manifest->type = ProjectType::AutoLibrary;
         return true;
     }
     else if (value == "StaticLibrary")
@@ -49,7 +43,7 @@ static bool EvalProjectType(ProjectManifest* manifest, const XMLNode* node, cons
     return false;
 }
 
-static bool EvalSubsystemType(ProjectManifest* manifest, const XMLNode* node, const Configuration& config)
+static bool EvalSubsystemType(ProjectManifest* manifest, const XMLNode* node)
 {
 	const auto value = XMLNodeValue(node);
 
@@ -82,7 +76,7 @@ static void InsertPreprocessor(std::vector<std::pair<std::string, std::string>>&
     prep.push_back(std::pair<std::string, std::string>(key, value));
 }
 
-static bool EvalPreprocessor(std::vector<std::pair<std::string, std::string>>& prep, const XMLNode* node, const Configuration& config)
+static bool EvalPreprocessor(std::vector<std::pair<std::string, std::string>>& prep, const XMLNode* node)
 {
 	const auto value = XMLNodeValue(node);
 
@@ -100,7 +94,8 @@ static bool EvalPreprocessor(std::vector<std::pair<std::string, std::string>>& p
 
 //--
 
-ProjectManifest* ProjectManifest::Load(const fs::path& manifestPath, const Configuration& config)
+#if 0
+ProjectManifest* ProjectManifest::Load(const fs::path& manifestPath)
 {
     std::string txt;
     if (!LoadFileToString(manifestPath, txt))
@@ -127,71 +122,101 @@ ProjectManifest* ProjectManifest::Load(const fs::path& manifestPath, const Confi
         return nullptr;
     }
 
-    auto ret = std::make_unique<ProjectManifest>();
+    auto ret = Load(root);
+    if (!ret)
+        return nullptr;
+
     ret->rootPath = manifestPath.parent_path().make_preferred();
+    return ret;
+}
+#endif
 
-    bool valid = true;
-    XMLNodeIterate(root, [&valid, &ret, &config](const XMLNode* node, std::string_view option)
-        {
-            // TODO: filter
+ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& moduleCodeRootPath)
+{
+    auto ret = std::make_unique<ProjectManifest>();
 
-            if (option == "Type")
-                valid &= EvalProjectType(ret.get(), node, config);
-            else if (option == "Subsystem")
-                valid &= EvalSubsystemType(ret.get(), node, config);
+	bool valid = true;
+
+    XMLNode* root = (XMLNode*)rootPtr;
+    valid &= EvalProjectType(ret.get(), XMLNodeTag(root));
+
+    /*ret->name = XMLNodeAttrbiute(root, "name");
+    if (ret->name.empty())
+    {
+        std::cerr << KRED << "[BREAKING] All projects in module must have names\n" << RST;
+		return nullptr;
+    }*/
+
+	XMLNodeIterate(root, [&valid, &ret](const XMLNode* node, std::string_view option)
+		{
+			// TODO: filter
+
+            if (option == "Subsystem")
+                valid &= EvalSubsystemType(ret.get(), node);
             else if (option == "AppClass")
                 ret->appClassName = XMLNodeValue(node);
-            else if (option == "AppHeader")
-                ret->appHeaderName = XMLNodeValue(node);
-            else if (option == "Guid")
-                ret->guid = XMLNodeValue(node);
-            else if (option == "DeveloperOnly")
-                ret->optionDevOnly = XMLNodeValueBool(node, ret->optionDevOnly);
-            else if (option == "WarningLevel")
-                ret->optionWarningLevel = XMLNodeValueInt(node, ret->optionWarningLevel);
-            else if (option == "InitializeStaticDependencies")
-                ret->optionUseStaticInit = XMLNodeValueBool(node, ret->optionUseStaticInit);
-            else if (option == "UsePrecompiledHeaders")
-                ret->optionUsePrecompiledHeaders = XMLNodeValueBool(node, ret->optionUsePrecompiledHeaders);
-            else if (option == "UseExceptions")
-                ret->optionUseExceptions = XMLNodeValueBool(node, ret->optionUseExceptions);
-            else if (option == "GenerateMain")
-                ret->optionUseExceptions = XMLNodeValueBool(node, ret->optionGenerateMain);
-            else if (option == "GenerateSymbols")
-                ret->optionGenerateSymbols = XMLNodeValueBool(node, ret->optionGenerateSymbols);
-            else if (option == "Dependency")
-                ret->dependencies.push_back(std::string(node->value()));
-            else if (option == "OptionalDependency")
-                ret->optionalDependencies.push_back(std::string(node->value()));
-            else if (option == "Library")
-                ret->libraryDependencies.push_back(std::string(node->value()));
-            else if (option == "PreprocessorDefines")
-                valid &= EvalPreprocessor(ret->localDefines, node, config);
-            else if (option == "GlobalPreprocessorDefines")
-                valid &= EvalPreprocessor(ret->globalDefines, node, config);
-            else if (option == "PublicFiles")
-                valid &= true;// ret->publicFilePaths.push_back(node->value());
-			else if (option == "PrivateFiles")
-                valid &= true;//ret->privateFilePaths.push_back(node->value());
-			else if (option == "MediaFiles")
-                valid &= true;//ret->mediaFilePaths.push_back(node->value());            
-            else
-            {
-                std::cerr << "Unknown project's manifest option '" << option << "'\n";
-                valid = false;
-            }
-        });
+            else if (option == "SourceRoot")
+                ret->localRoot = XMLNodeValue(node);
+			else if (option == "AppHeader")
+				ret->appHeaderName = XMLNodeValue(node);
+			else if (option == "Guid")
+				ret->guid = XMLNodeValue(node);
+			else if (option == "DeveloperOnly")
+				ret->optionDevOnly = XMLNodeValueBool(node, ret->optionDevOnly);
+			else if (option == "WarningLevel")
+				ret->optionWarningLevel = XMLNodeValueInt(node, ret->optionWarningLevel);
+			else if (option == "InitializeStaticDependencies")
+				ret->optionUseStaticInit = XMLNodeValueBool(node, ret->optionUseStaticInit);
+			else if (option == "UsePrecompiledHeaders")
+				ret->optionUsePrecompiledHeaders = XMLNodeValueBool(node, ret->optionUsePrecompiledHeaders);
+			else if (option == "UseExceptions")
+				ret->optionUseExceptions = XMLNodeValueBool(node, ret->optionUseExceptions);
+			else if (option == "GenerateMain")
+				ret->optionUseExceptions = XMLNodeValueBool(node, ret->optionGenerateMain);
+			else if (option == "GenerateSymbols")
+				ret->optionGenerateSymbols = XMLNodeValueBool(node, ret->optionGenerateSymbols);
+			else if (option == "SelfTest")
+				ret->optionSelfTest = XMLNodeValueBool(node, ret->optionGenerateSymbols);
+			else if (option == "Dependency")
+				ret->dependencies.push_back(std::string(node->value()));
+			else if (option == "OptionalDependency")
+				ret->optionalDependencies.push_back(std::string(node->value()));
+			else if (option == "LibraryDependency")
+				ret->libraryDependencies.push_back(std::string(node->value()));
+			else if (option == "PreprocessorDefines")
+				valid &= EvalPreprocessor(ret->localDefines, node);
+			else if (option == "GlobalPreprocessorDefines")
+				valid &= EvalPreprocessor(ret->globalDefines, node);
+			else
+			{
+				std::cerr << "Unknown project's manifest option '" << option << "'\n";
+				valid = false;
+			}
+		});
 
-    if (ret->guid.empty())
-        ret->guid = GuidFromText(manifestPath.u8string().c_str());
+    if (ret->localRoot.empty())
+	{
+        std::cerr << KRED << "[BREAKING] There's no root directory specified for a project\n" << RST;
+		return nullptr;
+	}
 
-    if (!valid)
+    ret->rootPath = (moduleCodeRootPath / ret->localRoot).make_preferred();
+    if (!fs::is_directory(ret->rootPath))
     {
-        std::cerr << KRED << "[BREAKING] There were errors parsing project manifest from '" << manifestPath << "\n" << RST;
-        return nullptr;
+		std::cerr << KRED << "[BREAKING] Directory " << ret->rootPath << " is not a valid project directory\n" << RST;
+		return nullptr;
     }
 
-    return ret.release();
+	if (ret->guid.empty())
+		ret->guid = GuidFromText(ret->rootPath.u8string().c_str());
+
+	if (!valid)
+	{
+		std::cerr << KRED << "[BREAKING] There were errors parsing project '" << ret->localRoot << "\n" << RST;
+		return nullptr;
+	}
+
+	return ret.release();
 }
 
 //--

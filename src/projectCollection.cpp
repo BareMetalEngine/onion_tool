@@ -20,41 +20,39 @@ ProjectCollection::~ProjectCollection()
 
 //--
 
+static std::string MakeProjectName(std::string_view rootPath)
+{
+	return ReplaceAll(ReplaceAll(rootPath, "/", "_"), "\\", "_");
+}
+
 bool ProjectCollection::populateFromModules(const std::vector<const ModuleManifest*>& modules, const Configuration& config)
 {
 	bool valid = true;
 
 	for (const auto* mod : modules)
 	{
-		if (!mod->sourceRootPath.empty())
-			m_rootIncludePaths.push_back(mod->sourceRootPath);
+		if (!mod->projectsRootPath.empty())
+			m_rootIncludePaths.push_back(mod->projectsRootPath);
 
-		for (const auto& proj : mod->projects)
+		for (const auto* proj : mod->projects)
 		{
-			if (auto* manifest = ProjectManifest::Load(proj.manifestPath, config))
-			{
-				if (auto* otherProj = findProject(proj.name))
-				{
-					std::cerr << KRED << "[BREAKING] Project '" << proj.name << "' already exists, found in module '" << otherProj->parentModule->name << "' so another version from '" << mod->name << "' can't be registered \n" << RST;
-					delete manifest;
-					valid = false;
-				}
-				else
-				{
-					auto* info = new ProjectInfo();
-					info->parentModule = mod;
-					info->manifest = manifest;
-					info->rootPath = proj.manifestPath.parent_path().make_preferred();
-					info->name = proj.name;
+			auto* info = new ProjectInfo();
+			info->parentModule = mod;
+			info->manifest = proj;
+			info->rootPath = proj->rootPath;
+			info->name = MakeProjectName(proj->localRoot);
 
-					m_projects.push_back(info);
-					m_projectsMap[proj.name] = info;
-				}
-			}
-			else
+			// HACK!
+			if (proj->type == ProjectType::AutoLibrary)
 			{
-				valid = false;
-			}			
+				if (config.libs == LibraryType::Shared)
+					const_cast<ProjectManifest*>(proj)->type = ProjectType::SharedLibrary;
+				else
+					const_cast<ProjectManifest*>(proj)->type = ProjectType::StaticLibrary;
+			}
+
+			m_projects.push_back(info);
+			m_projectsMap[info->name] = info;
 		}
 	}
 
@@ -172,27 +170,22 @@ bool ProjectCollection::filterProjects(const Configuration& config)
 	return true;
 }
 
-bool ProjectCollection::resolveDependencies(const ExternalLibraryReposistory& libs, const Configuration& config)
+bool ProjectCollection::resolveDependencies(const Configuration& config)
 {
 	bool valid = true;
 
-	// resolve dependencies
 	for (auto* proj : m_projects)
-		valid &= proj->resolveDependencies(*this, libs);
+		valid &= proj->resolveDependencies(*this);
 
-	// TODO: filter all projects that were not referenced by apps
+	return true;
+}
 
-	// mark all libraries used by project that are still alive as used
-	std::unordered_set<const ExternalLibraryManifest*> usedLibs;
-	for (const auto* proj : m_projects)
-	{
-		for (const auto* lib : proj->resolvedLibraryDependencies)
-		{
-			usedLibs.insert(lib);
-			//lib->used = true;
-		}
-	}
+bool ProjectCollection::resolveLibraries(ExternalLibraryReposistory& libs)
+{
+	bool valid = true;
 
-	std::cout << "Found " << usedLibs.size() << " libraries in use accross all projects\n";
+	for (auto* proj : m_projects)
+		valid &= proj->resolveLibraries(libs);
+
 	return true;
 }

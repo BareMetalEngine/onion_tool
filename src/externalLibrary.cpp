@@ -128,7 +128,7 @@ std::unique_ptr<ExternalLibraryManifest> ExternalLibraryManifest::Load(const fs:
 
 //--
 
-bool ExternalLibraryManifest::deployFilesToTarget(const fs::path& targetPath)
+bool ExternalLibraryManifest::deployFilesToTarget(const fs::path& targetPath) const
 {
 	bool valid = true;
 

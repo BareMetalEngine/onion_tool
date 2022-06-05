@@ -23,7 +23,8 @@ public:
 
     bool populateFromModules(const std::vector<const ModuleManifest*>& modules, const Configuration& config);
     bool filterProjects(const Configuration& config);
-    bool resolveDependencies(const ExternalLibraryReposistory& libs, const Configuration& config);
+    bool resolveDependencies(const Configuration& config);
+    bool resolveLibraries(ExternalLibraryReposistory& libs);
     bool scanContent(uint32_t& outTotalFiles) const;
 
     bool resolveDependency(const std::string_view name, std::vector<ProjectInfo*>& outProjects, bool soft) const;
