@@ -43,7 +43,7 @@ static fs::path ProjectBinaryPath(const ProjectInfo* project, const Configuratio
 #ifdef _WIN32
 	const auto executableName = project->name + ".exe";
 #else
-	const auto& executableName = std::string("./") + project->name;
+	const auto& executableName = project->name;
 #endif
 
 	return (binaryPath / executableName).make_preferred();
@@ -94,6 +94,9 @@ static bool RunTestsForConfiguration(const ModuleRepository& modules, const Conf
 		}
 
 		std::stringstream command;
+#ifndef _WIN32
+		command << std::string("./");
+#endif
 		command << binaryPath.filename().u8string();
 
 		// TODO: self-test arguments
