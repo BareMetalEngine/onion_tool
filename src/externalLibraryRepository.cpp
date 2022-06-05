@@ -134,7 +134,7 @@ ExternalLibraryManifest* ExternalLibraryReposistory::installLibrary(std::string_
 	{
 		// get latest
 		std::stringstream command;
-		command << "git pull";
+		command << "git pull --rebase --autostash";
 		if (!RunWithArgsInDirectory(downloadPath, command.str()))
 		{
 			std::cout << KRED << "[BREAKING] Failed to follow up with sparse checkout for library '" << name << "'\n" << RST;

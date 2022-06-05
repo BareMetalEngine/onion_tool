@@ -702,7 +702,17 @@ static bool LibraryBuild(const LibraryManifest& lib, ToolLibraryConfig& config)
 	command = ReplaceAll(command, "${SourceAbsPath}", config.srcPath.u8string());
 	command = ReplaceAll(command, "${BuildPath}", buildRelativeToRun.u8string());
 	command = ReplaceAll(command, "${BuildAbsPath}", config.buildPath.u8string());
-	command = ReplaceAll(command, "${NumThreads}", std::to_string(std::thread::hardware_concurrency()));
+
+#ifdef _WIN32
+	{
+		command = ReplaceAll(command, "${MT}", "-- -m");
+	}
+#else
+	{
+		const auto arguments = std::string("-- -j") + std::to_string(std::thread::hardware_concurrency());
+		command = ReplaceAll(command, "${MT}", arguments);
+	}
+#endif
 
 	// run the command
 	if (!RunWithArgsInDirectory(runDirectory, command))
