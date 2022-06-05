@@ -126,7 +126,7 @@ bool ProjectCollection::resolveDependency(const std::string_view name, std::vect
 		{
 			if (!soft)
 			{
-				std::cerr << KRED << "[BREAKING] Project '" << proj->name << "' has unresolved dependency on '" << name << "'\n" << RST;
+				std::cerr << KRED << "[BREAKING] No project named '" << name << "' found in all loaded modules\n" << RST;
 				return false;
 			}
 		}

@@ -15,12 +15,8 @@ ModuleManifest::~ModuleManifest()
 
 static bool ParseDependency(const XMLNode* node, ModuleDepdencencyInfo& dep)
 {
-	dep.name = XMLNodeAttrbiute(node, "name");
 	dep.gitRepoPath = XMLNodeAttrbiute(node, "repo");
 	dep.localRelativePath = XMLNodeAttrbiute(node, "path");
-
-	if (dep.name.empty())
-		return false;
 
 	if (dep.gitRepoPath.empty() && dep.localRelativePath.empty())
 		return false;

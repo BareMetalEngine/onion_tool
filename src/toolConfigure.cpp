@@ -230,7 +230,7 @@ bool ModuleResolver::processUnresolvedLocalDepndencies(bool& hadUnresolvedDepend
 	for (const auto& dep : deps)
 		valid &= processSingleModuleFile(dep->fullPath, true);
 
-	return true;
+	return valid;
 }
 
 bool ModuleResolver::processUnresolvedRemoteDepndencies(bool& hadUnresolvedDependnecies)
@@ -249,7 +249,7 @@ bool ModuleResolver::processUnresolvedRemoteDepndencies(bool& hadUnresolvedDepen
 		}
 	}
 
-	return true;
+	return valid;
 }
 
 bool ModuleResolver::getRepositoryDownloadPath(std::string_view repoPath, std::string_view branchName, fs::path& outPath) const
