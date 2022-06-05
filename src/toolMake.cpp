@@ -107,7 +107,7 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
 
     //--
 
-    ExternalLibraryReposistory libraries;
+    ExternalLibraryReposistory libraries(config.tempPath / "cache");
     //libraries.installLibraryPack()
     /*if (!modules.installLibraries(libraries))
     {
@@ -149,11 +149,11 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
 
     //--
 
-    if (!libraries.deployFiles(config.deployPath))
+    /*if (!libraries.deployFiles(config.deployPath))
     {
 		std::cerr << KRED << "[BREAKING] Failed to deploy library files\n" << RST;
 		return 1;
-    }
+    }*/
 
     //--
 

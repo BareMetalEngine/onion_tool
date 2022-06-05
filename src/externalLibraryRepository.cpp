@@ -5,8 +5,11 @@
 
 //--
 
-ExternalLibraryReposistory::ExternalLibraryReposistory()
-{}
+ExternalLibraryReposistory::ExternalLibraryReposistory(const fs::path& cachePath)
+{
+	m_downloadCachePath = (cachePath / "lib_download").make_preferred();
+	m_unpackCachePath = (cachePath / "lib_unpack").make_preferred();
+}
 
 ExternalLibraryReposistory::~ExternalLibraryReposistory()
 {
@@ -14,84 +17,42 @@ ExternalLibraryReposistory::~ExternalLibraryReposistory()
 		delete lib;
 }
 
-bool ExternalLibraryReposistory::installLibraryPacks(const std::vector<fs::path>& paths)
+bool ExternalLibraryReposistory::installLocalLibraryPack(const fs::path& manifestPath)
 {
-	bool valid = true;
-
-	for (const auto& path : paths)
-		valid &= installLibraryPack(path);
-
-	return valid;
-}
-
-bool ExternalLibraryReposistory::installLibraryPack(const fs::path& path)
-{
-	if (fs::is_directory(path))
+	auto lib = ExternalLibraryManifest::Load(manifestPath);
+	if (!lib)
 	{
-		std::cout << "Scanning for libraries at " << path << "\n";
-
-		uint32_t numLibraries = 0;
-		try
-		{
-			for (const auto& entry : fs::directory_iterator(path))
-			{
-				if (entry.is_directory())
-				{
-					const auto manifestFilePath = entry.path() / "manifest.txt";
-					if (fs::is_regular_file(manifestFilePath))
-					{
-						std::cout << "Found library manifest at '" << manifestFilePath << "'\n";
-
-						if (auto lib = ExternalLibraryManifest::Load(manifestFilePath))
-						{
-							if (m_librariesMap.find(lib->name) != m_librariesMap.end())
-							{
-								std::cout << KYEL << "Library '" << lib->name << "' is already defined, skipping second definition\n" << RST;
-								continue;
-							}
-
-							auto* libPtr = lib.release();
-							m_librariesMap[lib->name] = libPtr;
-							m_libraries.push_back(libPtr);
-							numLibraries += 1;
-						}
-					}
-				}
-			}
-		}
-		catch (fs::filesystem_error& e)
-		{
-			std::cerr << KRED << "[EXCEPTION] File system Error: " << e.what() << "\n" << RST;
-		}
-
-		std::cout << "Discovered " << numLibraries << " libraries(s) at local path\n";
-		return true;
-	}
-	else
-	{
-		std::cerr << KRED << "[BREAKING] Directory " << path << " is not a valid library pack directory\n" << RST;
+		std::cout << KYEL << "File " << manifestPath << "does not contain library manifest\n" << RST;
 		return false;
 	}
-}
 
-bool ExternalLibraryReposistory::deployFiles(const fs::path& targetPath) const
-{
-	bool valid = true;
-
-	for (const auto* lib : m_libraries)
+	if (m_librariesMap.find(lib->name) != m_librariesMap.end())
 	{
-		if (lib->used)
-		{
-			for (const auto& file : lib->deployFiles)
-			{
-				fs::path targetPath = targetPath / file.relativeDeployPath;
-				valid &= CopyNewerFile(file.absoluteSourcePath, targetPath);
-			}
-		}
+		std::cout << KYEL << "Library '" << lib->name << "' is already defined, skipping second definition\n" << RST;
+		return false;
 	}
 
-	return valid;
+	auto* libPtr = lib.release();
+	m_librariesMap[lib->name] = libPtr;
+	m_libraries.push_back(libPtr);
+	std::cout << "Registered library '" << libPtr->name << "' at " << manifestPath << "\n";
+	return true;
 }
+
+bool ExternalLibraryReposistory::determineLibraryRepositoryNameName(std::string_view name, std::string_view& outRepository, std::string_view& outName) const
+{
+	return false;
+}
+
+bool ExternalLibraryReposistory::installLibrary(std::string_view name)
+{
+	// library already installed
+	if (findLibrary(name))
+		return true;
+
+	return false;
+}
+
 
 ExternalLibraryManifest* ExternalLibraryReposistory::findLibrary(std::string_view name) const
 {

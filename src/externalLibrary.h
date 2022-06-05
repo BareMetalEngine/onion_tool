@@ -23,13 +23,15 @@ struct ExternalLibraryManifest
 
 	std::vector<fs::path> allFiles; // all files referened by the library
 
-	mutable bool used = false; // library is used
+	//mutable bool used = false; // library is used
 
 	//--
 
 	ExternalLibraryManifest();
 
 	static std::unique_ptr<ExternalLibraryManifest> Load(const fs::path& manifestPath); // load manifest from given file (usually a LIBRARY file)
+
+	bool deployFilesToTarget(const fs::path& targetPath);
 
 	//--
 };

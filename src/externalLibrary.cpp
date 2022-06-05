@@ -127,3 +127,18 @@ std::unique_ptr<ExternalLibraryManifest> ExternalLibraryManifest::Load(const fs:
 }
 
 //--
+
+bool ExternalLibraryManifest::deployFilesToTarget(const fs::path& targetPath)
+{
+	bool valid = true;
+
+	for (const auto& file : deployFiles)
+	{
+		fs::path targetPath = targetPath / file.relativeDeployPath;
+		valid &= CopyNewerFile(file.absoluteSourcePath, targetPath);
+	}
+
+	return valid;
+}
+
+//--

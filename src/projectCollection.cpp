@@ -189,7 +189,7 @@ bool ProjectCollection::resolveDependencies(const ExternalLibraryReposistory& li
 		for (const auto* lib : proj->resolvedLibraryDependencies)
 		{
 			usedLibs.insert(lib);
-			lib->used = true;
+			//lib->used = true;
 		}
 	}
 

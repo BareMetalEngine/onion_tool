@@ -13,13 +13,13 @@ struct ToolLibraryConfig
 {
 	fs::path libraryManifestPath; // file path
 	fs::path tempRootPath; // ($ManifsetDir)/.temp
-	fs::path srcRootPath; // ($ManifsetDir)/.temp/source
-	fs::path buildRootPath; // ($ManifsetDir)/.temp/build
-	fs::path deployRootPath; // ($ManifsetDir)/.temp/out
-	fs::path packageRootPath; // ($ManifsetDir)/.temp/package
-	fs::path commitRootPath; // ($ManifsetDir)/.temp/commit
-	fs::path downloadRootPath; // ($ManifsetDir)/.temp/download
-	fs::path dependenciesRootPath; // ($ManifsetDir)/.temp/dependencies
+	fs::path srcRootPath; // ($ManifsetDir)/.temp/<platform/source
+	fs::path buildRootPath; // ($ManifsetDir)/.temp/<platform/build
+	fs::path deployRootPath; // ($ManifsetDir)/.temp/<platform/out
+	fs::path packageRootPath; // ($ManifsetDir)/.temp/<platform/package
+	fs::path commitRootPath; // ($ManifsetDir)/.temp/<platform/commit
+	fs::path downloadRootPath; // ($ManifsetDir)/.temp/<platform/download
+	fs::path dependenciesRootPath; // ($ManifsetDir)/.temp/<platform/dependencies
 	fs::path hacksRootPath; // ($ManifsetDir)/hacks
 	PlatformType platform = DefaultPlatform();
 
@@ -34,9 +34,9 @@ struct ToolLibraryConfig
 	bool releaseToGitHub = false;
 	bool commitToGitHub = false;
 
-	fs::path srcPath; // {$ManifsetDir}/.source/{$LibraryName}
-	fs::path buildPath; // {$ManifsetDir}/.build/{$LibraryName}
-	fs::path deployPath; // {$ManifsetDir}/.out/{$LibraryName}
+	fs::path srcPath; // {$ManifsetDir}/.temp/<platform/source/{$LibraryName}
+	fs::path buildPath; // {$ManifsetDir}/.temp/<platform/build/{$LibraryName}
+	fs::path deployPath; // {$ManifsetDir}/.temp/<platform/out/{$LibraryName}
 	fs::path hackPath; // {$ManifsetDir}/hacks/{$LibraryName}
 	
 	std::string releaseName;
@@ -89,7 +89,8 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 		const auto str = cmdline.get("tempPath");
 		if (str.empty())
 		{
-			outConfig.tempRootPath = (outConfig.libraryManifestPath.parent_path() / ".temp").make_preferred();
+			const auto platformName = NameEnumOption(outConfig.platform);
+			outConfig.tempRootPath = (outConfig.libraryManifestPath.parent_path() / ".temp" / platformName).make_preferred();
 		}
 		else
 		{
@@ -321,7 +322,7 @@ static bool LibraryCloneRepo_GitHub(const LibraryManifest& lib, ToolLibraryConfi
 	else
 	{
 		std::stringstream command;
-		command << "git clone --depth 1 --single-branch ";
+		command << "git clone --depth 1 --single-branch --recurse-submodules ";
 		if (!lib.sourceBranch.empty())
 			command << "--branch " << lib.sourceBranch << " ";
 		command << lib.sourceURL;
@@ -1030,7 +1031,7 @@ static bool LibraryPackage(const LibraryManifest& lib, ToolLibraryConfig& config
 
 		if (!RunWithArgsInDirectory(config.deployPath, command.str()))
 		{
-			std::cout << KRED << "Failed to package " << archivePath << "\n" << RST;
+			std::cout << KRED << "[BREAKING] Failed to package " << archivePath << "\n" << RST;
 			return false;
 		}
 	}
@@ -1156,7 +1157,7 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 		command << checkoutDirName;
 		if (!RunWithArgsInDirectory(config.commitRootPath, command.str()))
 		{
-			std::cout << KRED << "Failed to package " << archivePath << "\n" << RST;
+			std::cout << KRED << "[BREAKING] Failed to do a sparse checkout on " << config.commitRepo << " into " << checkoutDirName << "\n" << RST;
 			return false;
 		}
 	}
@@ -1278,7 +1279,7 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 		{
 			// git add "windows/zlib.zip"
 			std::stringstream command;
-			command << "git pull --rebase";
+			command << "git pull --rebase -s recursive -X ours";
 			if (!RunWithArgsInDirectory(checkoutDir, command.str()))
 			{
 				std::cout << KRED << "Failed to rebase after failed push\n" << RST;
