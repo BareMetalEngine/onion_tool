@@ -43,7 +43,7 @@ static fs::path ProjectBinaryPath(const ProjectInfo* project, const Configuratio
 #ifdef _WIN32
 	const auto executableName = project->name + ".exe";
 #else
-	const auto& executableName = project->name;
+	const auto& executableName = std::string("./") + project->name;
 #endif
 
 	return (binaryPath / executableName).make_preferred();
@@ -238,6 +238,12 @@ int ToolTest::run(const char* argv0, const Commandline& cmdline)
 	for (const auto& config : buildConfigurations)
 	{
 		valid &= RunTestsForConfiguration(modules, config, cmdline);
+	}
+
+	if (!valid)
+	{
+		std::cerr << KRED "[BREAKING] Some tests failed\n" << RST;
+		return 1;
 	}
 
 	//--
