@@ -315,7 +315,7 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
     if (m_config.platform == PlatformType::Linux)
     {
         writeln(f, "# Hardcoded system libraries");
-        writelnf(f, "target_link_libraries(%s dl rt)", p->name.c_str());
+        writelnf(f, "target_link_libraries(%s dl rt ncurses)", p->name.c_str());
     }
     else if (m_config.platform == PlatformType::Windows || m_config.platform == PlatformType::UWP)
     {
