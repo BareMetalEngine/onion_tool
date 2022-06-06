@@ -406,13 +406,15 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
 
     f << " 	<ProjectPreprocessorDefines>$(ProjectPreprocessorDefines);";
 
-    if (m_config.libs == LibraryType::Shared)
+    if (project->type == ProjectType::SharedLibrary)
+		f << ToUpper(project->name) << "_EXPORTS;";
+
+    /*if (m_config.libs == LibraryType::Shared)
     {
-        f << ToUpper(project->name) << "_EXPORTS;";
 
         if (project->type == ProjectType::SharedLibrary)
             f << ToUpper(project->name) << "_DLL;";        
-    }
+    }*/
 
     f << "PROJECT_NAME=" << project->name << ";";
 

@@ -23,7 +23,7 @@ static bool BuildConfigurationCmake(const Configuration& cfg, const Commandline&
 	}
 
 	// build cmake file
-	if (0 != std::system("cmake --build ."))
+	if (0 != std::system("cmake --build . -- -j`nproc`"))
 	{
 		std::cerr << KRED << "[BREAKING] Could not run CMAKE config\n" << RST;
 		return false;
