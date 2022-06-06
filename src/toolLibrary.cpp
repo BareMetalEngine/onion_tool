@@ -1155,109 +1155,92 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 	// list found directory
 	std::cout << "Found unused upload directory at " << checkoutDir << "\n";
 
-	// partial sync of the target repo
-	// git clone --no-checkout --filter=blob:none https://github.com/BareMetalEngine/dependencies.git
-	{
-		std::stringstream command;
-		command << "git clone --sparse --no-checkout --filter=blob:none ";
-		command << config.commitRepo;
-		command << " ";
-		command << checkoutDirName;
-		if (!RunWithArgsInDirectory(config.commitRootPath, command.str()))
-		{
-			std::cout << KRED << "[BREAKING] Failed to do a sparse checkout on " << config.commitRepo << " into " << checkoutDirName << "\n" << RST;
-			return false;
-		}
-	}
-
-	// setup the partial checkout
-	{
-		// git sparse-checkout set "/windows/zlib.zip"
-		std::stringstream command;
-		command << "git sparse-checkout set \"/"; // NOTE the / !!!
-		command << libraryFile;
-		command << "\"";
-		if (!RunWithArgsInDirectory(checkoutDir, command.str()))
-		{
-			std::cout << KRED << "Failed to setup sparse checkout\n" << RST;
-			return false;
-		}
-	}
-
-	// checkout the current lib file
-	{
-		// git sparse-checkout set "/windows/zlib.zip"
-		std::stringstream command;
-		command << "git checkout";
-		if (!RunWithArgsInDirectory(checkoutDir, command.str()))
-		{
-			std::cout << KRED << "Failed to setup sparse checkout\n" << RST;
-			return false;
-		}
-	}
-
-	// copy the file
-	const auto targetFile = (checkoutDir / libraryFile).make_preferred();
-	if (!CopyFile(archivePath, targetFile))
-	{
-		std::cout << KRED << "Failed to copy " << archivePath << "\n" << RST;
-		return false;
-	}
-
-	// add to commit
-	{
-		// git add "windows/zlib.zip"
-		std::stringstream command;
-		command << "git add \"";
-		command << libraryFile;
-		command << "\"";
-		if (!RunWithArgsInDirectory(checkoutDir, command.str()))
-		{
-			std::cout << KRED << "Failed to setup sparse checkout\n" << RST;
-			return false;
-		}
-	}
-
-	// nothing to commit ?
-	// git diff --exit-code
-	/*{
-		int outCode = 0;
-
-		// git add "windows/zlib.zip"
-		std::stringstream command;
-		command << "git diff --cached --exit-code";
-		RunWithArgsInDirectory(checkoutDir, command.str(), &outCode);
-
-		if (0 == outCode)
-		{
-			std::cout << "Nothing to submit!\n";
-			return true;
-		}
-	}*/
-
-	// make a commit
-	{
-		// git add "windows/zlib.zip"
-		std::stringstream command;
-		command << "git commit --allow-empty -m \"[ci skip] Uploaded ";
-		command << lib.name;
-		command << " for ";
-		command << NameEnumOption(config.platform);
-		if (!lib.rootHash.empty())
-			command << " (built from hash " << lib.rootHash << ")";
-		command << "\"";
-		if (!RunWithArgsInDirectory(checkoutDir, command.str()))
-		{
-			std::cout << KRED << "Failed to create commit\n" << RST;
-			return false;
-		}
-	}
-
 	// push the update
 	double waitTime = 1.0;
 	int numRetries = 20;
 	while (numRetries-- > 0)
 	{
+		// partial sync of the target repo
+		// git clone --no-checkout --filter=blob:none https://github.com/BareMetalEngine/dependencies.git
+		{
+			std::stringstream command;
+			command << "git clone --sparse --no-checkout --filter=blob:none ";
+			command << config.commitRepo;
+			command << " ";
+			command << checkoutDirName;
+			if (!RunWithArgsInDirectory(config.commitRootPath, command.str()))
+			{
+				std::cout << KRED << "[BREAKING] Failed to do a sparse checkout on " << config.commitRepo << " into " << checkoutDirName << "\n" << RST;
+				return false;
+			}
+		}
+
+		// setup the partial checkout
+		{
+			// git sparse-checkout set "/windows/zlib.zip"
+			std::stringstream command;
+			command << "git sparse-checkout set \"/"; // NOTE the / !!!
+			command << libraryFile;
+			command << "\"";
+			if (!RunWithArgsInDirectory(checkoutDir, command.str()))
+			{
+				std::cout << KRED << "Failed to setup sparse checkout\n" << RST;
+				return false;
+			}
+		}
+
+		// checkout the current lib file
+		{
+			// git sparse-checkout set "/windows/zlib.zip"
+			std::stringstream command;
+			command << "git checkout";
+			if (!RunWithArgsInDirectory(checkoutDir, command.str()))
+			{
+				std::cout << KRED << "Failed to setup sparse checkout\n" << RST;
+				return false;
+			}
+		}
+
+		// copy the file
+		const auto targetFile = (checkoutDir / libraryFile).make_preferred();
+		if (!CopyFile(archivePath, targetFile))
+		{
+			std::cout << KRED << "Failed to copy " << archivePath << "\n" << RST;
+			return false;
+		}
+
+		// add to commit
+		{
+			// git add "windows/zlib.zip"
+			std::stringstream command;
+			command << "git add \"";
+			command << libraryFile;
+			command << "\"";
+			if (!RunWithArgsInDirectory(checkoutDir, command.str()))
+			{
+				std::cout << KRED << "Failed to setup sparse checkout\n" << RST;
+				return false;
+			}
+		}
+
+		// make a commit
+		{
+			// git add "windows/zlib.zip"
+			std::stringstream command;
+			command << "git commit --allow-empty -m \"[ci skip] Uploaded ";
+			command << lib.name;
+			command << " for ";
+			command << NameEnumOption(config.platform);
+			if (!lib.rootHash.empty())
+				command << " (built from hash " << lib.rootHash << ")";
+			command << "\"";
+			if (!RunWithArgsInDirectory(checkoutDir, command.str()))
+			{
+				std::cout << KRED << "Failed to create commit\n" << RST;
+				return false;
+			}
+		}
+	
 		// push the update
 		{
 			// git add "windows/zlib.zip"
@@ -1283,17 +1266,8 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 		std::this_thread::sleep_for(std::chrono::duration<double>(waitTime));
 		waitTime = waitTime * 1.5f;
 
-		// pull with rebase
-		{
-			// git add "windows/zlib.zip"
-			std::stringstream command;
-			command << "git pull --rebase -s recursive -X ours";
-			if (!RunWithArgsInDirectory(checkoutDir, command.str()))
-			{
-				std::cout << KRED << "Failed to rebase after failed push\n" << RST;
-				return false;
-			}
-		}
+		// remove folder and try again
+		fs::remove_all(checkoutDir);
 	}
 
 	// updated
