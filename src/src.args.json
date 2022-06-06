@@ -139,6 +139,10 @@
       "Command": "-module=\"Z:\\internal\\onion_test\\app_with_thirdparty_dep\""
     },
     {
+      "Id": "42379ea8-4623-41ad-ac85-d38e3dd795da",
+      "Command": "-module=\"Z:\\internal\\dependencies_scripts\\tests\""
+    },
+    {
       "Id": "981d2835-43fd-47f2-94c8-5a0ff6b48617",
       "Command": "-static"
     },

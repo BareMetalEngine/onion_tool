@@ -79,7 +79,74 @@ ExternalLibraryManifest* ExternalLibraryReposistory::installLibrary(std::string_
 	const auto actualLibraryFile = (downloadPath / localLibraryFile).make_preferred();
 	std::cout << "Library file name: " << actualLibraryFile << "\n";
 
-	// file exists
+	// check if up to date
+	if (fs::is_directory(downloadPath))
+	{
+		// sync remote
+		{
+			// git checkout
+			std::stringstream command;
+			command << "git fetch";
+			if (!RunWithArgsInDirectory(downloadPath, command.str()))
+			{
+				std::cout << KRED << "[BREAKING] Failed to fetch repository for library '" << name << "'\n" << RST;
+				m_librariesMap[std::string(name)] = nullptr;
+				return nullptr;
+			}
+
+		}
+		// get the hash of the library file
+		// git log -n 1 --pretty=format:%H -- build_windows.bat
+		std::string originalLibraryVersion;
+		{
+			std::stringstream command, results;
+			command << "git log -n 1 --pretty=format:%H -- ";
+			command << localLibraryFile;
+			if (!RunWithArgsInDirectoryAndCaptureOutput(downloadPath, command.str(), results))
+			{
+				std::cout << KRED << "[BREAKING] Failed to get local version of " << libraryRepository << " at " << downloadPath << "\n" << RST;
+				m_librariesMap[std::string(name)] = nullptr;
+				return nullptr;
+			}
+
+			originalLibraryVersion = Trim(results.str());
+			std::cout << "Library '" << name << "' is at version '" << originalLibraryVersion << "'\n" << RST;
+		}
+
+		// get the hash of the file on the remote branch
+		// git log --format=%H -1 <branch> -- $filename
+		std::string removeLibraryVersion;
+		{
+			std::stringstream command, results;
+			command << "git log --format=%H -1 origin/";
+			command << libraryBranch;
+			command << " -- ";
+			command << localLibraryFile;
+			if (!RunWithArgsInDirectoryAndCaptureOutput(downloadPath, command.str(), results))
+			{
+				std::cout << KRED << "[BREAKING] Failed to get remote version of " << libraryRepository << " at " << downloadPath << "\n" << RST;
+				m_librariesMap[std::string(name)] = nullptr;
+				return nullptr;
+			}
+
+			removeLibraryVersion = Trim(results.str());
+			std::cout << "Library '" << name << "' is at remote version '" << removeLibraryVersion << "'\n" << RST;
+		}
+
+		// different versions ?
+		if (removeLibraryVersion != originalLibraryVersion)
+		{
+			std::cout << KYEL << "[WARNING] Library '" << libraryName << "' version changed '" << originalLibraryVersion << "' -> '" << removeLibraryVersion << "'\n" << RST;
+			fs::remove_all(downloadPath);
+		}
+		else if (!fs::is_regular_file(actualLibraryFile))
+		{
+			std::cout << KYEL << "[WARNING] Library '" << libraryName << "' version is up to date but file does not exist, resyncing\n" << RST;
+			fs::remove_all(downloadPath);
+		}
+	}
+
+	// download
 	if (!fs::is_directory(downloadPath))
 	{
 		// root path
@@ -128,18 +195,6 @@ ExternalLibraryManifest* ExternalLibraryReposistory::installLibrary(std::string_
 				m_librariesMap[std::string(name)] = nullptr;
 				return nullptr;
 			}
-		}
-	}
-	else
-	{
-		// get latest
-		std::stringstream command;
-		command << "git pull --rebase --autostash";
-		if (!RunWithArgsInDirectory(downloadPath, command.str()))
-		{
-			std::cout << KRED << "[BREAKING] Failed to follow up with sparse checkout for library '" << name << "'\n" << RST;
-			m_librariesMap[std::string(name)] = nullptr;
-			return nullptr;
 		}
 	}
 

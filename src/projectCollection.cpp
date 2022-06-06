@@ -177,7 +177,7 @@ bool ProjectCollection::resolveDependencies(const Configuration& config)
 	for (auto* proj : m_projects)
 		valid &= proj->resolveDependencies(*this);
 
-	return true;
+	return valid;
 }
 
 bool ProjectCollection::resolveLibraries(ExternalLibraryReposistory& libs)
@@ -187,5 +187,5 @@ bool ProjectCollection::resolveLibraries(ExternalLibraryReposistory& libs)
 	for (auto* proj : m_projects)
 		valid &= proj->resolveLibraries(libs);
 
-	return true;
+	return valid;
 }
