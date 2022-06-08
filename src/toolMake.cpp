@@ -146,7 +146,7 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
     uint32_t totalFiles = 0;
     if (!structure.scanContent(totalFiles))
     {
-        std::cerr << KRED << "[BREAKING] Failed to scan project's content\n" << RST;
+        std::cerr << KRED << "[BREAKING] Failed to scan projects content\n" << RST;
         return 1;
     }
 

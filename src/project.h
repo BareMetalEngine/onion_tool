@@ -45,7 +45,7 @@ struct ProjectFileInfo
 
 struct ProjectInfo
 {
-	std::string name; // bm_core_math
+	std::string name; // bm/core/math
 	fs::path rootPath; // directory with "build.xml"
 
     const ProjectManifest* manifest = nullptr; // original manifest

@@ -22,7 +22,7 @@ ProjectCollection::~ProjectCollection()
 
 static std::string MakeProjectName(std::string_view rootPath)
 {
-	return ReplaceAll(ReplaceAll(rootPath, "/", "_"), "\\", "_");
+	return ReplaceAll(rootPath, "\\", "/");
 }
 
 bool ProjectCollection::populateFromModules(const std::vector<const ModuleManifest*>& modules, const Configuration& config)

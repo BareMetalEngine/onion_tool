@@ -164,7 +164,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         // create wrapper
         auto* generatorProject = new SolutionProject;
         generatorProject->type = proj->manifest->type;
-        generatorProject->name = proj->name;
+        generatorProject->name = ReplaceAll(proj->name, "/", "_");
 
         // paths
 		generatorProject->rootPath = proj->rootPath;
@@ -598,7 +598,7 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 
     if (!project->appHeaderName.empty())
         writelnf(f, "#include \"%hs\"", project->appHeaderName.c_str());
-    writelnf(f, "#include \"core/containers/include/commandLine.h\"");
+    writelnf(f, "#include \"bm/core/containers/include/commandLine.h\"");
     writeln(f, "");
 
     if (project->appHeaderName.empty())
@@ -659,10 +659,10 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
     writeln(f, "");
 
     // profiling init
-    if (hasSystem)
     {
-        writeln(f, "  bm::InitProfiling(commandLine);");
-        writeln(f, "");
+		writeln(f, "  if (commandLine.hasParam(\"profile\"))");
+		writeln(f, "    bm::InitProfiling();");
+		writeln(f, "");
     }
 
     // task init
@@ -699,7 +699,6 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 	}
 
     // close profiling
-    if (hasSystem)
     {
         writeln(f, "  bm::CloseProfiling();");
         writeln(f, "");
@@ -727,7 +726,7 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
     const auto hasContainers = HasDependency(project, "bm_core_containers");
 
     if (hasContainers)
-        writelnf(f, "#include \"core/containers/include/commandLine.h\"");
+        writelnf(f, "#include \"bm/core/containers/include/commandLine.h\"");
     writeln(f, "");
 
     writeln(f, "#include \"gtest/gtest.h\"");
@@ -743,17 +742,15 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
     writeln(f, "  int ret = 0;");
     writeln(f, "");
 
-    if (hasSystem)
-    {
-        writeln(f, "  bm::InitProfiling();");
-        writeln(f, "");
-    }
-
     if (hasContainers)
     {
         writeln(f, "  bm::CommandLine commandLine;");
         writeln(f, "  commandLine.parse(argc, argv);");
         writeln(f, "");
+
+		writeln(f, "  if (commandLine.hasParam(\"profile\"))");
+		writeln(f, "    bm::InitProfiling();");
+		writeln(f, "");
 
         if (hasTasks)
         {
@@ -781,17 +778,14 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
             writeln(f, "  bm::CloseTaskThreads();");
             writeln(f, "");
         }
+
+		writeln(f, "  bm::CloseProfiling();");
+		writeln(f, "");
     }
     else
     {
         writeln(f, "  testing::InitGoogleTest(&argc, argv);");
         writeln(f, "  ret = RUN_ALL_TESTS();");
-        writeln(f, "");
-    }
-
-    if (hasSystem)
-    {
-        writeln(f, "  bm::CloseProfiling();");
         writeln(f, "");
     }
 
@@ -916,8 +910,8 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
 
         // initialize self
         if (project->optionUseStaticInit) {
-            writelnf(f, "    bm::modules::TModuleInitializationFunc initFunc = []() { InitializeReflection_%hs(); InitializeTests_%hs(); InitializeEmbeddedFiles_%hs(); };", project->name.c_str(), project->name.c_str(), project->name.c_str());
-            writelnf(f, "    bm::modules::RegisterModule(\"%hs\", __DATE__, __TIME__, _MSC_FULL_VER, initFunc, handle);", project->name.c_str());
+            writelnf(f, "    bm::modules::TModuleInitializationFunc initFunc = []() { InitializeReflection_%hs(); InitializeEmbeddedFiles_%hs(); };", project->name.c_str(), project->name.c_str(), project->name.c_str());
+            writelnf(f, "    bm::modules::RegisterModule(\"%hs\", __DATE__, __TIME__, _MSC_FULL_VER, initFunc);", project->name.c_str());
 
             if (project->type == ProjectType::Application || project->type == ProjectType::TestApplication)
                 writelnf(f, "    bm::modules::InitializePendingModules();");

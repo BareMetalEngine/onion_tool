@@ -123,13 +123,13 @@ bool ProjectReflection::extractFromArgs(const std::string& fileList, const std::
 	}
 
 	std::vector<std::string_view> filePaths;
-	SplitString(txt, ";", filePaths);
+	SplitString(txt, "\n", filePaths);
 	std::cout << "Gathered " << filePaths.size() << " files to process in project '" << projectName << "'\n";
 	std::cout << "Output will be written to '" << outputFile << "'\n";
 
     std::vector<fs::path> filePathsEx;
     for (const auto& path : filePaths)
-        filePathsEx.push_back(path);
+        filePathsEx.push_back(Trim(path));
 
     return extractFromFileList(filePathsEx, projectName, outputFile);
 }
@@ -143,7 +143,12 @@ bool ProjectReflection::extractFromFileList(const std::vector<fs::path>& filePat
 
     for (const auto& path : filePaths)
     {
-        if (EndsWith(path.filename().u8string().c_str(), ".cpp"))
+        const auto fileName = path.filename().u8string();
+
+        if (fileName == "reflection.cpp" || fileName == "main.cpp")
+            continue;
+
+        if (EndsWith(fileName.c_str(), ".cpp"))
         {
             auto* file = new RefelctionFile();
             file->absoluitePath = path;

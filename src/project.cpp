@@ -74,10 +74,16 @@ bool ProjectInfo::internalTryAddFileFromPath(const fs::path& scanRootPath, const
         type = ProjectFileType::BuildScript;
 
     if (type == ProjectFileType::Unknown)
+    {
+        std::cerr << KRED << "[BREAKING] Unknown file type for " << absolutePath << "\n" << RST;
         return false;
+    }
 
     if (scanType == ScanType::PublicFiles && type != ProjectFileType::CppHeader)
+    {
+        std::cerr << KRED << "[BREAKING] Public files directory (include/) can only host header files, file " << absolutePath << " is not a header\n" << RST;
         return false;
+    }
 
     const auto shortName = absolutePath.filename().u8string();
 
