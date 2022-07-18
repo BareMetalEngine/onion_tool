@@ -269,6 +269,8 @@ bool RunWithArgsInDirectoryAndCaptureOutput(const fs::path& dir, std::string_vie
 
 bool RunWithArgsAndCaptureOutput(std::string_view cmd, std::stringstream& outStr, int* outCode /*= nullptr*/)
 {
+    std::cout << "Running: '" << cmd << "'\n";
+
 #ifdef _WIN32
 	FILE* f = _popen(std::string(cmd).c_str(), "r");
 #else

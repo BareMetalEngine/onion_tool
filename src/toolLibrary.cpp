@@ -498,9 +498,9 @@ static bool LibraryInstallDependency(const LibraryManifest& lib, ToolLibraryConf
 
 		// setup the partial checkout
 		{
-			// git sparse-checkout set "/windows/zlib.zip"
+			// git sparse-checkout set "windows/zlib.zip"
 			std::stringstream command;
-			command << "git sparse-checkout set \"/"; // NOTE the / !!!
+			command << "git sparse-checkout set \"";
 			command << dependencyFile;
 			command << "\"";
 			if (!RunWithArgsInDirectory(dependencyDirectory, command.str()))
@@ -512,7 +512,7 @@ static bool LibraryInstallDependency(const LibraryManifest& lib, ToolLibraryConf
 
 		// checkout the current lib file
 		{
-			// git sparse-checkout set "/windows/zlib.zip"
+			// git checkout
 			std::stringstream command;
 			command << "git checkout";
 			if (!RunWithArgsInDirectory(dependencyDirectory, command.str()))
@@ -525,7 +525,7 @@ static bool LibraryInstallDependency(const LibraryManifest& lib, ToolLibraryConf
 
 	// pull the latest file
 	{
-		// git sparse-checkout set "/windows/zlib.zip"
+		// git pull
 		std::stringstream command;
 		command << "git pull";
 		if (!RunWithArgsInDirectory(dependencyDirectory, command.str()))
@@ -1177,9 +1177,9 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 
 		// setup the partial checkout
 		{
-			// git sparse-checkout set "/windows/zlib.zip"
+			// git sparse-checkout set "windows/zlib.zip"
 			std::stringstream command;
-			command << "git sparse-checkout set \"/"; // NOTE the / !!!
+			command << "git sparse-checkout set \"";
 			command << libraryFile;
 			command << "\"";
 			if (!RunWithArgsInDirectory(checkoutDir, command.str()))
@@ -1191,7 +1191,7 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 
 		// checkout the current lib file
 		{
-			// git sparse-checkout set "/windows/zlib.zip"
+			// git checkout
 			std::stringstream command;
 			command << "git checkout";
 			if (!RunWithArgsInDirectory(checkoutDir, command.str()))

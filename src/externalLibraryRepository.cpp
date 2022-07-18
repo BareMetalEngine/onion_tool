@@ -171,9 +171,9 @@ ExternalLibraryManifest* ExternalLibraryReposistory::installLibrary(std::string_
 
 		// setup the partial checkout
 		{
-			// git sparse-checkout set "/windows/zlib.zip"
+			// git sparse-checkout set "windows/zlib.zip"
 			std::stringstream command;
-			command << "git sparse-checkout set \"/"; // NOTE the / !!!
+			command << "git sparse-checkout set \"";
 			command << localLibraryFile;
 			command << "\"";
 			if (!RunWithArgsInDirectory(downloadPath, command.str()))

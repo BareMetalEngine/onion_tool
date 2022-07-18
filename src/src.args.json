@@ -51,6 +51,10 @@
       "Command": "release"
     },
     {
+      "Id": "7671de59-064c-46a3-9bc4-33acd1abffe9",
+      "Command": "-commit"
+    },
+    {
       "Id": "7916a755-7d2f-45bf-90e2-bfd44499d835",
       "Command": "-module=\"Z:\\internal\\onion_test\\app_self_contained\""
     },
