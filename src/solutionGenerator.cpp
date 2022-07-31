@@ -876,16 +876,15 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
     }
 
     // collect all projects that are STATICALLY linked to this project
-    std::vector<const SolutionProject*> staticallyLinkedProjects;
+    std::vector<const SolutionProject*> staticallyLinkedProjects, orderedStaticallyLinkedProjects;
     {
-        std::vector<const SolutionProject*> tempProjectList;
         std::unordered_set< const SolutionProject*> visited;
-        CollectDirectlyStaticallyLinkedProjects(project, visited, tempProjectList, 0);
+        CollectDirectlyStaticallyLinkedProjects(project, visited, staticallyLinkedProjects, 0);
 
         // collect in right order!
         for (const auto* dep : project->allDependencies)
-            if (Contains(tempProjectList, dep))
-                staticallyLinkedProjects.push_back(dep);            
+            if (Contains(staticallyLinkedProjects, dep))
+                orderedStaticallyLinkedProjects.push_back(dep);
     }
 
     // determine if project requires static initialization (the apps and console apps require that)
@@ -995,7 +994,7 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
         // initialize statically linked modules
         if (project->type != ProjectType::StaticLibrary)
         {
-		    for (const auto* dep : staticallyLinkedProjects)
+		    for (const auto* dep : orderedStaticallyLinkedProjects)
 		    {
                 if (dep != project && !dep->optionDetached)
                 {
