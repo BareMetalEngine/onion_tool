@@ -152,6 +152,7 @@ bool ProjectReflection::extractFromFileList(const std::vector<fs::path>& filePat
         {
             auto* file = new RefelctionFile();
             file->absoluitePath = path;
+            file->tokenized.contextPath = path;
             project->files.push_back(file);
         }
 	}

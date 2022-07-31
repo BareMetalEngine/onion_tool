@@ -55,6 +55,7 @@ struct SolutionProject
 	bool optionUseExceptions = false;
 	bool optionUseWindowSubsystem = false;
 	bool optionUseReflection = true;
+	bool optionUseEmbeddedFiles = false;
 	bool optionUseStaticInit = false;
 	bool optionDetached = false;
 	bool optionExportApplicataion = false;
@@ -97,6 +98,12 @@ struct SolutionProject
 	~SolutionProject();
 };
 
+struct SolutionDataFolder
+{
+	fs::path dataPath;
+	std::string mountPath;
+};
+
 //--
 
 class FileRepository;
@@ -110,6 +117,7 @@ public:
     inline SolutionGroup* rootGroup() const { return m_rootGroup; }
     inline const std::vector<SolutionProject*>& projects() const { return m_projects; }
     inline const std::vector<fs::path>& sourceRoots() const { return m_sourceRoots; }
+	inline const std::vector< SolutionDataFolder>& dataFolders() const { return m_dataFolders; }
 
     bool extractProjects(const ProjectCollection& collection);
     bool generateAutomaticCode(FileGenerator& fileGenerator);
@@ -131,6 +139,7 @@ protected:
 	std::unordered_map<std::string, SolutionProject*> m_projectNameMap;
 
 	std::vector<fs::path> m_sourceRoots;
+	std::vector<SolutionDataFolder> m_dataFolders;
 
 	SolutionGroup* createGroup(std::string_view name, SolutionGroup* parent = nullptr);
 	SolutionProject* findProject(std::string_view name) const;
@@ -149,6 +158,7 @@ protected:
 
     bool generateSolutionEmbeddFileList(std::stringstream& outContent);
     bool generateSolutionReflectionFileList(std::stringstream& outContent);
+	bool generateSolutionFstabFile(std::stringstream& outContent);
 
     SolutionGroup* findOrCreateGroup(std::string_view name, SolutionGroup* parent);
 

@@ -57,6 +57,11 @@ bool ProjectInfo::scanContent()
     }
 
     {
+        const auto privateFilePath = manifest->rootPath / "natvis";
+        valid &= scanFilesAtDir(privateFilePath, privateFilePath, ScanType::PrivateFiles, true);
+    }
+
+    {
         const auto mediaFilePath = manifest->rootPath / "media";
         valid &= scanFilesAtDir(mediaFilePath, mediaFilePath, ScanType::MediaFiles, true);
     }	

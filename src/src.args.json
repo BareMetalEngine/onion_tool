@@ -59,6 +59,10 @@
       "Command": "-module=\"Z:\\internal\\onion_test\\app_self_contained\""
     },
     {
+      "Id": "eda8c926-2420-4d6e-b7fe-01b4c51f32b9",
+      "Command": "-module=\"Z:\\internal\\bm_core\""
+    },
+    {
       "Id": "71c57d14-0de9-470e-a371-e38d750e8083",
       "Command": "-file=\"Z:\\internal\\onion_packing\\test.dat\""
     },

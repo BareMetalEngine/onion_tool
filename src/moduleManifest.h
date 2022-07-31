@@ -12,12 +12,14 @@ struct ModuleDepdencencyInfo
     std::string localRelativePath; // local path relative to the current manifest file (e.g "modules/crap/")
 };
 
-/* module project
-struct ModuleProjectInfo
+// module data
+struct ModuleDataInfo
 {
-    std::string name; // project name (merged name)
-    fs::path manifestPath; // project build.xml path
-};*/
+    std::string mountPath; // /data/core/ - where is the data mounted in the virtual file system
+    std::string localSourcePath; // as in XML
+    fs::path sourcePath; // physical path on disk to the data
+    bool published = false; // is the data published in the final build 
+};
 
 // manifest of the module
 struct ModuleManifest
@@ -29,6 +31,7 @@ struct ModuleManifest
     std::vector<ProjectManifest*> projects; // local projects in the module
 
     std::vector<ModuleDepdencencyInfo> moduleDependencies; // other modules we depend on
+    std::vector<ModuleDataInfo> moduleData; // exposed data folders
 
     mutable bool local = true;
 

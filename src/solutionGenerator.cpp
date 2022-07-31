@@ -171,7 +171,6 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         generatorProject->generatedPath = m_config.solutionPath / "generated" / proj->name;
         generatorProject->projectPath = m_config.solutionPath / "projects" / proj->name;
         generatorProject->outputPath = m_config.solutionPath / "output" / proj->name;
-        //generatorProject->hasEmbeddedFiles = false;// proj->hasMedia;
 
         // options
         generatorProject->optionUsePrecompiledHeaders = proj->manifest->optionUsePrecompiledHeaders;
@@ -182,6 +181,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         generatorProject->optionUseExceptions = proj->manifest->optionUseExceptions;
         generatorProject->optionDetached = proj->manifest->optionDetached;
         generatorProject->optionExportApplicataion = proj->manifest->optionExportApplicataion;
+        generatorProject->optionUseEmbeddedFiles = false;
         generatorProject->appHeaderName = proj->manifest->appHeaderName;
         generatorProject->appClassName = proj->manifest->appClassName;
         generatorProject->assignedVSGuid = proj->manifest->guid;
@@ -233,6 +233,10 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
             else
                 info->usePrecompiledHeader = false;
 
+            // media file ?
+            if (file->type == ProjectFileType::MediaFile)
+                generatorProject->optionUseEmbeddedFiles = true;
+
             generatorProject->files.push_back(info);
         }
 
@@ -244,7 +248,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
 
             generatorProject->group = createGroup(groupName, parentGroup);
             generatorProject->group->projects.push_back(generatorProject);
-        }        
+        }
     }
 
     // map dependencies
@@ -278,18 +282,21 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
 	// disable static initialization on projects that don't use the core
     for (auto* proj : m_projects)
     {
-        if (proj->optionUseReflection && !HasDependency(proj, "bm_core_object"))
+        if (proj->optionUseReflection && !HasDependency(proj, "core_object"))
             proj->optionUseReflection = false;
 
-		if (proj->optionUseStaticInit && !HasDependency(proj, "bm_core_system"))
+		if (proj->optionUseStaticInit && !HasDependency(proj, "core_system"))
 			proj->optionUseStaticInit = false;
+
+		if (proj->optionUseEmbeddedFiles && !HasDependency(proj, "core_file"))
+			proj->optionUseEmbeddedFiles = false;
     }
 
     // create the _rtti_generator project
     /*{
         bool needsRttiGenerator = false;
 
-        if (auto* coreObjectsProject = findProject("bm_core_object"))
+        if (auto* coreObjectsProject = findProject("core_object"))
         {
             // scan all project for the need of RTTI generator
             for (auto* proj : m_projects)
@@ -329,6 +336,34 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         if (!mod->projectsRootPath.empty())
             m_sourceRoots.push_back(mod->projectsRootPath);
 
+    // extract data folders from used modules
+    std::unordered_set<std::string> mountPaths;
+    for (const auto* mod : usedModules)
+    {
+        for (const auto& entry : mod->moduleData)
+        {
+            const auto path = ToLower(entry.mountPath);
+            if (!mountPaths.insert(path).second)
+            {
+                std::cerr << KRED << "[BREAKING] Duplicated entry for mounting data to '" << entry.mountPath << "'\n" << RST;
+                validDeps = false;
+                continue;
+            }
+
+            if (m_config.build == BuildType::Shipment && !entry.published)
+            {
+				std::cout << KYEL << "[WARNING] Non-publishable data at '" << entry.mountPath << "' will not be mounted\n" << RST;
+				validDeps = false;
+				continue;
+            }
+
+            SolutionDataFolder data;
+            data.mountPath = entry.mountPath;
+            data.dataPath = entry.sourcePath;
+            m_dataFolders.push_back(data);
+        }
+    }
+
     // return final validation flag
     return validDeps;
 }
@@ -339,11 +374,21 @@ bool SolutionGenerator::generateAutomaticCode(FileGenerator& fileGenerator)
 {
     std::atomic<bool> valid = true;
 
+	// TODO: fix
     //#pragma omp parallel for - can't use in parallel as there are dependencies on file existence
     for (int i = 0; i < m_projects.size(); ++i)
     {
         auto* project = m_projects[i];
         if (!generateAutomaticCodeForProject(project, fileGenerator))
+            valid = false;
+    }
+
+    // generate the data mapping file
+    {
+        const auto fstabFilePath = (m_config.deployPath / "fstab.cfg").make_preferred();
+
+		auto generatedFile = fileGenerator.createFile(fstabFilePath);
+        if (!generateSolutionFstabFile(generatedFile->content))
             valid = false;
     }
 
@@ -593,17 +638,17 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 
     writeln(f, "#include \"build.h\"");
 
-    const auto hasSystem = HasDependency(project, "bm_core_system");
-    const auto hasTasks = HasDependency(project, "bm_core_task");
+    const auto hasSystem = HasDependency(project, "core_system");
+    const auto hasTasks = HasDependency(project, "core_task");
 
     if (!project->appHeaderName.empty())
         writelnf(f, "#include \"%hs\"", project->appHeaderName.c_str());
-    writelnf(f, "#include \"bm/core/containers/include/commandLine.h\"");
+    writelnf(f, "#include \"core/containers/include/commandLine.h\"");
     writeln(f, "");
 
     if (project->appHeaderName.empty())
     {
-        writeln(f, "extern int bm_main(const bm::CommandLine& cmdLine);");
+        writeln(f, "extern int onion_main(const onion::CommandLine& cmdLine);");
         writeln(f, "");
     }
 
@@ -650,7 +695,7 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 	writeln(f, "");
 
     // commandline
-    writeln(f, "  bm::CommandLine commandLine;");
+    writeln(f, "  onion::CommandLine commandLine;");
     if (windowsCommandLine)
         writeln(f, "  if (!commandLine.parse(pCmdLine, false))");
     else
@@ -661,15 +706,15 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
     // profiling init
     {
 		writeln(f, "  if (commandLine.hasParam(\"profile\"))");
-		writeln(f, "    bm::InitProfiling();");
+		writeln(f, "    onion::InitProfiling();");
 		writeln(f, "");
     }
 
     // task init
     if (hasTasks)
     {
-        writeln(f, "  if (!bm::InitTaskThreads(commandLine)) {");
-        writeln(f, "    bm::CloseProfiling();");
+        writeln(f, "  if (!onion::InitTaskThreads(commandLine)) {");
+        writeln(f, "    onion::CloseProfiling();");
         writeln(f, "    return 1;");
         writeln(f, "  }");
         writeln(f, "");
@@ -688,19 +733,19 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
     }
     else
     {
-        writelnf(f, "    ret = bm_main(commandLine);");
+        writelnf(f, "    ret = onion_main(commandLine);");
     }
 
     // close task system
 	if (hasTasks)
 	{
-		writeln(f, "  bm::CloseTaskThreads();");
+		writeln(f, "  onion::CloseTaskThreads();");
 		writeln(f, "");
 	}
 
     // close profiling
     {
-        writeln(f, "  bm::CloseProfiling();");
+        writeln(f, "  onion::CloseProfiling();");
         writeln(f, "");
     }
 
@@ -721,12 +766,12 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
 
     writeln(f, "#include \"build.h\"");
 
-    const auto hasTasks = HasDependency(project, "bm_core_task");
-    const auto hasSystem = HasDependency(project, "bm_core_system");
-    const auto hasContainers = HasDependency(project, "bm_core_containers");
+    const auto hasTasks = HasDependency(project, "core_task");
+    const auto hasSystem = HasDependency(project, "core_system");
+    const auto hasContainers = HasDependency(project, "core_containers");
 
     if (hasContainers)
-        writelnf(f, "#include \"bm/core/containers/include/commandLine.h\"");
+        writelnf(f, "#include \"core/containers/include/commandLine.h\"");
     writeln(f, "");
 
     writeln(f, "#include \"gtest/gtest.h\"");
@@ -744,18 +789,18 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
 
     if (hasContainers)
     {
-        writeln(f, "  bm::CommandLine commandLine;");
+        writeln(f, "  onion::CommandLine commandLine;");
         writeln(f, "  commandLine.parse(argc, argv);");
         writeln(f, "");
 
 		writeln(f, "  if (commandLine.hasParam(\"profile\"))");
-		writeln(f, "    bm::InitProfiling();");
+		writeln(f, "    onion::InitProfiling();");
 		writeln(f, "");
 
         if (hasTasks)
         {
-            writeln(f, "  if (!bm::InitTaskThreads(commandLine)) {");
-            writeln(f, "    bm::CloseProfiling();");
+            writeln(f, "  if (!onion::InitTaskThreads(commandLine)) {");
+            writeln(f, "    onion::CloseProfiling();");
             writeln(f, "    return -1;");
             writeln(f, "  }");
             writeln(f, "");
@@ -775,11 +820,11 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
 
         if (hasTasks)
         {
-            writeln(f, "  bm::CloseTaskThreads();");
+            writeln(f, "  onion::CloseTaskThreads();");
             writeln(f, "");
         }
 
-		writeln(f, "  bm::CloseProfiling();");
+		writeln(f, "  onion::CloseProfiling();");
 		writeln(f, "");
     }
     else
@@ -823,6 +868,12 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
 
     writeln(f, "#include \"build.h\"");
     writeln(f, "");
+
+    // embedded files header
+    if (project->optionUseEmbeddedFiles)
+    {
+        writeln(f, "#include \"core/file/include/embeddedFile.h\"");
+    }
 
     // collect all projects that are STATICALLY linked to this project
     std::vector<const SolutionProject*> staticallyLinkedProjects;
@@ -872,6 +923,46 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
     }
 
     // embedded files initialization
+    if (project->optionUseEmbeddedFiles)
+    {
+		for (const auto* file : project->files)
+		{
+			if (file->type == ProjectFileType::MediaFile)
+			{
+				const auto symbolPrefix = std::string("EMBED_") + std::string(project->name) + "_";
+				const auto symbolCoreName = symbolPrefix + std::string(PartAfter(MakeSymbolName(file->projectRelativePath), "media_"));
+
+                writelnf(f, "// File: '%hs'", file->projectRelativePath.c_str());
+				writelnf(f, "extern const char* %hs_PATH;", symbolCoreName.c_str());
+				writelnf(f, "extern const uint8_t* %hs_DATA;", symbolCoreName.c_str());
+				writelnf(f, "extern const unsigned int %hs_SIZE;", symbolCoreName.c_str());
+				writelnf(f, "extern const unsigned __int64 %hs_CRC;", symbolCoreName.c_str());
+				writelnf(f, "extern const unsigned __int64 %hs_TS;", symbolCoreName.c_str());
+				writelnf(f, "extern const char* %hs_SPATH;", symbolCoreName.c_str());
+				writeln(f, "");
+			}
+		}
+
+        writeln(f, "// Embedded media files registration");
+		writelnf(f, "void InitializeEmbeddedFiles_%hs() {", project->name.c_str());
+		for (const auto* file : project->files)
+		{
+			if (file->type == ProjectFileType::MediaFile)
+			{
+				const auto symbolPrefix = std::string("EMBED_") + std::string(project->name) + "_";
+                const auto symbolCoreName = symbolPrefix + std::string(PartAfter(MakeSymbolName(file->projectRelativePath), "media_"));
+
+				// virtual void registerFile(const char* path, const void* data, uint32_t size, uint64_t crc, const char* sourcePath, TimeStamp sourceTimeStamp) = 0;
+				writelnf(f, "onion::EmbeddedFiles().registerFile(%hs_PATH, %hs_DATA, %hs_SIZE, %hs_CRC, %hs_SPATH, onion::TimeStamp(%hs_TS));",
+					symbolCoreName.c_str(), symbolCoreName.c_str(), symbolCoreName.c_str(),
+					symbolCoreName.c_str(), symbolCoreName.c_str(), symbolCoreName.c_str());
+			}
+		}
+
+		writeln(f, "}");
+		writeln(f, "");
+    }
+    else
     {
         writeln(f, "// Dummy initialization for embedded files");
         writelnf(f, "void InitializeEmbeddedFiles_%hs() {}", project->name.c_str());
@@ -910,11 +1001,11 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
 
         // initialize self
         if (project->optionUseStaticInit) {
-            writelnf(f, "    bm::modules::TModuleInitializationFunc initFunc = []() { InitializeReflection_%hs(); InitializeEmbeddedFiles_%hs(); };", project->name.c_str(), project->name.c_str(), project->name.c_str());
-            writelnf(f, "    bm::modules::RegisterModule(\"%hs\", __DATE__, __TIME__, _MSC_FULL_VER, initFunc);", project->name.c_str());
+            writelnf(f, "    onion::modules::TModuleInitializationFunc initFunc = []() { InitializeReflection_%hs(); InitializeEmbeddedFiles_%hs(); };", project->name.c_str(), project->name.c_str(), project->name.c_str());
+            writelnf(f, "    onion::modules::RegisterModule(\"%hs\", __DATE__, __TIME__, _MSC_FULL_VER, initFunc);", project->name.c_str());
 
             if (project->type == ProjectType::Application || project->type == ProjectType::TestApplication)
-                writelnf(f, "    bm::modules::InitializePendingModules();");
+                writelnf(f, "    onion::modules::InitializePendingModules();");
         }
         writeln(f, "}");
         writeln(f, "");
@@ -929,24 +1020,6 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
         writeln(f, "}");
         writeln(f, "");
     }
-
-    /*if (project->hasEmbeddedFiles)
-    {
-        writelnf(f, "void InitializeEmbeddedFiles_%hs() {", project->mergedName.c_str());
-        for (const auto* file : project->originalProject->files)
-        {
-            if (file->type == ProjectFileType::MediaScript && file->originalProject)
-            {
-                std::string symbolName = ToUpper(file->originalProject->mergedName) + "_" + ToUpper(PartBefore(file->name, "."));
-                std::string functionName = "RegisterEmbeddedFiles_" + symbolName;
-                writelnf(f, "  extern void %hs();", functionName.c_str());
-                writelnf(f, "  %hs();", functionName.c_str());
-            }
-        }
-        writeln(f, "}");
-        writeln(f, "");
-    }*/
-
 
     return true;
 }
@@ -1263,6 +1336,30 @@ bool SolutionGenerator::processBisonFile(SolutionProject* project, const Solutio
         project->files.push_back(generatedFile);
     }
 
+    return true;
+}
+
+bool SolutionGenerator::generateSolutionFstabFile(std::stringstream& outContent)
+{
+    for (const auto& data : m_dataFolders)
+    {
+        std::error_code ec;
+        const auto relativePath = fs::relative(data.dataPath, m_config.deployPath, ec);
+        if (!ec)
+        {
+			writeln(outContent, "DATA_RELATIVE");
+			writeln(outContent, data.mountPath.c_str());
+            writeln(outContent, relativePath.u8string().c_str());
+        }
+        else
+        {
+			writeln(outContent, "DATA_ABSOLUTE");
+			writeln(outContent, data.mountPath.c_str());
+            writeln(outContent, data.dataPath.u8string().c_str());
+        }
+    }
+
+    writeln(outContent, "EOF");
     return true;
 }
 

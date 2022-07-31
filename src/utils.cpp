@@ -2105,7 +2105,7 @@ uint64_t Crc64(uint64_t crc, const uint8_t* s, uint64_t l)
 
 uint64_t Crc64(const uint8_t* s, uint64_t l)
 {
-    return Crc64(0, s, l);
+    return Crc64(0xCBF29CE484222325, s, l);
 }
 
 //--

@@ -40,10 +40,12 @@ static fs::path ProjectBinaryPath(const ProjectInfo* project, const Configuratio
 {
 	const auto& binaryPath = config.deployPath;
 
+	const auto safeName = ReplaceAll(project->name, "/", "_");
+
 #ifdef _WIN32
-	const auto executableName = project->name + ".exe";
+	const auto executableName = safeName + ".exe";
 #else
-	const auto& executableName = project->name;
+	const auto& executableName = safeName;
 #endif
 
 	return (binaryPath / executableName).make_preferred();

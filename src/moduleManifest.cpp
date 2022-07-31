@@ -24,6 +24,57 @@ static bool ParseDependency(const XMLNode* node, ModuleDepdencencyInfo& dep)
 	return true;
 }
 
+static bool ParseData(const XMLNode* node, const fs::path& moduleRootPath, ModuleDataInfo& data)
+{
+	bool valid = true;
+
+	XMLNodeIterate(node, [&valid, &data](const XMLNode* node, std::string_view option)
+		{
+			// TODO: filter
+
+			if (option == "MountPath")
+				data.mountPath = XMLNodeValue(node);
+			else if (option == "DataRoot")
+				data.localSourcePath = XMLNodeValue(node);
+			else if (option == "Publish")
+				data.published = XMLNodeValueBool(node);
+			else
+			{
+				std::cerr << "Unknown module's manifest option '" << option << "' in Data block\n";
+				valid = false;
+			}
+		});
+
+	if (data.localSourcePath.empty())
+	{
+		std::cerr << KRED << "[BREAKING] There's no root directory specified for data\n" << RST;
+		valid = false;
+	}
+	else
+	{
+		data.sourcePath = fs::weakly_canonical(fs::absolute((moduleRootPath / data.localSourcePath).make_preferred()));
+
+		if (!fs::is_directory(data.sourcePath))
+		{
+			std::cerr << KRED << "[BREAKING] Data root directory " << data.sourcePath << " does not exist\n" << RST;
+			valid = false;
+		}
+	}
+
+	if (data.mountPath.empty())
+	{
+		std::cerr << KRED << "[BREAKING] There's no mount directory specified for data\n" << RST;
+		valid = false;
+	}
+	else if (!BeginsWith(data.mountPath, "/") || !BeginsWith(data.mountPath, "/"))
+	{
+		std::cerr << KRED << "[BREAKING] Mount path should start and end with /\n" << RST;
+		valid = false;
+	}
+
+	return valid;
+}
+
 static std::string ProjectMergedNameFromPath(const std::string_view path)
 {
 	std::vector<std::string_view> parts;
@@ -112,9 +163,23 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath)
 			}
 		});
 
+	XMLNodeIterate(root, "Data", [&ret, &valid](const XMLNode* node)
+		{
+			ModuleDataInfo data;
+			if (ParseData(node, ret->rootPath, data))
+			{
+				ret->moduleData.push_back(data);
+			}
+			else
+			{
+				std::cerr << KRED << "[BREAKING] Module manifest XML at '" << ret->rootPath << "' has invalid data definition\n" << RST;
+				valid = false;
+			}
+		});
+
 	XMLNodeIterate(root, [&ret, &valid](const XMLNode* node, std::string_view name)
 		{
-			if (name == "ModuleDependency")
+			if (name == "ModuleDependency" || name == "Data")
 				return;
 
 			if (!IsValidProjectTag(name))

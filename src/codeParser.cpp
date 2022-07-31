@@ -444,92 +444,123 @@ bool CodeTokenizer::process()
         if (print)
             std::cout << "Token '" << token.text << "' at line " << token.line << "\n";
 
-        if (token.text == "BEGIN_INFERNO_NAMESPACE" || token.text == "BEGIN_BM_NAMESPACE")
+        if (token.text == "BEGIN_INFERNO_NAMESPACE" || token.text == "BEGIN_INFERNO_NAMESPACE_EX")
+        {
+            std::stringstream txt;
+			txt << contextPath.u8string() << "(" << token.line << "): error: Outdated macro, switch to BEGIN_INFERNO_NAMESPACE\n";
+            std::cerr << txt.str();
+			return false;
+        }
+		else if (token.text == "END_INFERNO_NAMESPACE" || token.text == "END_INFERNO_NAMESPACE_EX")
+		{
+            std::stringstream txt;
+			txt << contextPath.u8string() << "(" << token.line << "): error: Outdated macro, switch to END_INFERNO_NAMESPACE\n";
+            std::cerr << txt.str();
+			return false;
+		}
+        else if (token.text == "BEGIN_ONION_NAMESPACE")
         {
             if (!activeNamespace.empty())
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Nested BEGIN_BM_NAMESPACE are not allowed\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Nested BEGIN_BM_NAMESPACE are not allowed\n";
+                std::cerr << txt.str();
                 return false;
             }
 
             if (!ExtractEmptyBrackets(s))
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: This macro variant does not use a name\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: This macro variant does not use a name\n";
+                std::cerr << txt.str();
                 return false;
             }
 
-            activeNamespace = "bm";
+            activeNamespace = "onion";
         }
-        else if (token.text == "BEGIN_INFERNO_NAMESPACE_EX" || token.text == "BEGIN_BM_NAMESPACE_EX")
+        else if (token.text == "BEGIN_ONION_NAMESPACE_EX")
         {
             if (!activeNamespace.empty())
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Nested BEGIN_BM_NAMESPACE_EX are not allowed\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Nested BEGIN_BM_NAMESPACE_EX are not allowed\n";
+                std::cerr << txt.str();
                 return false;
             }
 
             std::string name;
             if (!ExtractNamespaceName(s, name))
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Unable to parse namespace's name\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse namespace's name\n";
+                std::cerr << txt.str();
                 return false;
             }
 
-            activeNamespace = "bm::" + name;
+            activeNamespace = "onion::" + name;
         }
-        else if (token.text == "END_INFERNO_NAMESPACE" || token.text == "END_BM_NAMESPACE")
+        else if (token.text == "END_ONION_NAMESPACE")
         {
             if (activeNamespace.empty())
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Found END_BM_NAMESPACE without previous BEGIN_BM_NAMESPACE\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Found END_BM_NAMESPACE without previous BEGIN_BM_NAMESPACE\n";
+                std::cerr << txt.str();
                 return false;
             }
 
             if (!ExtractEmptyBrackets(s))
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: This macro variant does not use a name\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: This macro variant does not use a name\n";
                 return false;
             }
 
             activeNamespace.clear();
         }
-        else if (token.text == "END_INFERNO_NAMESPACE_EX" || token.text == "END_BM_NAMESPACE_EX")
+        else if (token.text == "END_ONION_NAMESPACE_EX")
         {
             if (activeNamespace.empty())
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Found END_BM_NAMESPACE_EX without previous BEGIN_BM_NAMESPACE_E\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Found END_BM_NAMESPACE_EX without previous BEGIN_BM_NAMESPACE_E\n";
                 return false;
             }
 
             std::string name;
             if (!ExtractNamespaceName(s, name))
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Unable to parse namespace's name\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse namespace's name\n";
                 return false;
             }
 
-            name = "bm::" + name;
+            name = "onion::" + name;
 
             if (name != activeNamespace)
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Inconsistent namespace name between BEGIN and END macros\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Inconsistent namespace name between BEGIN and END macros\n";
                 return false;
             }
 
             activeNamespace.clear();
         }
-        else if (token.text == "RTTI_BEGIN_TYPE_ENUM" || token.text == "BEGIN_BM_TYPE_ENUM")
+        else if (token.text == "BEGIN_ONION_TYPE_ENUM")
         {
             if (activeNamespace.empty())
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
                 return false;
             }
 
             std::string name;
             if (!ExtractIdentName(s, name))
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
+                std::cerr << txt.str();
                 return false;
             }
 
@@ -538,25 +569,29 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::ENUM;
 
-            decl.typeName = PartAfter(activeNamespace, "bm::");
+            decl.typeName = PartAfter(activeNamespace, "onion::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;
 
             declarations.push_back(decl);
         }
-        else if (token.text == "RTTI_BEGIN_TYPE_BITFIELD" || token.text == "BEGIN_BM_TYPE_BITFIELD")
+        else if (token.text == "BEGIN_ONION_TYPE_BITFIELD")
         {
             if (activeNamespace.empty())
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
+                std::cerr << txt.str();
                 return false;
             }
 
             std::string name;
             if (!ExtractIdentName(s, name))
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
+                std::cerr << txt.str();
                 return false;
             }
 
@@ -565,29 +600,46 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::BITFIELD;
             
-            decl.typeName = PartAfter(activeNamespace, "bm::");
+            decl.typeName = PartAfter(activeNamespace, "onion::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;
 
             declarations.push_back(decl);
         }
-        else if (token.text == "RTTI_BEGIN_TYPE_NATIVE_CLASS" || token.text == "BEGIN_BM_TYPE_RUNTIME_CLASS" 
-            || token.text == "RTTI_BEGIN_TYPE_ABSTRACT_CLASS" || token.text == "BEGIN_BM_TYPE_ABSTRACT_CLASS"
-            || token.text == "RTTI_BEGIN_TYPE_CLASS" || token.text == "BEGIN_BM_TYPE_CLASS"
-            || token.text == "RTTI_BEGIN_TYPE_STRUCT" || token.text == "BEGIN_BM_TYPE_STRUCT")
+        else if (token.text == "RTTI_BEGIN_TYPE_NATIVE_CLASS"
+            || token.text == "RTTI_BEGIN_TYPE_ABSTRACT_CLASS"
+            || token.text == "RTTI_BEGIN_TYPE_CLASS"
+            || token.text == "RTTI_BEGIN_CUSTOM_TYPE"
+            || token.text == "RTTI_BEGIN_TYPE_BITFIELD"
+            || token.text == "RTTI_BEGIN_TYPE_ENUM"
+            || token.text == "RTTI_BEGIN_TYPE_STRUCT")
+        {
+            std::stringstream txt;
+		    txt << contextPath.u8string() << "(" << token.line << "): error: Outdated RTTI macro, switch to ONION macros\n";
+            std::cerr << txt.str();
+		    return false;
+        }
+        else if (token.text == "BEGIN_ONION_TYPE_RUNTIME_CLASS" 
+            || token.text == "BEGIN_ONION_TYPE_ABSTRACT_CLASS"
+            || token.text == "BEGIN_ONION_TYPE_CLASS"
+            || token.text == "BEGIN_ONION_TYPE_STRUCT")
             
         {
             if (activeNamespace.empty())
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
+                std::cerr << txt.str();
                 return false;
             }
 
             std::string name;
             if (!ExtractNamespaceName(s, name))
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
+                std::cerr << txt.str();
                 return false;
             }
 
@@ -596,25 +648,29 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::CLASS;
             
-            decl.typeName = PartAfter(activeNamespace, "bm::");
+            decl.typeName = PartAfter(activeNamespace, "onion::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;
 
             declarations.push_back(decl);
         }
-        else if (token.text == "RTTI_BEGIN_CUSTOM_TYPE" || token.text == "BEGIN_BM_CUSTOM_TYPE")
+        else if (token.text == "BEGIN_ONION_CUSTOM_TYPE")
         {
             if (activeNamespace.empty())
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
+                std::cerr << txt.str();
                 return false;
             }
 
             std::string name;
             if (!ExtractIdentName(s, name))
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
+                std::cerr << txt.str();
                 return false;
             }
 
@@ -623,29 +679,33 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::CUSTOM_TYPE;
             
-            decl.typeName = PartAfter(activeNamespace, "bm::");
+            decl.typeName = PartAfter(activeNamespace, "onion::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;
 
             declarations.push_back(decl);
         }
-        else if (token.text == "RTTI_BM_SCRIPT_GLOBAL_FUNCTION" || token.text == "RTTI_BM_SCRIPT_GLOBAL_FUNCTION_EX")
+        else if (token.text == "RTTI_ONION_SCRIPT_GLOBAL_FUNCTION" || token.text == "RTTI_ONION_SCRIPT_GLOBAL_FUNCTION_EX")
         {
             if (activeNamespace.empty())
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Global function declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Global function declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
+                std::cerr << txt.str();
                 return false;
             }
 
             std::string name;
             if (!ExtractIdentName(s, name))
             {
-                std::cout << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
+                std::stringstream txt;
+                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
+                std::cerr << txt.str();
                 return false;
             }
     
-            std::cout << "Found function: '" << name << "'\n";
+            //std::cout << "Found function: '" << name << "'\n";
 
             Declaration decl;
             decl.name = name;

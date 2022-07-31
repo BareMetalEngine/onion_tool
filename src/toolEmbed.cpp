@@ -58,7 +58,7 @@ static const std::string_view* MakeStringTokenTable()
 
 static void PrintDataTableByte(std::stringstream& f, const char* name, const void* data, uint32_t dataSize)
 {
-	writelnf(f, "const unsigned char* %hs_DATA = (const unsigned char*)", name);
+	writelnf(f, "const unsigned char* %hs = (const unsigned char*)", name);
 
 	static const auto* HexTokens = MakeStringTokenTable();
 
@@ -80,6 +80,15 @@ static void PrintDataTableByte(std::stringstream& f, const char* name, const voi
 	}
 }
 
+template <typename TP>
+std::time_t to_time_t(TP tp)
+{
+	using namespace std::chrono;
+	auto sctp = time_point_cast<system_clock::duration>(tp - TP::clock::now()
+		+ system_clock::now());
+	return system_clock::to_time_t(sctp);
+}
+
 bool ToolEmbed::writeFile(FileGenerator& gen, const fs::path& inputPath, std::string_view projectName, std::string_view relativePath, const fs::path& outputPath)
 {
 	// load content
@@ -93,6 +102,9 @@ bool ToolEmbed::writeFile(FileGenerator& gen, const fs::path& inputPath, std::st
 	// create file
 	auto* file = gen.createFile(outputPath);
 	file->customtTime = fs::last_write_time(inputPath);
+
+	// timestamp ?
+	const auto timeStamp = to_time_t(file->customtTime);
 
 	// header
 	auto& f = file->content;
@@ -112,13 +124,16 @@ bool ToolEmbed::writeFile(FileGenerator& gen, const fs::path& inputPath, std::st
 	// symbol name
 	const auto symbolPrefix = std::string("EMBED_") + std::string(projectName) + "_";
 	const auto symbolCoreName = symbolPrefix + MakeSymbolName(relativePath);
-	const auto symbolPath = symbolCoreName + "_path";
-	const auto symbolSize = symbolCoreName + "_size";
-	const auto symbolData = symbolCoreName + "_data";
+	const auto symbolData = symbolCoreName + "_DATA";
 
-	const auto safePath = ReplaceAll(inputPath.u8string().c_str(), "\\", "\\\\");
-	writelnf(f, "const char* %hs = \"%hs\";", symbolPath.c_str(), safePath.c_str());
-	writelnf(f, "const unsigned int %hs = %u;", symbolSize.c_str(), (uint32_t)data.size());
+	const auto safeSourcePath = ReplaceAll(inputPath.u8string().c_str(), "\\", "\\\\");
+	const auto safeRelativePath = ReplaceAll(relativePath, "\\", "/");
+
+	writelnf(f, "const char* %hs_PATH = \"%hs/%hs\";", symbolCoreName.c_str(), std::string(projectName).c_str(), safeRelativePath.c_str());
+	writelnf(f, "const char* %hs_SPATH = \"%hs\";", symbolCoreName.c_str(), safeSourcePath.c_str());
+	writelnf(f, "extern const unsigned int %hs_SIZE = %u;", symbolCoreName.c_str(), (uint32_t)data.size());
+	writelnf(f, "extern const unsigned __int64 %hs_CRC = 0x%016llX;", symbolCoreName.c_str(), Crc64(data.data(), data.size()));
+	writelnf(f, "extern const unsigned __int64 %hs_TS = %llu;", symbolCoreName.c_str(), timeStamp);
 	PrintDataTableByte(f, symbolData.c_str(), data.data(), (uint32_t)data.size());
 
 	// 
