@@ -31,6 +31,10 @@
       "Command": "configure"
     },
     {
+      "Id": "ac9be11c-ec20-4bf3-9f7e-9aea66b14f4b",
+      "Command": "deploy"
+    },
+    {
       "Id": "39188646-5802-43cd-8ff2-fc7fa797486c",
       "Command": "reflection"
     },
@@ -61,6 +65,10 @@
     {
       "Id": "eda8c926-2420-4d6e-b7fe-01b4c51f32b9",
       "Command": "-module=\"Z:\\internal\\bm_core\""
+    },
+    {
+      "Id": "2059df3d-18e6-4d1f-ad94-dff8820ab748",
+      "Command": "-module=\"Z:\\BareMetalEngine\\network\""
     },
     {
       "Id": "71c57d14-0de9-470e-a371-e38d750e8083",
@@ -157,6 +165,14 @@
     {
       "Id": "e4bca3cd-71df-482d-870c-81cd767aab08",
       "Command": "-release"
+    },
+    {
+      "Id": "03f8aefc-e56f-43e3-b285-ff711da9ddfa",
+      "Command": "-app=integration/network/http"
+    },
+    {
+      "Id": "cc0b90fd-337d-49b7-8153-2eca120c38ff",
+      "Command": "-config=final -libs=static"
     }
   ]
 }

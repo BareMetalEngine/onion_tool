@@ -21,7 +21,7 @@ bool ConfigurationList::Compare(const Configuration& a, const Configuration& b)
 	if (a.libs != b.libs) return false;
 	if (a.modulePath != b.modulePath) return false;
 	if (a.solutionPath != b.solutionPath) return false;
-	if (a.deployPath != b.deployPath) return false;
+	if (a.binaryPath != b.binaryPath) return false;
 	return true;
 }
 
@@ -71,7 +71,7 @@ bool ConfigurationList::save(const fs::path& path)
 		}
 
 		{
-			const auto normalizedPath = fs::relative(cfg.deployPath, rootDir);
+			const auto normalizedPath = fs::relative(cfg.binaryPath, rootDir);
 			writelnf(f, "    <DeployPath>%hs</DeployPath>", normalizedPath.u8string().c_str());
 		}
 
@@ -110,8 +110,8 @@ static bool ParseConfiguration(const XMLNode* node, Configuration& cfg, const fs
 				valid &= ParseGeneratorType(XMLNodeValue(node), cfg.generator);
 			else if (option == "ModulePath")
 				valid &= ParseRelativePath(XMLNodeValue(node), basePath, cfg.modulePath);
-			else if (option == "DeployPath")
-				valid &= ParseRelativePath(XMLNodeValue(node), basePath, cfg.deployPath);
+			else if (option == "DeployPath" || option == "BinaryPath")
+				valid &= ParseRelativePath(XMLNodeValue(node), basePath, cfg.binaryPath);
 			else if (option == "SolutionPath")
 				valid &= ParseRelativePath(XMLNodeValue(node), basePath, cfg.solutionPath);
 			else

@@ -19,7 +19,7 @@ struct Configuration
     fs::path modulePath; // path to root configured module directory
     fs::path tempPath; // shared temp folder
     fs::path solutionPath; // build folder
-    fs::path deployPath; // "bin" folder when all crap is written
+    fs::path binaryPath; // "bin" folder when all crap is written
 
     bool staticBuild = false; // build is "static" - no runtime code generation, all has to be pregenerated
 

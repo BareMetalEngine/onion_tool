@@ -49,6 +49,7 @@
     </ClCompile>
     <ClCompile Include="toolSign.cpp" />
     <ClCompile Include="toolTest.cpp" />
+    <ClCompile Include="toolDeploy.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.h" />
@@ -115,6 +116,7 @@
     <ClInclude Include="toolSign.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="toolTest.h" />
+    <ClInclude Include="toolDeploy.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\..\src\base\config\build.lua" />

@@ -355,7 +355,7 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
 
     writelnf(f, " 	<ProjectOutputPath>%s\\</ProjectOutputPath>", project->outputPath.u8string().c_str());
     writelnf(f, " 	<ProjectGeneratedPath>%s\\</ProjectGeneratedPath>", project->generatedPath.u8string().c_str());
-    writelnf(f, " 	<ProjectPublishPath>%s\\</ProjectPublishPath>", m_config.deployPath.u8string().c_str());
+    writelnf(f, " 	<ProjectPublishPath>%s\\</ProjectPublishPath>", m_config.binaryPath.u8string().c_str());
     writelnf(f, " 	<ProjectSourceRoot>%s\\</ProjectSourceRoot>", project->rootPath.u8string().c_str());
     writelnf(f, " 	<ProjectMediaRoot>%s\\</ProjectMediaRoot>", (project->rootPath / "media").u8string().c_str());
 

@@ -112,6 +112,7 @@
     <ClCompile Include="solutionGeneratorVS.cpp" />
     <ClCompile Include="toolBuild.cpp" />
     <ClCompile Include="toolConfigure.cpp" />
+    <ClCompile Include="toolDeploy.cpp" />
     <ClCompile Include="toolEmbed.cpp" />
     <ClCompile Include="toolGlueFiles.cpp" />
     <ClCompile Include="toolLibrary.cpp" />
@@ -153,6 +154,7 @@
     <ClInclude Include="solutionGeneratorVS.h" />
     <ClInclude Include="toolBuild.h" />
     <ClInclude Include="toolConfigure.h" />
+    <ClInclude Include="toolDeploy.h" />
     <ClInclude Include="toolEmbed.h" />
     <ClInclude Include="toolGlueFiles.h" />
     <ClInclude Include="toolLibrary.h" />

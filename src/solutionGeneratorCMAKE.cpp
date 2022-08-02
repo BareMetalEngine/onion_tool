@@ -67,7 +67,7 @@ bool SolutionGeneratorCMAKE::generateSolution(FileGenerator& gen)
     writelnf(f, "set(CMAKE_MODULE_PATH %s)", EscapePath(m_cmakeScriptsPath).c_str());
     writelnf(f, "set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY %s)", EscapePath(m_config.solutionPath / "lib").c_str());
     writelnf(f, "set(CMAKE_LIBRARY_OUTPUT_DIRECTORY %s)", EscapePath(m_config.solutionPath / "lib").c_str());
-    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY %s)", EscapePath(m_config.deployPath).c_str());
+    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY %s)", EscapePath(m_config.binaryPath).c_str());
 
     //if (solution.platformType == PlatformType.WINDOWS)
     writeln(f, "set_property(GLOBAL PROPERTY USE_FOLDERS ON)");

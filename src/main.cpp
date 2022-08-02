@@ -10,6 +10,7 @@
 #include "toolSign.h"
 #include "toolGlueFiles.h"
 #include "toolTest.h"
+#include "toolDeploy.h"
 
 static bool NeedsQuotes(std::string_view txt)
 {
@@ -60,6 +61,8 @@ static void PrintUsage(const char* argv0)
 	ToolLibrary().printUsage(argv0);
 	std::cout << "---------------------------------------------------------\n";
 	ToolRelease().printUsage(argv0);
+	std::cout << "---------------------------------------------------------\n";
+	ToolDeploy().printUsage(argv0);
 	std::cout << "---------------------------------------------------------\n";
 	ToolTest().printUsage();
 }
@@ -130,6 +133,11 @@ int main(int argc, char** argv)
 	else if (tool == "test")
 	{
 		ToolTest tool;
+		return tool.run(executablePath.c_str(), cmdLine);
+	}
+	else if (tool == "deploy")
+	{
+		ToolDeploy tool;
 		return tool.run(executablePath.c_str(), cmdLine);
 	}
     else

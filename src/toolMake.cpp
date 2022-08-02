@@ -51,7 +51,7 @@ void ToolMake::printUsage(const char* argv0)
     std::cout << "General options:\n";
     std::cout << "  -module=<path to configured module directory>\n";
     std::cout << "  -buildDir=<general build directory where all the build files are stored>\n";
-    std::cout << "  -deployDir=<path where all final executables are written - if not specified a %{buildDir}/.bin/ is used>\n";
+    std::cout << "  -binaryDir=<path where all final executables are written - if not specified a %{buildDir}/.bin/ is used>\n";
     std::cout << "  -outDir=<path where all temporary build files are written - if not specified a %{buildDir}/.temp/ is used>\n";    
 	std::cout << "\n";
 
@@ -135,7 +135,7 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
 		return 1;
 	}
 
-    if (!libraries.deployFiles(config.deployPath))
+    if (!libraries.deployFiles(config.binaryPath))
     {
         std::cerr << KRED << "[BREAKING] Failed to deploy library files\n" << RST;
         return 1;

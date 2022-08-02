@@ -200,7 +200,7 @@ bool Configuration::parsePaths(const char* executable, const Commandline& cmd)
     }
 
     {
-        const auto& str = cmd.get("deployDir");
+        const auto& str = cmd.get("binaryDir");
         if (str.empty())
         {
             //std::cout << "No deploy directory specified, using default one\n";
@@ -208,21 +208,21 @@ bool Configuration::parsePaths(const char* executable, const Commandline& cmd)
             std::string solutionPartialPath = ".bin/";
             solutionPartialPath += mergedName();
 
-            this->deployPath = buildPath / solutionPartialPath;
+            this->binaryPath = buildPath / solutionPartialPath;
         }
         else
         {
-            this->deployPath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
+            this->binaryPath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
         }
 
-        this->deployPath.make_preferred();
+        this->binaryPath.make_preferred();
 
         std::error_code ec;
-        if (!fs::is_directory(deployPath, ec))
+        if (!fs::is_directory(binaryPath, ec))
         {
-            if (!fs::create_directories(deployPath, ec))
+            if (!fs::create_directories(binaryPath, ec))
             {
-                std::cerr << KRED << "[BREAKING] Failed to create deploy directory " << deployPath << "\n" << RST;
+                std::cerr << KRED << "[BREAKING] Failed to create deploy directory " << binaryPath << "\n" << RST;
                 return false;
             }
         }
@@ -283,12 +283,12 @@ bool Configuration::parsePaths(const char* executable, const Commandline& cmd)
 	}*/
 
     solutionPath = solutionPath.make_preferred();
-    deployPath = deployPath.make_preferred();
+    binaryPath = binaryPath.make_preferred();
     modulePath = modulePath.make_preferred();
 
 	std::cout << "Module path: " << modulePath << "\n";
 	std::cout << "Solution path: " << solutionPath << "\n";
-	std::cout << "Deploy path: " << deployPath << "\n";
+	std::cout << "Binary path: " << binaryPath << "\n";
 
     return true;
 }

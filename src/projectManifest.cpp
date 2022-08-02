@@ -172,7 +172,7 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
 			else if (option == "UseExceptions")
 				ret->optionUseExceptions = XMLNodeValueBool(node, ret->optionUseExceptions);
 			else if (option == "GenerateMain")
-				ret->optionUseExceptions = XMLNodeValueBool(node, ret->optionGenerateMain);
+				ret->optionGenerateMain = XMLNodeValueBool(node, ret->optionGenerateMain);
 			else if (option == "GenerateSymbols")
 				ret->optionGenerateSymbols = XMLNodeValueBool(node, ret->optionGenerateSymbols);
 			else if (option == "SelfTest")

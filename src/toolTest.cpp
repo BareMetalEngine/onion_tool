@@ -36,19 +36,41 @@ static bool IsTestableProject(const ProjectInfo* proj)
 	return false;
 }
 
-static fs::path ProjectBinaryPath(const ProjectInfo* project, const Configuration& config)
+bool ProjectBinaryName(const ProjectInfo* project, std::string& outName)
 {
-	const auto& binaryPath = config.deployPath;
-
 	const auto safeName = ReplaceAll(project->name, "/", "_");
 
+	switch (project->manifest->type)
+	{
+	case ProjectType::TestApplication:
+	case ProjectType::Application:
 #ifdef _WIN32
-	const auto executableName = safeName + ".exe";
+		outName = safeName + ".exe";
 #else
-	const auto& executableName = safeName;
+		outName = safeName;
 #endif
+		return true;
 
-	return (binaryPath / executableName).make_preferred();
+	case ProjectType::SharedLibrary:
+#ifdef _WIN32
+		outName = safeName + ".dll";
+#else
+		outName = safeName + ".so";
+#endif
+		return true;
+	}
+
+	return false;
+}
+
+static bool ProjectBinaryPath(const ProjectInfo* project, const Configuration& config, fs::path& outPath)
+{
+	std::string executableName;
+	if (!ProjectBinaryName(project, executableName))
+		return false;
+
+	outPath = (config.binaryPath / executableName).make_preferred();
+	return true;
 }
 
 static bool RunTestsForConfiguration(const ModuleRepository& modules, const Configuration& config, const Commandline& cmdLine)
@@ -85,29 +107,32 @@ static bool RunTestsForConfiguration(const ModuleRepository& modules, const Conf
 	bool valid = true;
 	for (const auto* proj : testProjects)
 	{
-		const auto binaryPath = ProjectBinaryPath(proj, config);
-		const auto binaryDirectory = binaryPath.parent_path();
-
-		if (!fs::is_regular_file(binaryPath))
+		fs::path binaryPath;
+		if (ProjectBinaryPath(proj, config, binaryPath))
 		{
-			std::cerr << KRED << "[BREAKING] Failed to find binary for project '" << proj->name << "' at " << binaryPath << "\n" << RST;
-			valid = false;
-			continue;
-		}
+			const auto binaryDirectory = binaryPath.parent_path();
 
-		std::stringstream command;
+			if (!fs::is_regular_file(binaryPath))
+			{
+				std::cerr << KRED << "[BREAKING] Failed to find binary for project '" << proj->name << "' at " << binaryPath << "\n" << RST;
+				valid = false;
+				continue;
+			}
+
+			std::stringstream command;
 #ifndef _WIN32
-		command << std::string("./");
+			command << std::string("./");
 #endif
-		command << binaryPath.filename().u8string();
+			command << binaryPath.filename().u8string();
 
-		// TODO: self-test arguments
-		
-		if (!RunWithArgsInDirectory(binaryDirectory, command.str()))
-		{
-			std::cerr << KRED << "[BREAKING] Test for project '" << proj->name << "' failed!\n" << RST;
-			valid = false;
-			continue;
+			// TODO: self-test arguments
+
+			if (!RunWithArgsInDirectory(binaryDirectory, command.str()))
+			{
+				std::cerr << KRED << "[BREAKING] Test for project '" << proj->name << "' failed!\n" << RST;
+				valid = false;
+				continue;
+			}
 		}
 	}
 

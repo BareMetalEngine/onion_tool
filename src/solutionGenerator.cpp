@@ -385,7 +385,7 @@ bool SolutionGenerator::generateAutomaticCode(FileGenerator& fileGenerator)
 
     // generate the data mapping file
     {
-        const auto fstabFilePath = (m_config.deployPath / "fstab.cfg").make_preferred();
+        const auto fstabFilePath = (m_config.binaryPath / "fstab.cfg").make_preferred();
 
 		auto generatedFile = fileGenerator.createFile(fstabFilePath);
         if (!generateSolutionFstabFile(generatedFile->content))
@@ -680,7 +680,7 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
             if (project->optionUseWindowSubsystem)
                 writelnf(f, "    InitModule_%hs((void*)hInstance);", project->name.c_str());
             else
-                writelnf(f, "    InitModule_%hs((void*)GetModuleInstance(NULL));", project->name.c_str());
+                writelnf(f, "    InitModule_%hs((void*)GetModuleHandle(NULL));", project->name.c_str());
         }
         else
         {
@@ -699,7 +699,7 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
     if (windowsCommandLine)
         writeln(f, "  if (!commandLine.parse(pCmdLine, false))");
     else
-        writeln(f, "  if (!commandLine.parse(argc, argv)) {");
+        writeln(f, "  if (!commandLine.parse(argc, argv))");
     writeln(f, "    return 1;");
     writeln(f, "");
 
@@ -1349,7 +1349,7 @@ bool SolutionGenerator::generateSolutionFstabFile(std::stringstream& outContent)
     for (const auto& data : m_dataFolders)
     {
         std::error_code ec;
-        const auto relativePath = fs::relative(data.dataPath, m_config.deployPath, ec);
+        const auto relativePath = fs::relative(data.dataPath, m_config.binaryPath, ec);
         if (!ec)
         {
 			writeln(outContent, "DATA_RELATIVE");
