@@ -234,7 +234,7 @@ bool ProjectReflection::parseDeclarations()
 
 bool ProjectReflection::generateReflection(FileGenerator& files) const
 {
-    std::atomic<uint32_t> valid = 1;
+    std::atomic<bool> valid = true;
 
     #pragma omp parallel for
     for (int i=0; i<projects.size(); ++i)
@@ -243,10 +243,14 @@ bool ProjectReflection::generateReflection(FileGenerator& files) const
 
         auto file = files.createFile(p->reflectionFilePath);
         file->customtTime = p->reflectionFileTimstamp;
-        valid &= generateReflectionForProject(*p, file->content) ? 1 : 0;
+        if (!generateReflectionForProject(*p, file->content))
+        {
+            std::cerr << KRED << "[BREAKING] RTTI generation for project '" << p->mergedName << "' failed\n" << RST;
+            valid = false;
+        }
     }
 
-    return valid;
+    return valid.load();
 }
 
 struct ExportedDeclaration
