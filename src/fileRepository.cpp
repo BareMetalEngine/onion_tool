@@ -344,7 +344,7 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 	// no extraction supported
 	if (m_extractedFilesPath.empty())
 	{
-		std::cerr << KRED << "[BREAKING] No extraction folder setup\n";
+		std::cerr << KRED << "[BREAKING] No extraction folder setup\n" << RST;
 		return false;
 	}
 
@@ -376,7 +376,10 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 	std::vector<uint8_t> decompresedContent;
 	decompresedContent.resize(file->uncompressedSize);
 	if (!DecompressLZ4(file->compressedData, decompresedContent))
+	{
+		std::cerr << KRED << "[BREAKING] Failed to decompress files '" << file->name << "'\n" << RST;
 		return false;
+	}
 
 	// fixup line endings...
 	{
@@ -389,7 +392,7 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 	uint32_t saved = 0;
 	if (!SaveFileFromBuffer(targetFilePath, decompresedContent, false, false, &saved, file->timestamp))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to extract file '" << file->name << "'\n";
+		std::cerr << KRED << "[BREAKING] Failed to save extracted data for file '" << file->name << "'\n" << RST;
 		return false;
 	}
 
@@ -402,7 +405,7 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 			const auto mode = S_IRWXG | S_IRWXO | S_IRWXU;
 			if (0 != chmod(targetFilePath.u8string().c_str(), mode))
 			{
-				std::cerr << KRED << "[BREAKING] Failed to make file executable '" << file->name << "'\n";
+				std::cerr << KRED << "[BREAKING] Failed to make file executable '" << file->name << "'\n" << RST;
 				return false;
 			}
 		}

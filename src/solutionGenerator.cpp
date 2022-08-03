@@ -380,7 +380,10 @@ bool SolutionGenerator::generateAutomaticCode(FileGenerator& fileGenerator)
     {
         auto* project = m_projects[i];
         if (!generateAutomaticCodeForProject(project, fileGenerator))
+        {
+            std::cerr << KRED << "[BREAKING] Failed to generate automatic code for project '" << project->name << "'\n" << RST;
             valid = false;
+        }
     }
 
     // generate the data mapping file
@@ -417,6 +420,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
 			}
             else
             {
+                std::cerr << KRED << "[BREAKING] Failed to extract GoogleTest framework needed for project '" << project->name << "'\n" << RST;
                 return false;
             }
 		}
@@ -438,6 +442,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
             }
             else
             {
+                std::cerr << KRED << "[BREAKING] Failed to extract GoogleTest framework needed for project '" << project->name << "'\n" << RST;
                 return false;
             }
         }
@@ -459,7 +464,11 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
                         sourceFiles.push_back(file->absolutePath);
 
                 ToolReflection tool;
-                valid &= tool.runStatic(fileGenerator, sourceFiles, project->name, reflectionFilePath);
+                if (!tool.runStatic(fileGenerator, sourceFiles, project->name, reflectionFilePath))
+                {
+                    std::cerr << KRED << "[BREAKING] Failed to generate static reflection for project '" << project->name << "'\n" << RST;
+                    valid = false;
+                }
             }
 
 			auto* info = new SolutionProjectFile;
@@ -492,7 +501,11 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
         project->localGlueHeader = info->absolutePath;
 
         auto generatedFile = fileGenerator.createFile(info->absolutePath);
-        valid &= generateProjectGlueHeaderFile(project, generatedFile->content);
+        if (!generateProjectGlueHeaderFile(project, generatedFile->content))
+        {
+            std::cerr << KRED << "[BREAKING] Failed to generate glue header file for project '" << project->name << "'\n" << RST;
+            valid = false;
+        }
     }
 
     // embedded files
@@ -537,7 +550,11 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
             const auto& info = embedFiles[i];
 
             ToolEmbed tool;
-            valid &= tool.writeFile(fileGenerator, info.original->absolutePath, project->name, info.original->scanRelativePath, info.embed->absolutePath);
+            if (!tool.writeFile(fileGenerator, info.original->absolutePath, project->name, info.original->scanRelativePath, info.embed->absolutePath))
+            {
+                std::cerr << KRED << "[BREAKING] Failed to write embedded file '" << info.original->scanRelativePath << "' in project '" << project->name << "'\n" << RST;
+                valid = false;
+            }
         }
     }
 
@@ -555,7 +572,11 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
                 project->localBuildHeader = info->absolutePath;
 
                 auto generatedFile = fileGenerator.createFile(info->absolutePath);
-                valid &= generateProjectBuildHeaderFile(project, generatedFile->content);
+                if (!generateProjectBuildHeaderFile(project, generatedFile->content))
+                {
+                    std::cerr << KRED << "[BREAKING] Failed to generate build.h for project '" << project->name << "'\n" << RST;
+                    valid = false;
+                }
             }
 
             {
@@ -567,7 +588,11 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
                 project->files.push_back(info);
 
 				auto generatedFile = fileGenerator.createFile(info->absolutePath);
-                valid &= generateProjectBuildSourceFile(project, generatedFile->content);
+                if (!generateProjectBuildSourceFile(project, generatedFile->content))
+                {
+					std::cerr << KRED << "[BREAKING] Failed to generate build.cpp for project '" << project->name << "'\n" << RST;
+					valid = false;
+                }
             }
         }
     }
@@ -588,7 +613,11 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
             project->files.push_back(info);
 
             auto generatedFile = fileGenerator.createFile(info->absolutePath);
-            valid &= generateProjectAppMainSourceFile(project, generatedFile->content);
+            if (!generateProjectAppMainSourceFile(project, generatedFile->content))
+			{
+				std::cerr << KRED << "[BREAKING] Failed to generate main.cpp for project '" << project->name << "'\n" << RST;
+				valid = false;
+			}
         }
     }
 	else if (project->type == ProjectType::TestApplication)
@@ -607,8 +636,14 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
     // process additional file types
 	for (auto* file : project->files)
 	{
-		if (file->type == ProjectFileType::Bison)
-			valid &= processBisonFile(project, file);
+        if (file->type == ProjectFileType::Bison)
+        {
+            if (!processBisonFile(project, file))
+            {
+                std::cerr << KRED << "[BREAKING] Failed to process BISON file '" << file->scanRelativePath << "' in project '" << project->name << "'\n" << RST;
+                valid = false;
+            }
+        }
 	}
 
 	// move build.cpp to the front of the file list
