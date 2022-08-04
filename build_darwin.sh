@@ -53,7 +53,7 @@ $OUTPUT_BINARY glue -action=pack -file="$RELEASE_BINARY" -source="$FILES_DIR"
 echo Submit...
 
 pushd $RELEASE_DIR/onion
-git add -f onion
-git commit --allow-empty -m "Updated compiled linux binaries"
+git add -f onion_mac
+git commit --allow-empty -m "Updated compiled Mac binaries"
 git push
 popd
