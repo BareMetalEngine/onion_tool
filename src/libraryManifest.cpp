@@ -22,6 +22,8 @@ static bool EvalFilters(const XMLNode* node, const LibraryFilters& filters)
 			return true;
 		else if (option == "linux" && filters.platform == PlatformType::Linux)
 			return true;
+        else if (option == "darwin" && filters.platform == PlatformType::Darwin)
+            return true;
 
 		// TODO: rest
 	}

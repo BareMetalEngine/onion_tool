@@ -207,11 +207,11 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
         writeln(f, "set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -g\")");
 
         if (m_config.configuration == ConfigurationType::Debug)
-            writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -O0 -fstack-protector-all\")");
+            writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -O0 -m64 -fstack-protector-all\")");
         else if (m_config.configuration == ConfigurationType::Checked)
-            writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -O2 -fstack-protector-all\")");
+            writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -O2 -m64 -fstack-protector-all\")");
         else
-            writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -O3 -fno-stack-protector\")");
+            writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -O3 -m64 -fno-stack-protector\")");
     }
 
     /*if (solutionSetup.solutionType == SolutionType.FINAL)
