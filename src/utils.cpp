@@ -2163,3 +2163,103 @@ bool DecompressLZ4(const void* data, uint32_t size, std::vector<uint8_t>& outBuf
 }
 
 //--
+
+static bool DecomposeVersionString(std::string_view ver, std::vector<int>& outVersion)
+{
+    std::vector<std::string_view> versionParts;
+    SplitString(ver, ".", versionParts);
+
+    for (const auto part : versionParts)
+    {
+        int versionNumber = 0;
+        if (1 != sscanf(std::string(part).c_str(), "%d", &versionNumber))
+        {
+            std::cerr << KRED << "[BREAKING] Unable to breakup version string '" << ver << "' at '" << part << "'\n" << RST;
+            return false;
+        }
+
+        outVersion.push_back(versionNumber);
+    }
+
+    return true;
+}
+
+static bool CompareVersionNumber(const std::vector<int>& current, const std::vector<int>& required)
+{
+    for (int i=0; i<required.size(); ++i)
+    {
+        if (i >= current.size())
+            return false;
+
+        if (current[i] > required[i])
+            return true;
+        if (current[i] < required[i])
+            return false;
+    }
+
+    return true;
+}
+
+static bool CompareVersionNumber(std::string_view current, std::string_view required)
+{
+    std::vector<int> currentVersionNumber;
+    if (!DecomposeVersionString(current, currentVersionNumber))
+        return false;
+
+    std::vector<int> requiredVersionNumber;
+    if (!DecomposeVersionString(required, requiredVersionNumber))
+        return false;
+
+    if (!CompareVersionNumber(currentVersionNumber, requiredVersionNumber))
+    {
+        std::cerr << KRED << "[BREAKING] Current version '" << current << "' is older than required '" << required << "'\n" << RST;
+        return false;
+    }
+
+    return true;
+}
+
+bool CheckVersion(std::string_view app, std::string_view prefix, std::string_view postfix, std::string_view minVersion)
+ {
+    std::string command = std::string(app) + " --version";
+
+    std::vector<std::string> lines;
+    if (!RunWithArgsAndCaptureOutputIntoLines(command, lines) || lines.size() < 1)
+    {
+        std::cerr << KRED << "[BREAKING] Version check on '" << app << "' failed, please (re)install the necessary packages\n" << RST;
+        return false;
+    }
+
+    auto version = std::string(Trim(lines[0]));
+
+    if (!prefix.empty())
+    {
+        if (!BeginsWith(version, prefix))
+        {
+            std::cerr << KRED << "[BREAKING] Version check on '" << app << "' failed, because '" << version << "' does not start with '" << prefix << "' \n" << RST;
+            return false;
+        }
+
+        version = std::string(Trim(version.substr(prefix.length())));
+    }
+
+     if (!postfix.empty())
+     {
+         version = Trim(PartAfter(version, postfix));
+         if (version.empty())
+         {
+             std::cerr << KRED << "[BREAKING] Version check on '" << app << "' failed, because '" << version << "' does not end with '" << postfix << "' \n" << RST;
+             return false;
+         }
+     }
+
+     std::cout << "Version string for '" << app << "': '" << version << "'\n";
+
+     if (!CompareVersionNumber(version, minVersion))
+     {
+         std::cerr << KRED << "[BREAKING] Version check on '" << app << "' failed because of wrong version, please install updated packages\n" << RST;
+         return false;
+     }
+
+     return true;
+ }

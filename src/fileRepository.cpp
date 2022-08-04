@@ -402,6 +402,8 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 		const auto fileExtension = targetFilePath.extension().u8string();
 		if (fileExtension == ".sh" || fileExtension == "")
 		{
+            std::cout << KYEL << "[WARNING] Setting +x on file '" << file->name << "'\n" << RST;
+
 			const auto mode = S_IRWXG | S_IRWXO | S_IRWXU;
 			if (0 != chmod(targetFilePath.u8string().c_str(), mode))
 			{

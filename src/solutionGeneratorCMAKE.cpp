@@ -41,6 +41,9 @@ static std::string EscapePath(fs::path path)
 
 bool SolutionGeneratorCMAKE::generateSolution(FileGenerator& gen)
 {
+    if (!CheckVersion("cmake", "cmake version", "", "3.22.0"))
+        return false;
+
     auto* file = gen.createFile(m_config.solutionPath / "CMakeLists.txt");
     auto& f = file->content;
 
@@ -315,7 +318,8 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
     if (m_config.platform == PlatformType::Linux)
     {
         writeln(f, "# Hardcoded system libraries");
-        writelnf(f, "target_link_libraries(%s dl rt ncurses)", p->name.c_str());
+        // TODO: audit this!!!
+        writelnf(f, "target_link_libraries(%s dl rt ncurses bz2)", p->name.c_str());
     }
     else if (m_config.platform == PlatformType::Windows || m_config.platform == PlatformType::UWP)
     {

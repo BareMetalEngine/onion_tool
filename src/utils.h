@@ -140,6 +140,8 @@ extern bool RunWithArgsInDirectoryAndCaptureOutput(const fs::path& dir, std::str
 
 extern bool RunWithArgsAndCaptureOutputIntoLines(std::string_view cmd, std::vector<std::string>& outLines, int* outCode = nullptr);
 
+extern bool CheckVersion(std::string_view app, std::string_view prefix, std::string_view postfix, std::string_view minVersion);
+
 //--
 
 extern bool EndsWith(std::string_view txt, std::string_view end);

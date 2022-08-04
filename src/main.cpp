@@ -71,6 +71,11 @@ int main(int argc, char** argv)
 {
     const auto executablePath = GetExecutablePath();
 
+#ifndef _WIN32
+    //setvbuf(stdout, NULL, _IONBF, 0);
+    //setvbuf(stderr, NULL, _IONBF, 0);
+#endif
+
     Commandline cmdLine;
     if (!cmdLine.parse(MergeCommandline(argc, argv)) || cmdLine.commands.size() != 1)
     {

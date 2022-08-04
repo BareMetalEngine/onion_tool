@@ -477,6 +477,11 @@ int ToolConfigure::run(const char* argv0, const Commandline& cmdline)
 		return false;
 	}
 
+    if (!CheckVersion("git", "git version", "", "2.34.0"))
+        return false;
+    if (!CheckVersion("git-lfs", "git-lfs/", "(", "3.0.0"))
+        return false;
+
 	fs::path modulePath;
 	{
 		const auto str = cmdline.get("module");

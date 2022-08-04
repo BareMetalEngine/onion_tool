@@ -178,6 +178,13 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
 
     //--
 
+#ifndef _WIN32
+    if (!CheckVersion("m4", "m4 (GNU M4)", "", "1.4.0"))
+        return false;
+#endif
+
+    //--
+
     FileGenerator files;
     if (!codeGenerator->generateAutomaticCode(files))
     {

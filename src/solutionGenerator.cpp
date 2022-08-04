@@ -976,8 +976,8 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
 				writelnf(f, "extern const char* %hs_PATH;", symbolCoreName.c_str());
 				writelnf(f, "extern const uint8_t* %hs_DATA;", symbolCoreName.c_str());
 				writelnf(f, "extern const unsigned int %hs_SIZE;", symbolCoreName.c_str());
-				writelnf(f, "extern const unsigned __int64 %hs_CRC;", symbolCoreName.c_str());
-				writelnf(f, "extern const unsigned __int64 %hs_TS;", symbolCoreName.c_str());
+				writelnf(f, "extern const uint64_t %hs_CRC;", symbolCoreName.c_str());
+				writelnf(f, "extern const uint64_t %hs_TS;", symbolCoreName.c_str());
 				writelnf(f, "extern const char* %hs_SPATH;", symbolCoreName.c_str());
 				writeln(f, "");
 			}
