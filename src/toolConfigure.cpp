@@ -477,9 +477,14 @@ int ToolConfigure::run(const char* argv0, const Commandline& cmdline)
 		return false;
 	}
 
-    if (!CheckVersion("git", "git version", "", "2.34.0"))
+#ifdef _WIN32
+    if (!CheckVersion("git", "git version", ".windows", "2.34.0"))
         return false;
-    if (!CheckVersion("git-lfs", "git-lfs/", "(", "3.0.0"))
+#else
+	if (!CheckVersion("git", "git version", "", "2.34.0"))
+		return false;
+#endif
+	if (!CheckVersion("git-lfs", "git-lfs/", "(", "3.0.0"))
         return false;
 
 	fs::path modulePath;

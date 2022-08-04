@@ -2245,7 +2245,7 @@ bool CheckVersion(std::string_view app, std::string_view prefix, std::string_vie
 
      if (!postfix.empty())
      {
-         version = Trim(PartAfter(version, postfix));
+         version = Trim(PartBefore(version, postfix));
          if (version.empty())
          {
              std::cerr << KRED << "[BREAKING] Version check on '" << app << "' failed, because '" << version << "' does not end with '" << postfix << "' \n" << RST;
