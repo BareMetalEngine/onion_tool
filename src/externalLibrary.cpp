@@ -134,8 +134,8 @@ bool ExternalLibraryManifest::deployFilesToTarget(const fs::path& targetPath) co
 
 	for (const auto& file : deployFiles)
 	{
-		fs::path targetPath = targetPath / file.relativeDeployPath;
-		valid &= CopyNewerFile(file.absoluteSourcePath, targetPath);
+		fs::path finalTargetPath = targetPath / file.relativeDeployPath;
+		valid &= CopyNewerFile(file.absoluteSourcePath, finalTargetPath);
 	}
 
 	return valid;

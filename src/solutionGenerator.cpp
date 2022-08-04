@@ -1300,6 +1300,12 @@ bool SolutionGenerator::processBisonFile(SolutionProject* project, const Solutio
             return false;
 
 		const auto executablePath = (toolPath / "win_bison.exe").make_preferred();
+#elif defined(__APPLE__)
+        fs::path toolPath;
+        if (!m_files.resolveDirectoryPath("tools/bison/darwin", toolPath))
+            return false;
+
+        const auto executablePath = (toolPath / "run_bison.sh").make_preferred();
 #else
 		fs::path toolPath;
 		if (!m_files.resolveDirectoryPath("tools/bison/linux", toolPath))
@@ -1308,7 +1314,8 @@ bool SolutionGenerator::processBisonFile(SolutionProject* project, const Solutio
 		const auto executablePath = (toolPath / "run_bison.sh").make_preferred();
 #endif
 
-        if (IsFileSourceNewer(file->absolutePath, parserFile))
+        if (IsFileSourceNewer(file->absolutePath, parserFile) ||
+        IsFileSourceNewer(file->absolutePath, symbolsFile))
         {
             std::error_code ec;
             if (!fs::is_directory(project->generatedPath))
@@ -1324,7 +1331,11 @@ bool SolutionGenerator::processBisonFile(SolutionProject* project, const Solutio
             params << executablePath.u8string() << " ";
             params << "\"" << file->absolutePath.u8string() << "\" ";
             params << "-o\"" << parserFile.u8string() << "\" ";
+#ifdef __APPLE__
+            params << "--header=\"" << symbolsFile.u8string() << "\" ";
+#else
             params << "--defines=\"" << symbolsFile.u8string() << "\" ";
+#endif
             params << "--report-file=\"" << reportPath.u8string() << "\" ";
             params << "--verbose";
 

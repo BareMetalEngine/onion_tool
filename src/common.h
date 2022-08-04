@@ -26,6 +26,7 @@ enum class PlatformType : uint8_t {
     Prospero,
 	iOS,
 	Android,
+    Darwin,
 
     MAX,
 };

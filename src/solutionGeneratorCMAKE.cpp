@@ -22,6 +22,7 @@ static const char* NameCMakeConfiguration(ConfigurationType config)
         case ConfigurationType::Release: return "Release";
         case ConfigurationType::Debug: return "Debug";
         case ConfigurationType::Final: return "Final";
+        default: break;
     }
 
     return "Release";
@@ -348,8 +349,13 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
         writeln(f, "# Final copy of DLL to binary folder");
         writelnf(f, "add_custom_command(TARGET %hs POST_BUILD", p->name.c_str());
         writelnf(f, "\tCOMMAND ${CMAKE_COMMAND} -E copy");
+#ifdef __APPLE__
+        writelnf(f, "\t${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib%hs.dylib", p->name.c_str());
+        writelnf(f, "\t${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/lib%hs.dylib)", p->name.c_str());
+#else
         writelnf(f, "\t${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib%hs.so", p->name.c_str());
         writelnf(f, "\t${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/lib%hs.so)", p->name.c_str());
+#endif
     }
 
     return true;

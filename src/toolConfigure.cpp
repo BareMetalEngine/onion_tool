@@ -478,10 +478,10 @@ int ToolConfigure::run(const char* argv0, const Commandline& cmdline)
 	}
 
 #ifdef _WIN32
-    if (!CheckVersion("git", "git version", ".windows", "2.34.0"))
+    if (!CheckVersion("git", "git version", ".windows", "2.32.0"))
         return false;
 #else
-	if (!CheckVersion("git", "git version", "", "2.34.0"))
+	if (!CheckVersion("git", "git version", "", "2.32.0"))
 		return false;
 #endif
 	if (!CheckVersion("git-lfs", "git-lfs/", "(", "3.0.0"))

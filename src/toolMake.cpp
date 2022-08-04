@@ -179,8 +179,13 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
     //--
 
 #ifndef _WIN32
+#ifdef __APPLE__
+    if (!CheckVersion("m4", "GNU M4", "", "1.4.0"))
+        return false;
+#else
     if (!CheckVersion("m4", "m4 (GNU M4)", "", "1.4.0"))
         return false;
+#endif
 #endif
 
     //--

@@ -1127,7 +1127,7 @@ bool SaveFileFromString(const fs::path& path, std::string_view txt, bool force /
                         if (print)
                         {
                             const auto currentTimeStamp = fs::last_write_time(path);
-                            std::cout << "File " << path << " is the same, updating timestamp only to " << customTime.time_since_epoch().count() << ", current: " << currentTimeStamp.time_since_epoch().count() << "\n";
+                            std::cout << "File " << path << " is the same, updating timestamp only to " << (uint64_t)customTime.time_since_epoch().count() << ", current: " << (uint64_t)currentTimeStamp.time_since_epoch().count() << "\n";
                         }
 
                         fs::last_write_time(path, customTime);
@@ -1188,7 +1188,7 @@ bool SaveFileFromBuffer(const fs::path& path, const std::vector<uint8_t>& buffer
                         if (print)
                         {
                             const auto currentTimeStamp = fs::last_write_time(path);
-                            std::cout << "File " << path << " is the same, updating timestamp only to " << customTime.time_since_epoch().count() << ", current: " << currentTimeStamp.time_since_epoch().count() << "\n";
+                            std::cout << "File " << path << " is the same, updating timestamp only to " << (uint64_t)customTime.time_since_epoch().count() << ", current: " << (uint64_t)currentTimeStamp.time_since_epoch().count() << "\n";
                         }
 
                         fs::last_write_time(path, customTime);
@@ -1567,7 +1567,9 @@ std::string_view DefaultPlatformStr()
 
 PlatformType DefaultPlatform()
 {
-#ifdef _WIN32
+#ifdef __APPLE__
+    return PlatformType::Darwin;
+#elif defined(_WIN32)
 	return PlatformType::Windows;
 #else
     return PlatformType::Linux;
@@ -1610,6 +1612,7 @@ std::string_view NameEnumOption(ConfigurationType type)
     case ConfigurationType::Debug: return "debug";
     case ConfigurationType::Release: return "release";
     case ConfigurationType::Final: return "final";
+    default: break;
     }
     return "";
 }
@@ -1621,6 +1624,7 @@ std::string_view NameEnumOption(BuildType type)
     case BuildType::Development: return "dev";
     //case BuildType::Standalone: return "standalone";
     case BuildType::Shipment: return "ship";
+    default: break;
     }
     return "";
 }
@@ -1631,6 +1635,7 @@ std::string_view NameEnumOption(LibraryType type)
     {
     case LibraryType::Shared: return "shared";
     case LibraryType::Static: return "static";
+    default: break;
     }
     return "";
 }
@@ -1646,6 +1651,8 @@ std::string_view NameEnumOption(PlatformType type)
     case PlatformType::Prospero: return "prospero";
     case PlatformType::iOS: return "ios";
     case PlatformType::Android: return "android";
+    case PlatformType::Darwin: return "darwin";
+    default: break;
     }
     return "";
 }
@@ -1657,6 +1664,7 @@ std::string_view NameEnumOption(GeneratorType type)
     case GeneratorType::VisualStudio19: return "vs2019"; 
     case GeneratorType::VisualStudio22: return "vs2022";
     case GeneratorType::CMake: return "cmake";
+    default: break;
     }
     return "";
 }

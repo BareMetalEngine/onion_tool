@@ -11,6 +11,11 @@
 
 //--
 
+#ifdef __APPLE__
+#import <sys/proc_info.h>
+#import <libproc.h>
+#endif
+
 #ifdef _MSC_VER
 #include <Windows.h>
 #include <conio.h>
@@ -344,6 +349,9 @@ std::string GetExecutablePath()
 
 #ifdef _WIN32
     GetModuleFileNameA(GetModuleHandle(NULL), exepath, sizeof(exepath));
+#elif defined(__APPLE__)
+    proc_pidpath(getpid(), exepath, sizeof(exepath));
+    printf("path: %s\n", exepath);
 #else
     char arg1[20];
     sprintf(arg1, "/proc/%d/exe", getpid());

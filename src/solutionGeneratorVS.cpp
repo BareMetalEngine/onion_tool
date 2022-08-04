@@ -107,6 +107,7 @@ static const char* NameVisualStudioConfiguration(ConfigurationType config)
         case ConfigurationType::Release: return "Release";
         case ConfigurationType::Debug: return "Debug";
         case ConfigurationType::Final: return "Final";
+        default: break;
     }
 
     return "Release";
@@ -120,6 +121,7 @@ static const char* NameVisualStudioPlatform(PlatformType config)
     case PlatformType::Windows: return "x64";
     case PlatformType::Prospero: return "Prospero";
     case PlatformType::Scarlett: return "Gaming.Xbox.Scarlett.x64";
+    default: break;
     }
 
     return "x64";
@@ -657,6 +659,9 @@ bool SolutionGeneratorVS::generateSourcesProjectFileEntry(const SolutionProject*
             break;
         }
 
+        default:
+            break;
+
         /*case VSIXMANIFEST:
         {
             f.writelnf("   <None Include=\"%s\">", pf.absolutePath);
@@ -721,6 +726,8 @@ bool SolutionGeneratorVS::generateSourcesProjectFilters(const SolutionProject* p
 				case ProjectFileType::NatVis:
 					filterType = "NatVis";
 					break;
+                default:
+                    break;
             }
 
             if (file->filterPath.empty())
