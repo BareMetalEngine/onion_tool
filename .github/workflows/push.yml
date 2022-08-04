@@ -26,3 +26,16 @@ jobs:
               git config --global user.email "actions@github.com"
               git config --global user.name "GitHub Actions"
               ./build_windows.bat 
+  BuildMac:
+    runs-on: macos-12
+    needs: BuildLinux
+    env:
+      GITHUB_TOKEN: ${{secrets.ONION_GIT_PUBLIC_TOKEN}}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v1
+      - uses: lukka/get-cmake@v3.23.0
+      - run: |
+              git config --global user.email "actions@github.com"
+              git config --global user.name "GitHub Actions"
+              ./build_darwin.sh
