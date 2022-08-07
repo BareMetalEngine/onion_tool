@@ -269,7 +269,11 @@ struct AWSCanonicalDateTime
 	{
 		time_t now;
 		time(&now);
+#ifdef _WIN32
 		::gmtime_s(&today, &now);
+#else
+        ::gmtime_r(&now, &today);
+#endif
 	}
 
 	AWSCanonicalDateTime(const AWSCanonicalDateTime& other)
@@ -289,7 +293,7 @@ struct AWSCanonicalDateTime
 		const char* monthName = MONTH_NAME[today.tm_mon];
 
 		char buffer[256];
-		sprintf_s(buffer, sizeof(buffer), "%hs, %02d %hs %04d %02d:%02d:%02d GMT",
+		sprintf_s(buffer, sizeof(buffer), "%s, %02d %s %04d %02d:%02d:%02d GMT",
 			dayOfWeekName,
 			today.tm_mday, monthName, today.tm_year + 1900,
 			today.tm_hour, today.tm_min, today.tm_sec);

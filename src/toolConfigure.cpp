@@ -606,8 +606,8 @@ int ToolConfigure::run(const Commandline& cmdline)
 #endif
 	if (!CheckVersion("git-lfs", "git-lfs/", "(", "3.0.0"))
         return false;
-
-
+    if (!CheckVersion("curl", "curl", "(", "7.10.0"))
+        return false;
 
 	//--
 

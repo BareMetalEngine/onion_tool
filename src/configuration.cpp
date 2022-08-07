@@ -108,74 +108,75 @@ bool Configuration::ParseOptions(const Commandline& cmd, Configuration& cfg)
     // -build=windows.release.static.shipment
     // -build=windows.release.static.shipment
 
-	const auto& buildString = cmd.get("build");
-    if (buildString.empty())
-        return true; // use defaults
-
-    std::vector<std::string_view> buildParts;
-    SplitString(buildString, ".", buildParts);
-
-    bool hasPlatform = false;
-    bool hasConfigType = false;
-    bool hasLibsType = false;
     bool hasGeneratorType = false;
 
-    for (const auto& part : buildParts)
+    const auto& buildString = cmd.get("build");
+    if (buildString.empty())
     {
-        if (ParsePlatformType(part, cfg.platform))
+        std::vector<std::string_view> buildParts;
+        SplitString(buildString, ".", buildParts);
+
+        bool hasPlatform = false;
+        bool hasConfigType = false;
+        bool hasLibsType = false;
+
+        for (const auto& part : buildParts)
         {
-            if (hasPlatform)
+            if (ParsePlatformType(part, cfg.platform))
             {
-                std::cerr << KRED << "[BREAKING] Platform was already defined in build configuration string\n" << RST;
+                if (hasPlatform)
+                {
+                    std::cerr << KRED << "[BREAKING] Platform was already defined in build configuration string\n" << RST;
+                    return false;
+                }
+
+                hasPlatform = true;
+            }
+            else if (ParseLibraryType(part, cfg.libs))
+            {
+                if (hasLibsType)
+                {
+                    std::cerr << KRED << "[BREAKING] Library type was already defined in build configuration string\n" << RST;
+                    return false;
+                }
+
+                hasLibsType = true;
+            }
+            else if (ParseConfigurationType(part, cfg.configuration))
+            {
+                if (hasConfigType)
+                {
+                    std::cerr << KRED << "[BREAKING] Configuration type was already defined in build configuration string\n" << RST;
+                    return false;
+                }
+
+                hasConfigType = true;
+            }
+            else if (ParseGeneratorType(part, cfg.generator))
+            {
+                if (hasGeneratorType)
+                {
+                    std::cerr << KRED << "[BREAKING] Generator type was already defined in build configuration string\n" << RST;
+                    return false;
+                }
+
+                hasGeneratorType = true;
+            }
+            else if (part == "shipment")
+            {
+                if (cfg.flagShipmentBuild)
+                {
+                    std::cerr << KRED << "[BREAKING] Shipment flag was already defined in build configuration string\n" << RST;
+                    return false;
+                }
+
+                cfg.flagShipmentBuild = true;
+            }
+            else
+            {
+                std::cerr << KRED << "[BREAKING] Invalid build configuration token '" << part << "' that does not match any platform, generator, library type or other shit\n" << RST;
                 return false;
             }
-
-            hasPlatform = true;
-        }
-		else if (ParseLibraryType(part, cfg.libs))
-		{
-			if (hasLibsType)
-			{
-				std::cerr << KRED << "[BREAKING] Library type was already defined in build configuration string\n" << RST;
-				return false;
-			}
-
-			hasLibsType = true;
-		}
-		else if (ParseConfigurationType(part, cfg.configuration))
-		{
-			if (hasConfigType)
-			{
-				std::cerr << KRED << "[BREAKING] Configuration type was already defined in build configuration string\n" << RST;
-				return false;
-			}
-
-            hasConfigType = true;
-		}
-		else if (ParseGeneratorType(part, cfg.generator))
-		{
-			if (hasGeneratorType)
-			{
-				std::cerr << KRED << "[BREAKING] Generator type was already defined in build configuration string\n" << RST;
-				return false;
-			}
-
-            hasGeneratorType = true;
-		}
-        else if (part == "shipment")
-        {
-			if (cfg.flagShipmentBuild)
-			{
-				std::cerr << KRED << "[BREAKING] Shipment flag was already defined in build configuration string\n" << RST;
-				return false;
-			}
-
-            cfg.flagShipmentBuild = true;
-        }
-        else
-        {
-            std::cerr << KRED << "[BREAKING] Invalid build configuration token '" << part << "' that does not match any platform, generator, library type or other shit\n" << RST;
-            return false;
         }
     }
 
@@ -192,7 +193,10 @@ bool Configuration::ParseOptions(const Commandline& cmd, Configuration& cfg)
 
     // when using the CMake generator we can't really generate reflection and other shit at runtime :(
     if (cfg.generator == GeneratorType::CMake || cmd.has("static"))
+    {
+        std::cout << "Enabled static content generation\n";
         cfg.flagStaticBuild = true;
+    }
 
     return true;
 }
