@@ -20,6 +20,7 @@ struct ExternalLibraryManifest
 	fs::path includePath; // path to library's include folder
 	std::vector<fs::path> libraryFiles; // individual files to link with
 	std::vector<ExternalLibraryDeployFile> deployFiles; // individual files to deploy - copy to binary folder
+    std::vector<std::string> additionalSystemLibraries; // additional libraries to link with
 
 	std::vector<fs::path> allFiles; // all files referened by the library
 

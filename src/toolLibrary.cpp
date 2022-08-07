@@ -754,6 +754,9 @@ static void LibraryBuildManifest(const LibraryManifest& lib, ToolLibraryConfig& 
 			writelnf(f, "<File>%hs</File>", relativePath.c_str());
 	}
 
+    for (const auto& name : lib.additionalSystemLibraries)
+        writelnf(f, "<AdditionalSystemLibrary>%hs</AdditionalSystemLibrary>", name.c_str());
+
 	writeln(f, "</ExternalLibrary>");
 }
 

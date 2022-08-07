@@ -319,8 +319,26 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
     if (m_config.platform == PlatformType::Linux)
     {
         writeln(f, "# Hardcoded system libraries");
-        // TODO: audit this!!!
-        writelnf(f, "target_link_libraries(%s dl rt ncurses bz2)", p->name.c_str());
+
+        std::vector<std::string> extraLibs;
+        extraLibs.push_back("dl");
+        extraLibs.push_back("rt");
+
+        for (const auto* lib : p->libraryDependencies)
+            for (const auto& name : lib->additionalSystemLibraries)
+                if (!Contains(extraLibs, name))
+                    extraLibs.push_back(name);
+
+        bool first = true;
+        std::stringstream libStr;
+        for (const auto& name : extraLibs)
+        {
+            if (!first) libStr << " ";
+            libStr << name;
+            first = false;
+        }
+
+        writelnf(f, "target_link_libraries(%s %s)", p->name.c_str(), libStr.str().c_str());
     }
     else if (m_config.platform == PlatformType::Windows || m_config.platform == PlatformType::UWP)
     {

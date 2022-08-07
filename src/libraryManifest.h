@@ -121,6 +121,7 @@ struct LibraryManifest
 
 	std::vector<LibraryArtifactInfo> artifacts;
 	std::vector<LibraryDependencyInfo> dependencies;
+    std::vector<std::string> additionalSystemLibraries;
 
 	//--
 
