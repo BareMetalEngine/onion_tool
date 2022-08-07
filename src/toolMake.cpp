@@ -4,8 +4,6 @@
 #include "fileGenerator.h"
 #include "fileRepository.h"
 #include "configuration.h"
-#include "configurationList.h"
-#include "configurationInteractive.h"
 #include "project.h"
 #include "projectManifest.h"
 #include "projectCollection.h"
@@ -33,50 +31,25 @@ static std::unique_ptr<SolutionGenerator> CreateSolutionGenerator(FileRepository
 ToolMake::ToolMake()
 {}
 
-void ToolMake::printUsage(const char* argv0)
+void ToolMake::printUsage()
 {
-	Configuration cfg;
-	Commandline cmdLine;
-	cfg.parseOptions(argv0, cmdLine);
-
-    std::cout << KBOLD << "onion make [options]\n" << RST;
-    std::cout << "\n";
-    std::cout << "Build configuration options:\n";
-	std::cout << "  -platform=" << PrintEnumOptions(cfg.platform) << "\n";
-    std::cout << "  -config=" << PrintEnumOptions(cfg.configuration) << "\n";
-	std::cout << "  -generator=" << PrintEnumOptions(cfg.generator) << "\n";
-    std::cout << "  -libs=" << PrintEnumOptions(cfg.libs) << "\n";
-    std::cout << "  -build=" << PrintEnumOptions(cfg.build) << "\n";
+    std::cout << KBOLD << "onion generate [options]\n" << RST;
     std::cout << "\n";
     std::cout << "General options:\n";
-    std::cout << "  -module=<path to configured module directory>\n";
-    std::cout << "  -buildDir=<general build directory where all the build files are stored>\n";
-    std::cout << "  -binaryDir=<path where all final executables are written - if not specified a %{buildDir}/.bin/ is used>\n";
-    std::cout << "  -outDir=<path where all temporary build files are written - if not specified a %{buildDir}/.temp/ is used>\n";    
-	std::cout << "\n";
-
-	std::cout << "Current configuration (if no arguments given): " << KBOLD << KGRN << cfg.mergedName() << RST << "\n";
+	std::cout << "  -module=<path to configured module directory>\n";
+	std::cout << "  -build=<build configuration string>\n";
+    std::cout << "  -tempDir=<custom temporary directory>\n";
+    std::cout << "  -cacheDir=<custom library/module cache directory>\n";
 	std::cout << "\n";
 }
 
-int ToolMake::run(const char* argv0, const Commandline& cmdline)
+int ToolMake::run(const Commandline& cmdline)
 {
     //--
 
     Configuration config;
-    if (!config.parseOptions(argv0, cmdline)) {
-        std::cerr << KRED << "[BREAKING] Invalid/incomplete configuration\n" << RST;
-        return 1;
-    }
-
-    if (cmdline.has("interactive"))
-        if (!RunInteractiveConfig(config))
-            return false;
-
-    if (!config.parsePaths(argv0, cmdline)) {
-        std::cerr << KRED << "[BREAKING] Invalid/incomplete configuration\n" << RST;
-        return 1;
-    }
+    if (!Configuration::Parse(cmdline, config))
+        return 1;   
 
     //--
 
@@ -84,15 +57,11 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
 
     //--
 
-    const auto moduleConfigPath = config.modulePath / CONFIGURATION_NAME;
+    const auto moduleConfigPath = config.platformConfigurationFile();
     const auto moduleConfig = std::unique_ptr<ModuleConfigurationManifest>(ModuleConfigurationManifest::Load(moduleConfigPath));
     if (!moduleConfig)
     {
-        const auto moduleDefinitionPath = config.modulePath / MODULE_MANIFEST_NAME;
-        if (fs::is_regular_file(moduleDefinitionPath))
-            std::cerr << KRED << "[BREAKING] Module at \"" << config.modulePath << "\" was not configured, run:\nonion configure -module=\"" << config.modulePath << "\"\n" << RST;
-        else
-			std::cerr << KRED << "[BREAKING] Directory \"" << config.modulePath << "\" does not contain properly configured module (or any module to be fair)\n" << RST;
+        std::cerr << KRED << "[BREAKING] Unable to load platform configuration from " << moduleConfigPath << ", run \"onion configure\" to properly configure the environment before generating any projects\n" << RST;
 		return 1;
     }
 
@@ -128,14 +97,20 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
 
     //--
 
-	ExternalLibraryReposistory libraries(config.tempPath / "cache", config.platform);
+	ExternalLibraryReposistory libraries;
+    if (!libraries.installConfiguredLibraries(*moduleConfig))
+    {
+		std::cerr << KRED << "[BREAKING] Failed to install third party libraries\n" << RST;
+		return 1;
+    }
+
 	if (!structure.resolveLibraries(libraries))
 	{
 		std::cerr << KRED << "[BREAKING] Failed to resolve third party libraries\n" << RST;
 		return 1;
 	}
 
-    if (!libraries.deployFiles(config.binaryPath))
+    if (!libraries.deployFiles(config.derivedBinaryPath))
     {
         std::cerr << KRED << "[BREAKING] Failed to deploy library files\n" << RST;
         return 1;
@@ -155,7 +130,7 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
     //--
 
     FileRepository fileRepository;
-    if (!fileRepository.initialize(config.builderExecutablePath, config.tempPath))
+    if (!fileRepository.initialize(config.executablePath, config.tempPath))
     {
 		std::cerr << KRED << "[BREAKING] Failed to initialize file repository\n" << RST;
 		return 1;
@@ -163,7 +138,11 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
 
     //--
 
-    auto codeGenerator = CreateSolutionGenerator(fileRepository, config, "onion");
+    auto mainModuleName = config.modulePath.filename().u8string();
+    if (mainModuleName.empty())
+        mainModuleName = "onion";
+
+    auto codeGenerator = CreateSolutionGenerator(fileRepository, config, mainModuleName);
     if (!codeGenerator)
     {
 		std::cerr << KRED << "[BREAKING] Failed to create code generator\n" << RST;
@@ -215,21 +194,6 @@ int ToolMake::run(const char* argv0, const Commandline& cmdline)
     {
         std::cerr << KRED << "[BREAKING] Failed to save files\n" << RST;
         return 1;
-    }
-
-    //--
-
-    {
-        const auto buildListFile = config.modulePath / BUILD_LIST_NAME;
-        const auto configs = ConfigurationList::Load(buildListFile);
-
-        if (configs->append(config))
-        {
-            if (!configs->save(buildListFile))
-            {
-                std::cerr << KYEL << "[WARNING] Failed to save build list " << buildListFile << "\n" << RST;
-            }
-        }
     }
 
     //--

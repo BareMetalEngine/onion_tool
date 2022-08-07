@@ -77,7 +77,7 @@ public:
     std::string_view get(std::string_view name, std::string_view defaultValue) const;
 
     bool has(std::string_view name) const;
-    bool parse(std::string_view text);
+    bool parse(std::string_view text);    
 };
 
 //--
@@ -95,10 +95,15 @@ public:
 	RequestArgs& setBool(std::string_view name, bool value);
 
 	void print(std::stringstream& f) const;
+    void printUri(std::stringstream& f) const;
+    void printHeader(std::stringstream& f) const;
+    void printHeaderNames(std::stringstream& f) const;
 
 private:
 	std::unordered_map<std::string, std::string> m_arguments;
 };
+
+extern void PrintURL(std::stringstream& f, std::string_view txt);
 
 //--
 
@@ -196,6 +201,8 @@ extern std::string ReplaceAll(std::string_view txt, std::string_view what, std::
 
 extern std::string_view Trim(std::string_view txt);
 
+extern std::string_view TrimQuotes(std::string_view txt);
+
 extern std::string EscapeArgument(std::string_view txt);
 
 extern std::string GetCurrentWeeklyTimestamp(); // 2205 - 5th week of 2022
@@ -203,13 +210,11 @@ extern std::string GetCurrentWeeklyTimestamp(); // 2205 - 5th week of 2022
 //--
 
 extern std::string_view NameEnumOption(ConfigurationType type);
-extern std::string_view NameEnumOption(BuildType type);
 extern std::string_view NameEnumOption(LibraryType type);
 extern std::string_view NameEnumOption(PlatformType type);
 extern std::string_view NameEnumOption(GeneratorType type);
 
 extern bool ParseConfigurationType(std::string_view txt, ConfigurationType& outType);
-extern bool ParseBuildType(std::string_view txt, BuildType& outType);
 extern bool ParseLibraryType(std::string_view txt, LibraryType& outType);
 extern bool ParsePlatformType(std::string_view txt, PlatformType& outType);
 extern bool ParseGeneratorType(std::string_view txt, GeneratorType& outType);
@@ -308,5 +313,49 @@ bool Remove(std::vector<K>& ar, const K& data)
     }
 	return false;
 }
+
+//--
+
+typedef struct {
+	uint64_t length;
+	uint32_t state[8];
+	uint32_t curlen;
+	uint8_t buf[64];
+} Sha256Context;
+
+#define SHA256_HASH_SIZE (256 / 8)
+
+typedef struct {
+	uint8_t bytes[SHA256_HASH_SIZE];
+} SHA256_HASH;
+
+extern void Sha256Initialise(Sha256Context* Context);
+extern void Sha256Update(Sha256Context* Context, void const* Buffer, uint32_t BufferSize);
+extern void Sha256Finalise(Sha256Context* Context, SHA256_HASH* Digest);
+extern void Sha256Calculate(void const* Buffer, uint32_t BufferSize, SHA256_HASH* Digest);
+
+extern std::string Sha256OfText(std::string_view data);
+extern bool Sha256OfFile(const fs::path& path, std::string& outHashString);
+
+//--
+
+// Amazon HMAC-SHA256 
+// Returns the number of bytes written to `out`
+extern size_t hmac_sha256(const void* key, const size_t keylen, const void* data, const size_t datalen, void* out,	const size_t outlen);
+
+extern std::string hmac_sha256_str(std::string_view key, std::string_view payload);
+
+extern std::string hmac_sha256_binstr(std::string_view key, std::string_view payload);
+
+extern std::string BytesToHexString(const uint8_t* data, uint32_t length);
+
+extern std::string BytesToHexString(const std::vector<uint8_t>& bytes);
+
+extern std::string BytesToHexString(const std::string& bytes);
+
+extern void BytesToHexString(std::stringstream& str, const uint8_t* data, uint32_t length);
+
+extern void BytesToHexString(std::stringstream& str, const std::vector<uint8_t>& bytes);
+
 
 //--

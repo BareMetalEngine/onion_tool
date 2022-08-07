@@ -144,20 +144,9 @@ bool ToolEmbed::writeFile(FileGenerator& gen, const fs::path& inputPath, std::st
 	return true;
 }
 
-int ToolEmbed::run(const char* argv0, const Commandline& cmdline)
+int ToolEmbed::run(const Commandline& cmdline)
 {
 	const auto nologo = cmdline.has("nologo");
-
-	const auto builderExecutablePath = fs::absolute(argv0);
-	if (!fs::is_regular_file(builderExecutablePath))
-	{
-		std::cout << "Invalid local executable name: " << builderExecutablePath << "\n";
-		return false;
-	}
-
-	const auto builderEnvPath = builderExecutablePath.parent_path().parent_path();
-	//std::cout << "EnvPath: " << builderEnvPath << "\n";
-	m_envPath = builderEnvPath;
 
     std::string sourceFilePath = cmdline.get("source");
     if (sourceFilePath.empty())
@@ -165,7 +154,6 @@ int ToolEmbed::run(const char* argv0, const Commandline& cmdline)
         std::cout << "Embed file list must be specified by -source\n";
         return 1;
 	}
-	//std::cout << "SourcePath: \"" << sourceFilePath << "\"\n";
 
 	std::string projectName = cmdline.get("project");
 	if (projectName.empty())
@@ -173,7 +161,6 @@ int ToolEmbed::run(const char* argv0, const Commandline& cmdline)
 		std::cout << "Reflection project name must be specified by -project\n";
 		return 1;
 	}
-	//std::cout << "ProjectName: \"" << projectName << "\"\n";
 
 	std::string outputFilePath = cmdline.get("output");
 	if (outputFilePath.empty())

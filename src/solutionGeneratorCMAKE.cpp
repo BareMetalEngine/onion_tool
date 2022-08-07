@@ -45,7 +45,7 @@ bool SolutionGeneratorCMAKE::generateSolution(FileGenerator& gen)
     if (!CheckVersion("cmake", "cmake version", "", "3.22.0"))
         return false;
 
-    auto* file = gen.createFile(m_config.solutionPath / "CMakeLists.txt");
+    auto* file = gen.createFile(m_config.derivedSolutionPath / "CMakeLists.txt");
     auto& f = file->content;
 
     writeln(f, "# Onion Build");
@@ -69,9 +69,9 @@ bool SolutionGeneratorCMAKE::generateSolution(FileGenerator& gen)
     writelnf(f, "set(CMAKE_CONFIGURATION_TYPES \"%s\")", NameCMakeConfiguration(m_config.configuration));
     writeln(f, "set(OpenGL_GL_PREFERENCE \"GLVND\")");
     writelnf(f, "set(CMAKE_MODULE_PATH %s)", EscapePath(m_cmakeScriptsPath).c_str());
-    writelnf(f, "set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY %s)", EscapePath(m_config.solutionPath / "lib").c_str());
-    writelnf(f, "set(CMAKE_LIBRARY_OUTPUT_DIRECTORY %s)", EscapePath(m_config.solutionPath / "lib").c_str());
-    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY %s)", EscapePath(m_config.binaryPath).c_str());
+    writelnf(f, "set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPath / "lib").c_str());
+    writelnf(f, "set(CMAKE_LIBRARY_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPath / "lib").c_str());
+    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedBinaryPath).c_str());
 
     //if (solution.platformType == PlatformType.WINDOWS)
     writeln(f, "set_property(GLOBAL PROPERTY USE_FOLDERS ON)");
@@ -121,7 +121,7 @@ void SolutionGeneratorCMAKE::extractSourceRoots(const SolutionProject* project, 
         outPaths.push_back(project->rootPath / "include");
     }
 
-    outPaths.push_back(m_config.solutionPath / "generated/_shared");
+    outPaths.push_back(m_config.derivedSolutionPath / "generated/_shared");
     outPaths.push_back(project->generatedPath);
 
 	for (const auto& path : project->additionalIncludePaths)

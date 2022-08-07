@@ -40,14 +40,6 @@ enum class ConfigurationType : uint8_t {
     MAX,
 };
 
-enum class BuildType : uint8_t {
-    Development, // includes development projects - editor, asset import, etc
-    //Standalone, // glued standalone module files
-    Shipment, // only final shipable executable (just game)
-
-    MAX,
-};
-
 enum class LibraryType : uint8_t {
     Shared, // dlls
     Static, // static libs
@@ -67,8 +59,8 @@ namespace fs = std::filesystem;
 
 static inline const std::string_view MODULE_MANIFEST_NAME = "module.onion";
 static inline const std::string_view PROJECT_MANIFEST_NAME = "project.onion";
-static inline const std::string_view CONFIGURATION_NAME = ".configuration";
-static inline const std::string_view BUILD_LIST_NAME = ".builds";
+//static inline const std::string_view CONFIGURATION_NAME = ".config";
+//static inline const std::string_view BUILD_LIST_NAME = ".builds";
 
 #ifndef _WIN32
 #define _stricmp strcasecmp

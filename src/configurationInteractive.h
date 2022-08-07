@@ -4,6 +4,6 @@
 
 struct Configuration;
 
-extern bool RunInteractiveConfig(Configuration& cfg);
+extern bool RunInteractiveConfig(Configuration& cfg, const fs::path& configPath);
 
 //--

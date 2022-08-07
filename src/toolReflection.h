@@ -45,7 +45,7 @@ class ToolReflection
 public:
     ToolReflection();
 
-    int run(const char* argv0, const Commandline& cmdline);
+    int run(const Commandline& cmdline);
     bool runStatic(FileGenerator& fileGenerator, const std::vector<fs::path>& fileList, const std::string& projectName, const fs::path& outputFile);
 };
 

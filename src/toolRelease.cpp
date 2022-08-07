@@ -66,10 +66,8 @@ std::unique_ptr<VersionInfo> VersionInfo::LoadConfig(const fs::path& manifestPat
 ToolRelease::ToolRelease()
 {}
 
-void ToolRelease::printUsage(const char* argv0)
+void ToolRelease::printUsage()
 {
-	auto platform = DefaultPlatform();
-
 	std::cout << KBOLD << "onion release [options]\n" << RST;
 	std::cout << "\n";
 	std::cout << "General options:";
@@ -372,15 +370,8 @@ static bool Release_AddArtifact(GitHubConfig& git, const Commandline& cmdline)
 	return true;
 }
 
-int ToolRelease::run(const char* argv0, const Commandline& cmdline)
+int ToolRelease::run(const Commandline& cmdline)
 {
-	const auto builderExecutablePath = fs::absolute(argv0);
-	if (!fs::is_regular_file(builderExecutablePath))
-	{
-		std::cerr << KRED << "[BREAKING] Invalid local executable name: " << builderExecutablePath << "\n" << RST;
-		return 1;
-	}
-
 	const auto path = fs::absolute(fs::path(cmdline.get("releasePath", ".")).make_preferred());
 	const auto action = cmdline.get("action", "");
 

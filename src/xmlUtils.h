@@ -71,6 +71,23 @@ static inline std::string_view XMLNodeAttrbiute(const XMLNode* node, std::string
 	return defaultValue;
 }
 
+static inline std::string_view XMLChildNodeValue(const XMLNode* node, std::string_view name, std::string_view defaultValue = "")
+{
+	if (node)
+	{
+		const auto* attr = node->first_node();
+		while (attr)
+		{
+			if (name == attr->name())
+				return attr->value();
+
+			attr = attr->next_sibling();
+		}
+	}
+
+	return defaultValue;
+}
+
 static inline void XMLNodeIterate(const XMLNode* node, std::string_view name, std::function<void(const XMLNode*)> func)
 {
 	if (node)

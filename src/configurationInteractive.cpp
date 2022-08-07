@@ -112,15 +112,12 @@ static void PrintConfig(const Configuration& cfg)
 {
     std::cout << "  Platform  : " << NameEnumOption(cfg.platform) << std::endl;
     std::cout << "  Generator : " << NameEnumOption(cfg.generator) << std::endl;
-    std::cout << "  Build     : " << NameEnumOption(cfg.build) << std::endl;
     std::cout << "  Libraries : " << NameEnumOption(cfg.libs) << std::endl;
     std::cout << "  Config    : " << NameEnumOption(cfg.configuration) << std::endl;
 }
 
-bool RunInteractiveConfig(Configuration& cfg)
+bool RunInteractiveConfig(Configuration& cfg, const fs::path& configPath)
 {
-    const auto configPath = cfg.configPath;// builderEnvPath / ".buildConfig";
-
     if (cfg.load(configPath))
     {
         std::cout << std::endl;
@@ -160,10 +157,6 @@ bool RunInteractiveConfig(Configuration& cfg)
     {
         cfg.generator = GeneratorType::CMake;
     }
-
-    ClearConsole();
-    if (!ConfigEnum(cfg.build, "Select build type:"))
-        return false;
 
     ClearConsole();
     if (!ConfigEnum(cfg.libs, "Select libraries type:"))

@@ -3,7 +3,6 @@
 #include "toolTest.h"
 #include "moduleConfiguration.h"
 #include "moduleRepository.h"
-#include "configurationList.h"
 #include "configuration.h"
 #include "projectCollection.h"
 #include "project.h"
@@ -69,7 +68,7 @@ static bool ProjectBinaryPath(const ProjectInfo* project, const Configuration& c
 	if (!ProjectBinaryName(project, executableName))
 		return false;
 
-	outPath = (config.binaryPath / executableName).make_preferred();
+	outPath = (config.derivedBinaryPath / executableName).make_preferred();
 	return true;
 }
 
@@ -139,138 +138,35 @@ static bool RunTestsForConfiguration(const ModuleRepository& modules, const Conf
 	return valid;
 }
 
-int ToolTest::run(const char* argv0, const Commandline& cmdline)
+int ToolTest::run(const Commandline& cmdline)
 {
-	const auto builderExecutablePath = fs::absolute(argv0);
-	if (!fs::is_regular_file(builderExecutablePath))
-	{
-		std::cerr << KRED << "[BREAKING] Invalid local executable name: " << builderExecutablePath << "\n" << RST;
-		return false;
-	}
+	//--
+
+	Configuration config;
+	if (!Configuration::Parse(cmdline, config))
+		return 1;
 
 	//--
 
-	fs::path modulePath, buildListPath;
-	{
-		const auto str = cmdline.get("module");
-		if (str.empty())
-		{
-			{
-				auto testPath = fs::current_path() / MODULE_MANIFEST_NAME;
-				if (!fs::is_regular_file(testPath))
-				{
-					std::cerr << KRED "[BREAKING] Onion build tool run in a directory without \"" << MODULE_MANIFEST_NAME << "\", specify path to a valid module via -module\n";
-					return false;
-				}
-				else
-				{
-					modulePath = fs::weakly_canonical(fs::current_path().make_preferred());
-				}
-			}
-
-			{
-				auto testPath = fs::current_path() / BUILD_LIST_NAME;
-				if (!fs::is_regular_file(testPath))
-				{
-					std::cerr << KRED "[BREAKING] Onion build tool run in a directory without \"" << BUILD_LIST_NAME << "\", specify path to a valid build list via -module\n";
-					return 1;
-				}
-				else
-				{
-					buildListPath = fs::weakly_canonical(testPath.make_preferred());
-				}
-			}
-		}
-		else
-		{
-			modulePath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
-
-			const auto moduleFilePath = (modulePath / MODULE_MANIFEST_NAME).make_preferred();
-			if (!fs::is_regular_file(moduleFilePath))
-			{
-				std::cerr << KRED << "[BREAKING] Module directory " << modulePath << " does not contain '" << MODULE_MANIFEST_NAME << "' file\n" << RST;
-				return false;
-			}
-
-			buildListPath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred() / BUILD_LIST_NAME));
-			if (!fs::is_regular_file(buildListPath))
-			{
-				std::cerr << KRED << "[BREAKING] Directory " << buildListPath << " does not contain '" << BUILD_LIST_NAME << "' file\n" << RST;
-				return 1;
-			}
-		}
-	}
-
-	std::cout << "Using module at " << modulePath << "\n";
-	std::cout << "Using build list at " << buildListPath << "\n";
-
-	//--
-
-	const auto moduleConfigPath = modulePath / CONFIGURATION_NAME;
+	const auto moduleConfigPath = config.platformConfigurationFile();
 	const auto moduleConfig = std::unique_ptr<ModuleConfigurationManifest>(ModuleConfigurationManifest::Load(moduleConfigPath));
 	if (!moduleConfig)
 	{
-		const auto moduleDefinitionPath = modulePath / MODULE_MANIFEST_NAME;
-		if (fs::is_regular_file(moduleDefinitionPath))
-			std::cerr << KRED << "[BREAKING] Module at \"" << modulePath << "\" was not configured, run:\nonion configure -module=\"" << modulePath << "\"\n" << RST;
-		else
-			std::cerr << KRED << "[BREAKING] Directory \"" << modulePath << "\" does not contain properly configured module (or any module to be fair)\n" << RST;
+		std::cerr << KRED << "[BREAKING] Unable to load platform configuration from " << moduleConfigPath << ", run \"onion configure\" to properly configure the environment before generating any projects\n" << RST;
 		return 1;
 	}
-
-	const bool verifyVersions = !cmdline.has("noverify");
 
 	ModuleRepository modules;
-	if (!modules.installConfiguredModules(*moduleConfig, verifyVersions))
+	if (!modules.installConfiguredModules(*moduleConfig, false))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to verify configured module at \"" << modulePath << "\"\n" << RST;
+		std::cerr << KRED << "[BREAKING] Failed to verify configured module at \"" << moduleConfigPath << "\"\n" << RST;
 		return 1;
 	}
 
-	//--
-
-	auto platform = DefaultPlatform();
-
-	{
-		const auto str = cmdline.get("platform");
-		if (!str.empty())
-		{
-			if (!ParsePlatformType(str, platform))
-			{
-				std::cerr << KRED "[BREAKING] Unknown platform \"" << str << "\"\n" << RST;
-				std::cout << "Valid platforms are : " << PrintEnumOptions(DefaultPlatform()) << "\n";
-				return 1;
-			}
-		}
-	}
 
 	//--
 
-	const auto buildList = ConfigurationList::Load(buildListPath);
-	if (!buildList)
-	{
-		std::cerr << KRED "[BREAKING] Failed to load build list from " << buildListPath << "\n";
-		return 1;
-	}
-
-	// collect configurations for selected platform
-	std::vector<Configuration> buildConfigurations;
-	buildList->collect(platform, buildConfigurations);
-	if (buildConfigurations.empty())
-	{
-		std::cout << KYEL "[WARNING] Nothing to build for platform \"" << NameEnumOption(platform) << "\"\n";
-		return 0;
-	}
-
-	//--
-
-	bool valid = true;
-	for (const auto& config : buildConfigurations)
-	{
-		valid &= RunTestsForConfiguration(modules, config, cmdline);
-	}
-
-	if (!valid)
+	if (!RunTestsForConfiguration(modules, config, cmdline))
 	{
 		std::cerr << KRED "[BREAKING] Some tests failed\n" << RST;
 		return 1;

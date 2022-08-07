@@ -146,7 +146,7 @@ bool ProjectCollection::filterProjects(const Configuration& config)
 	for (auto* proj : oldProjects)
 	{
 		// in the shipment config we don't emit tests and dev only projects
-		if (config.build == BuildType::Shipment)
+		if (config.flagShipmentBuild)
 		{
 			if (proj->manifest->optionDevOnly || proj->manifest->type == ProjectType::TestApplication)
 				continue;

@@ -53,7 +53,7 @@ SolutionGenerator::SolutionGenerator(FileRepository& files, const Configuration&
     m_rootGroup->mergedName = mainGroup;
     m_rootGroup->assignedVSGuid = GuidFromText(m_rootGroup->mergedName);
 
-    m_sharedGlueFolder = config.solutionPath / "generated" / "_shared";
+    m_sharedGlueFolder = config.derivedSolutionPath / "generated" / "_shared";
 }
 
 SolutionGenerator::~SolutionGenerator()
@@ -168,9 +168,9 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
 
         // paths
 		generatorProject->rootPath = proj->rootPath;
-        generatorProject->generatedPath = m_config.solutionPath / "generated" / proj->name;
-        generatorProject->projectPath = m_config.solutionPath / "projects" / proj->name;
-        generatorProject->outputPath = m_config.solutionPath / "output" / proj->name;
+        generatorProject->generatedPath = m_config.derivedSolutionPath / "generated" / proj->name;
+        generatorProject->projectPath = m_config.derivedSolutionPath / "projects" / proj->name;
+        generatorProject->outputPath = m_config.derivedSolutionPath / "output" / proj->name;
 
         // options
         generatorProject->optionUsePrecompiledHeaders = proj->manifest->optionUsePrecompiledHeaders;
@@ -350,7 +350,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
                 continue;
             }
 
-            if (m_config.build == BuildType::Shipment && !entry.published)
+            if (m_config.flagShipmentBuild && !entry.published)
             {
 				std::cout << KYEL << "[WARNING] Non-publishable data at '" << entry.mountPath << "' will not be mounted\n" << RST;
 				validDeps = false;
@@ -388,7 +388,7 @@ bool SolutionGenerator::generateAutomaticCode(FileGenerator& fileGenerator)
 
     // generate the data mapping file
     {
-        const auto fstabFilePath = (m_config.binaryPath / "fstab.cfg").make_preferred();
+        const auto fstabFilePath = (m_config.derivedBinaryPath / "fstab.cfg").make_preferred();
 
 		auto generatedFile = fileGenerator.createFile(fstabFilePath);
         if (!generateSolutionFstabFile(generatedFile->content))
@@ -455,7 +455,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
 			const auto reflectionFilePath = (project->generatedPath / "reflection.cpp").make_preferred();
 
             // generate reflection statically
-            if (m_config.staticBuild)
+            if (m_config.flagStaticBuild)
             {
                 std::vector<fs::path> sourceFiles;
 
@@ -534,7 +534,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
 				project->files.push_back(info);
 
                 // for static builds generate the file now
-                if (m_config.staticBuild)
+                if (m_config.flagStaticBuild)
                 {
                     FileToEmbed fileInfo;
                     fileInfo.original = file;
@@ -1292,7 +1292,7 @@ bool SolutionGenerator::processBisonFile(SolutionProject* project, const Solutio
     reportPath = reportPath.make_preferred();
 
     // static build generates the file directly
-    if (m_config.staticBuild)
+    if (m_config.flagStaticBuild)
     {
 #ifdef _WIN32
 		fs::path toolPath;
@@ -1395,7 +1395,7 @@ bool SolutionGenerator::generateSolutionFstabFile(std::stringstream& outContent)
     for (const auto& data : m_dataFolders)
     {
         std::error_code ec;
-        const auto relativePath = fs::relative(data.dataPath, m_config.binaryPath, ec);
+        const auto relativePath = fs::relative(data.dataPath, m_config.derivedBinaryPath, ec);
         if (!ec)
         {
 			writeln(outContent, "DATA_RELATIVE");

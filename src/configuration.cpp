@@ -1,12 +1,12 @@
 #include "common.h"
 #include "utils.h"
 #include "configuration.h"
+#include "configurationInteractive.h"
 
 //--
 
 Configuration::Configuration()
 {
-	build = BuildType::Development;
     configuration = ConfigurationType::Release;
 	platform = DefaultPlatform();
 
@@ -30,265 +30,248 @@ std::string Configuration::mergedName() const
     ret += ".";
     ret += NameEnumOption(generator);
     ret += ".";
-    ret += NameEnumOption(build);
-    ret += ".";
     ret += NameEnumOption(libs);
     ret += ".";
     ret += NameEnumOption(configuration);
+
+    if (flagShipmentBuild)
+        ret += ".shipment";
+
     return ret;
+}
+
+fs::path Configuration::platformConfigurationFile() const
+{
+	const auto fileName = std::string(NameEnumOption(platform)) + ".config";
+	return (tempPath / fileName).make_preferred(); // Z:\projects\core\.temp\windows.config
 }
 
 bool Configuration::save(const fs::path& path) const
 {
-    return SaveFileFromString(path, mergedName());
+	return SaveFileFromString(path, mergedName());
 }
 
 bool Configuration::load(const fs::path& path)
 {
-    std::string str;
-    if (!LoadFileToString(path, str))
-        return false;
+	std::string str;
+	if (!LoadFileToString(path, str))
+		return false;
 
-    std::vector<std::string_view> parts;
-    SplitString(str, ".", parts);
-    if (parts.size() != 5)
-        return false;
+	std::vector<std::string_view> parts;
+	SplitString(str, ".", parts);
+	if (parts.size() < 4)
+		return false;
 
-    bool valid = ParsePlatformType(parts[0], platform);
-    valid &= ParseGeneratorType(parts[1], generator);
-    valid &= ParseBuildType(parts[2], build);
-    valid &= ParseLibraryType(parts[3], libs);
-    valid &= ParseConfigurationType(parts[4], configuration);
-    return valid;
+	bool valid = ParsePlatformType(parts[0], platform);
+	valid &= ParseGeneratorType(parts[1], generator);
+	valid &= ParseLibraryType(parts[2], libs);
+	valid &= ParseConfigurationType(parts[3], configuration);
+
+    if (parts.size() == 5 && parts[4] == "shipment")
+        flagShipmentBuild = true;
+
+	return valid;
 }
 
-bool Configuration::parseOptions(const char* path, const Commandline& cmd)
+bool Configuration::Parse(const Commandline& cmd, Configuration& cfg)
 {
-    builderExecutablePath = fs::absolute(path);
-    if (!fs::is_regular_file(builderExecutablePath))
-    {
-        std::cout << "Invalid local executable name: " << builderExecutablePath << "\n";
-        return false;
-    }
+    cfg.executablePath = GetExecutablePath();
+	if (!fs::is_regular_file(cfg.executablePath))
+	{
+		std::cout << "Invalid local executable name: " << cfg.executablePath << "\n";
+		return false;
+	}
 
-    /*builderEnvPath = builderExecutablePath.parent_path().parent_path();
-    //std::cout << "EnvPath: " << builderEnvPath << "\n";
+	if (!ParseOptions(cmd, cfg)) {
+		std::cerr << KRED << "[BREAKING] Invalid/incomplete configuration\n" << RST;
+		return 1;
+	}
 
-    if (!fs::is_directory(builderEnvPath / "vs"))
-    {
-        std::cout << "BuildTool is run from invalid directory and does not have required local files (vs folder is missing)\n";
-        return false;
-    }
+	/*if (cmd.has("interactive"))
+		if (!RunInteractiveConfig(cfg))
+			return false;*/
 
-    if (!fs::is_directory(builderEnvPath / "cmake"))
-    {
-        std::cout << "BuildTool is run from invalid directory and does not have required local files (cmake folder is missing)\n";
-        return false;
-    }*/
+	if (!ParsePaths(cmd, cfg)) {
+		std::cerr << KRED << "[BREAKING] Invalid/incomplete configuration\n" << RST;
+		return 1;
+	}
 
+	std::cout << "Configuration: '" << cfg.mergedName() << "'\n";
+    return true;
+}
+
+bool Configuration::ParseOptions(const Commandline& cmd, Configuration& cfg)
+{
+    // -build=windows
+    // -build=windows.release
+    // -build=windows.release.static
+    // -build=windows.release.static.shipment
+    // -build=windows.release.static.shipment
+
+	const auto& buildString = cmd.get("build");
+    if (buildString.empty())
+        return true; // use defaults
+
+    std::vector<std::string_view> buildParts;
+    SplitString(buildString, ".", buildParts);
+
+    bool hasPlatform = false;
+    bool hasConfigType = false;
+    bool hasLibsType = false;
+    bool hasGeneratorType = false;
+
+    for (const auto& part : buildParts)
     {
-        const auto& str = cmd.get("build");
-        if (!str.empty())
+        if (ParsePlatformType(part, cfg.platform))
         {
-            if (!ParseBuildType(str, this->build))
+            if (hasPlatform)
             {
-                std::cout << "Invalid build type '" << str << "'specified\n";
+                std::cerr << KRED << "[BREAKING] Platform was already defined in build configuration string\n" << RST;
                 return false;
             }
-        }
-    }
 
-    {
-        const auto& str = cmd.get("platform");
-        if (!str.empty())
-        {
-            if (!ParsePlatformType(str, this->platform))
-            {
-                std::cout << "Invalid platform type '" << str << "'specified\n";
-                return false;
-            }
+            hasPlatform = true;
         }
-    }
+		else if (ParseLibraryType(part, cfg.libs))
+		{
+			if (hasLibsType)
+			{
+				std::cerr << KRED << "[BREAKING] Library type was already defined in build configuration string\n" << RST;
+				return false;
+			}
 
-    {
-        const auto& str = cmd.get("generator");
-        if (str.empty())
+			hasLibsType = true;
+		}
+		else if (ParseConfigurationType(part, cfg.configuration))
+		{
+			if (hasConfigType)
+			{
+				std::cerr << KRED << "[BREAKING] Configuration type was already defined in build configuration string\n" << RST;
+				return false;
+			}
+
+            hasConfigType = true;
+		}
+		else if (ParseGeneratorType(part, cfg.generator))
+		{
+			if (hasGeneratorType)
+			{
+				std::cerr << KRED << "[BREAKING] Generator type was already defined in build configuration string\n" << RST;
+				return false;
+			}
+
+            hasGeneratorType = true;
+		}
+        else if (part == "shipment")
         {
-            if (this->platform == PlatformType::Windows || this->platform == PlatformType::UWP)
-                this->generator = GeneratorType::VisualStudio22;
-            else if (this->platform == PlatformType::Prospero || this->platform == PlatformType::Scarlett)
-                this->generator = GeneratorType::VisualStudio22;
-            else
-                this->generator = GeneratorType::CMake;
+			if (cfg.flagShipmentBuild)
+			{
+				std::cerr << KRED << "[BREAKING] Shipment flag was already defined in build configuration string\n" << RST;
+				return false;
+			}
+
+            cfg.flagShipmentBuild = true;
         }
-        else if (!ParseGeneratorType(str, this->generator))
+        else
         {
-            std::cout << "Invalid generator type '" << str << "'specified\n";
+            std::cerr << KRED << "[BREAKING] Invalid build configuration token '" << part << "' that does not match any platform, generator, library type or other shit\n" << RST;
             return false;
         }
     }
 
+    // assign some defaults
+    if (!hasGeneratorType)
     {
-        const auto& str = cmd.get("libs");
-        if (!str.empty())
-        {
-            if (!ParseLibraryType(str, this->libs))
-            {
-                std::cout << "Invalid library type '" << str << "'specified\n";
-                return false;
-            }
-        }
+        if (cfg.platform == PlatformType::Windows || cfg.platform == PlatformType::UWP)
+            cfg.generator = GeneratorType::VisualStudio22;
+        else if (cfg.platform == PlatformType::Prospero || cfg.platform == PlatformType::Scarlett)
+            cfg.generator = GeneratorType::VisualStudio22;
+        else
+            cfg.generator = GeneratorType::CMake;
     }
 
-    {
-        const auto& str = cmd.get("config");
-        if (!str.empty())
-        {
-            if (!ParseConfigurationType(str, this->configuration))
-            {
-                std::cout << "Invalid configuration type '" << str << "'specified\n";
-                return false;
-            }
-        }
-    }
-
-    //force = cmd.has("force");
-    if (generator == GeneratorType::CMake || cmd.has("static"))
-        staticBuild = true;
+    // when using the CMake generator we can't really generate reflection and other shit at runtime :(
+    if (cfg.generator == GeneratorType::CMake || cmd.has("static"))
+        cfg.flagStaticBuild = true;
 
     return true;
 }
 
-bool Configuration::parsePaths(const char* executable, const Commandline& cmd)
-{
-    //--
+static const std::string MODULE_NAME = "module.onion";
 
+bool Configuration::ParsePaths(const Commandline& cmd, Configuration& cfg)
+{
+    // module path
 	{
 		const auto& str = cmd.get("module");
 		if (str.empty())
 		{
-			auto testPath = fs::current_path() / CONFIGURATION_NAME;
+			auto testPath = fs::current_path() / MODULE_NAME;
 			if (!fs::is_regular_file(testPath))
 			{
-				std::cerr << KRED << "[BREAKING] Onion build tool run in a directory without \"" << CONFIGURATION_NAME << "\", did you run the configure command?\n" << RST;
+				std::cerr << KRED << "[BREAKING] Onion build tool run in a directory without \"" << MODULE_NAME << "\", did you run the configure command?\n" << RST;
 				return false;
 			}
 			else
 			{
-				modulePath = fs::weakly_canonical(fs::absolute(fs::current_path()));
+				cfg.modulePath = fs::weakly_canonical(fs::absolute(fs::current_path()));
 			}
 		}
 		else
 		{
-            auto testPath = fs::path(str) / CONFIGURATION_NAME;
+            auto testPath = fs::path(str) / MODULE_NAME;
 			if (!fs::is_regular_file(testPath))
 			{
-                std::cerr << KRED << "[BREAKING] Specified module path '" << str << "' does not contain \"" << CONFIGURATION_NAME << "\" that is required to recognize directory as Onion Module\n" << RST;
+                std::cerr << KRED << "[BREAKING] Specified module path '" << str << "' does not contain \"" << MODULE_NAME << "\" that is required to recognize directory as Onion Module\n" << RST;
 				return false;
 			}
 
-			modulePath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
+			cfg.modulePath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
 		}
 	}
 
-    fs::path buildPath = modulePath;
-
+    // temp directory
     {
-		const auto& str = cmd.get("buildDir");
-        if (!str.empty())
-            buildPath = str;
+		const auto& str = cmd.get("tempPath");
+		if (str.empty())
+			cfg.tempPath = (cfg.modulePath / ".temp").make_preferred();
+		else
+			cfg.tempPath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
+
+		std::error_code ec;
+		if (!fs::is_directory(cfg.tempPath, ec))
+		{
+			if (!fs::create_directories(cfg.tempPath, ec))
+			{
+				std::cerr << KRED << "[BREAKING] Failed to create temp directory " << cfg.tempPath << "\n" << RST;
+				return false;
+			}
+		}
     }
 
-    {
-        const auto& str = cmd.get("binaryDir");
-        if (str.empty())
-        {
-            //std::cout << "No deploy directory specified, using default one\n";
+    // cache directory
+	{
+		const auto& str = cmd.get("cachePath");
+		if (str.empty())
+			cfg.cachePath = (cfg.modulePath / ".cache").make_preferred();
+		else
+			cfg.cachePath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
 
-            std::string solutionPartialPath = ".bin/";
-            solutionPartialPath += mergedName();
+		std::error_code ec;
+		if (!fs::is_directory(cfg.cachePath, ec))
+		{
+			if (!fs::create_directories(cfg.cachePath, ec))
+			{
+				std::cerr << KRED << "[BREAKING] Failed to create temp directory " << cfg.cachePath << "\n" << RST;
+				return false;
+			}
+		}
+	}
 
-            this->binaryPath = buildPath / solutionPartialPath;
-        }
-        else
-        {
-            this->binaryPath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
-        }
-
-        this->binaryPath.make_preferred();
-
-        std::error_code ec;
-        if (!fs::is_directory(binaryPath, ec))
-        {
-            if (!fs::create_directories(binaryPath, ec))
-            {
-                std::cerr << KRED << "[BREAKING] Failed to create deploy directory " << binaryPath << "\n" << RST;
-                return false;
-            }
-        }
-    }
-
-    {
-        const auto& str = cmd.get("outDir");
-        if (str.empty())
-        {
-            //std::cout << "No output directory specified, using default one\n";
-
-            std::string solutionPartialPath = ".temp/";
-            this->tempPath = buildPath / solutionPartialPath;
-
-			solutionPartialPath += mergedName();
-            this->solutionPath = buildPath / solutionPartialPath;
-        }
-        else
-        {
-            this->solutionPath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
-            this->tempPath = this->solutionPath;
-        }
-
-        std::error_code ec;
-        if (!fs::is_directory(solutionPath, ec))
-        {
-            if (!fs::create_directories(solutionPath, ec))
-            {
-                std::cerr << KRED << "[BREAKING] Failed to create solution directory " << solutionPath << "\n" << RST;
-                return false;
-            }
-        }
-    }
-
-	/*{
-		auto str = cmd.get("thirdPartyDir");
-        if (str.empty())
-        {
-            const auto path = modulePath / ".thirdparty";
-            std::ifstream file(path);
-            if (!file.fail())
-            {
-                if (std::getline(file, str))
-                    localLibraryPath = str;
-            }
-        }
-        else
-        {
-            localLibraryPath = str;
-        }
-
-        if (localLibraryPath.empty())
-        {
-            std::cout << "Failed to determine path to third-party libraries.\n";
-            std::cout << "Run 'generate.py' or manually specify path to folder with third-party libraries in .thridparty file\n";
-            return false;
-        }
-	}*/
-
-    solutionPath = solutionPath.make_preferred();
-    binaryPath = binaryPath.make_preferred();
-    modulePath = modulePath.make_preferred();
-
-	std::cout << "Module path: " << modulePath << "\n";
-	std::cout << "Solution path: " << solutionPath << "\n";
-	std::cout << "Binary path: " << binaryPath << "\n";
+    // derived paths
+    cfg.derivedConfigurationPath = (cfg.tempPath / cfg.mergedName()).make_preferred();
+    cfg.derivedBinaryPath = (cfg.derivedConfigurationPath / "bin").make_preferred();
+    cfg.derivedSolutionPath = (cfg.derivedConfigurationPath / "build").make_preferred();
 
     return true;
 }

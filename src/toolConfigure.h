@@ -8,6 +8,12 @@ struct ModuleConfigurationManifest;
 struct ModuleDepdencencyInfo;
 struct ModuleManifest;
 
+struct ModuleReferencedLibrary
+{
+    std::string name;
+    uint32_t version = 1;
+};
+
 //--
 
 class ModuleResolver
@@ -25,6 +31,7 @@ private:
         std::string guid;
         fs::path path;
         bool local = false;
+        bool root = false;
         ModuleManifest* manifest;
 
         ~ModuleInfo();
@@ -80,7 +87,7 @@ class ToolConfigure
 public:
     ToolConfigure();
 
-    int run(const char* argv0, const Commandline& cmdline);
+    int run(const Commandline& cmdline);
 	void printUsage();
 
 private:

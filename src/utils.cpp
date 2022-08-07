@@ -188,8 +188,8 @@ namespace prv
         return false;
     }
 
-    template<typename Ch, typename T>
-    inline static bool MatchInteger(const Ch* str, T& outValue, size_t strLength, uint32_t base)
+    template<typename SHA256_XCHG, typename T>
+    inline static bool MatchInteger(const SHA256_XCHG* str, T& outValue, size_t strLength, uint32_t base)
     {
         static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value, "Only integer types are allowed here");
 
@@ -249,8 +249,8 @@ namespace prv
         return true;
     }
 
-    template<typename Ch>
-    inline bool MatchFloat(const Ch* str, double& outValue, size_t strLength)
+    template<typename SHA256_XCHG>
+    inline bool MatchFloat(const SHA256_XCHG* str, double& outValue, size_t strLength)
     {
         // empty strings are not valid input to this function
         if (!str || !*str)
@@ -907,11 +907,11 @@ static bool IsSafeURLChar(char ch)
     if (ch >= 'a' && ch <= 'z') return true;
     if (ch >= 'A' && ch <= 'Z') return true;
     if (ch >= '0' && ch <= '9') return true;
-    if (ch == '_' || ch == '!' || ch == '*' || ch == '(' || ch == ')' || ch == '~' || ch == '.' || ch == '\'') return true;
+    if (ch == '_' || ch == '!' || ch == '*' || ch == '(' || ch == ')' || ch == '~' || ch == '.' || ch == '\'' || ch == '/') return true;
     return false;
 }
 
-static void PrintURL(std::stringstream& f, std::string_view txt)
+void PrintURL(std::stringstream& f, std::string_view txt)
 {
     for (auto ch : txt)
     {
@@ -928,6 +928,72 @@ static void PrintURL(std::stringstream& f, std::string_view txt)
     }
 }
 
+void RequestArgs::printUri(std::stringstream& f) const
+{
+    std::vector<std::pair<std::string, std::string>> sortedArgs;
+    for (const auto& arg : m_arguments)
+        sortedArgs.push_back(std::make_pair(arg.first, arg.second));
+
+    std::sort(sortedArgs.begin(), sortedArgs.end(), [](const auto& a, const auto& b)
+        {
+            return a.first < b.first;
+        });
+
+    bool first = true;
+
+    for (const auto& arg : sortedArgs)
+    {
+        if (!first)
+            f << "&";
+        first = false;
+
+		PrintURL(f, arg.first);
+		f << "=";
+		PrintURL(f, arg.second);
+    }
+}
+
+void RequestArgs::printHeader(std::stringstream& f) const
+{
+	std::vector<std::pair<std::string, std::string>> sortedArgs;
+	for (const auto& arg : m_arguments)
+		sortedArgs.push_back(std::make_pair(arg.first, arg.second));
+
+	std::sort(sortedArgs.begin(), sortedArgs.end(), [](const auto& a, const auto& b)
+		{
+			return a.first < b.first;
+		});
+
+	for (const auto& arg : sortedArgs)
+	{
+		f << ToLower(arg.first);
+		f << ":";
+        f << Trim(arg.second);
+        f << "\n";
+	}
+}
+
+void RequestArgs::printHeaderNames(std::stringstream& f) const
+{
+	std::vector<std::pair<std::string, std::string>> sortedArgs;
+	for (const auto& arg : m_arguments)
+		sortedArgs.push_back(std::make_pair(arg.first, arg.second));
+
+	std::sort(sortedArgs.begin(), sortedArgs.end(), [](const auto& a, const auto& b)
+		{
+			return a.first < b.first;
+		});
+
+    bool first = true;
+	for (const auto& arg : sortedArgs)
+	{
+        if (!first)
+            f << ";";
+        first = false;
+		f << ToLower(arg.first);
+	}
+}
+
 void RequestArgs::print(std::stringstream& f) const
 {
     bool separator = false;
@@ -935,9 +1001,9 @@ void RequestArgs::print(std::stringstream& f) const
     for (const auto& it : m_arguments)
     {
         f << (separator ? "&" : "?");
-        f << it.first;
-        f << "=";
-        PrintURL(f, it.second);
+		PrintURL(f, it.first);
+		f << "=";
+		PrintURL(f, it.second);
         separator = true;
     }
 }
@@ -1318,6 +1384,16 @@ std::string EscapeArgument(std::string_view txt)
     return str.str();
 }
 
+std::string_view TrimQuotes(std::string_view txt)
+{
+    auto inner = Trim(txt);
+
+    if (BeginsWith(inner, "\"") && EndsWith(inner, "\""))
+        return inner.substr(1, inner.length() - 2);
+
+    return inner;
+}
+
 std::string_view Trim(std::string_view txt)
 {
     const auto* start = txt.data();
@@ -1581,11 +1657,6 @@ bool ParseConfigurationType(std::string_view txt, ConfigurationType& outType)
     return ParseEnumValue(txt, outType);
 }
 
-bool ParseBuildType(std::string_view txt, BuildType& outType)
-{
-    return ParseEnumValue(txt, outType);
-}
-
 bool ParseLibraryType(std::string_view txt, LibraryType& outType)
 {
     return ParseEnumValue(txt, outType);
@@ -1612,18 +1683,6 @@ std::string_view NameEnumOption(ConfigurationType type)
     case ConfigurationType::Debug: return "debug";
     case ConfigurationType::Release: return "release";
     case ConfigurationType::Final: return "final";
-    default: break;
-    }
-    return "";
-}
-
-std::string_view NameEnumOption(BuildType type)
-{
-    switch (type)
-    {
-    case BuildType::Development: return "dev";
-    //case BuildType::Standalone: return "standalone";
-    case BuildType::Shipment: return "ship";
     default: break;
     }
     return "";
@@ -2271,3 +2330,370 @@ bool CheckVersion(std::string_view app, std::string_view prefix, std::string_vie
 
      return true;
  }
+
+//--
+
+#define SHA256_ROR(value, bits) (((value) >> (bits)) | ((value) << (32 - (bits))))
+
+#define SHA256_MIN(x, y) (((x) < (y)) ? (x) : (y))
+
+#define SHA256_STORE32H(x, y)                     \
+  {                                        \
+    (y)[0] = (uint8_t)(((x) >> 24) & 255); \
+    (y)[1] = (uint8_t)(((x) >> 16) & 255); \
+    (y)[2] = (uint8_t)(((x) >> 8) & 255);  \
+    (y)[3] = (uint8_t)((x)&255);           \
+  }
+
+#define SHA256_LOAD32H(x, y)                                                         \
+  {                                                                           \
+    x = ((uint32_t)((y)[0] & 255) << 24) | ((uint32_t)((y)[1] & 255) << 16) | \
+        ((uint32_t)((y)[2] & 255) << 8) | ((uint32_t)((y)[3] & 255));         \
+  }
+
+#define STORE64H(x, y)                     \
+  {                                        \
+    (y)[0] = (uint8_t)(((x) >> 56) & 255); \
+    (y)[1] = (uint8_t)(((x) >> 48) & 255); \
+    (y)[2] = (uint8_t)(((x) >> 40) & 255); \
+    (y)[3] = (uint8_t)(((x) >> 32) & 255); \
+    (y)[4] = (uint8_t)(((x) >> 24) & 255); \
+    (y)[5] = (uint8_t)(((x) >> 16) & 255); \
+    (y)[6] = (uint8_t)(((x) >> 8) & 255);  \
+    (y)[7] = (uint8_t)((x)&255);           \
+  }
+
+static const uint32_t SHA256_K[64] = {
+	0x428a2f98UL, 0x71374491UL, 0xb5c0fbcfUL, 0xe9b5dba5UL, 0x3956c25bUL,
+	0x59f111f1UL, 0x923f82a4UL, 0xab1c5ed5UL, 0xd807aa98UL, 0x12835b01UL,
+	0x243185beUL, 0x550c7dc3UL, 0x72be5d74UL, 0x80deb1feUL, 0x9bdc06a7UL,
+	0xc19bf174UL, 0xe49b69c1UL, 0xefbe4786UL, 0x0fc19dc6UL, 0x240ca1ccUL,
+	0x2de92c6fUL, 0x4a7484aaUL, 0x5cb0a9dcUL, 0x76f988daUL, 0x983e5152UL,
+	0xa831c66dUL, 0xb00327c8UL, 0xbf597fc7UL, 0xc6e00bf3UL, 0xd5a79147UL,
+	0x06ca6351UL, 0x14292967UL, 0x27b70a85UL, 0x2e1b2138UL, 0x4d2c6dfcUL,
+	0x53380d13UL, 0x650a7354UL, 0x766a0abbUL, 0x81c2c92eUL, 0x92722c85UL,
+	0xa2bfe8a1UL, 0xa81a664bUL, 0xc24b8b70UL, 0xc76c51a3UL, 0xd192e819UL,
+	0xd6990624UL, 0xf40e3585UL, 0x106aa070UL, 0x19a4c116UL, 0x1e376c08UL,
+	0x2748774cUL, 0x34b0bcb5UL, 0x391c0cb3UL, 0x4ed8aa4aUL, 0x5b9cca4fUL,
+	0x682e6ff3UL, 0x748f82eeUL, 0x78a5636fUL, 0x84c87814UL, 0x8cc70208UL,
+	0x90befffaUL, 0xa4506cebUL, 0xbef9a3f7UL, 0xc67178f2UL };
+
+#define SHA256_BLOCK_SIZE 64
+
+#define SHA256_XCHG(x, y, z) (z ^ (x & (y ^ z)))
+#define SHA256_MAJ(x, y, z) (((x | y) & z) | (x & y))
+#define SHA256_S(x, n) SHA256_ROR((x), (n))
+#define SHA256_R(x, n) (((x)&0xFFFFFFFFUL) >> (n))
+#define SHA256_SIGMA0(x) (SHA256_S(x, 2) ^ SHA256_S(x, 13) ^ SHA256_S(x, 22))
+#define SHA256_SIGMA1(x) (SHA256_S(x, 6) ^ SHA256_S(x, 11) ^ SHA256_S(x, 25))
+#define SHA256_GAMMA0(x) (SHA256_S(x, 7) ^ SHA256_S(x, 18) ^ SHA256_R(x, 3))
+#define SHA256_GAMMA1(x) (SHA256_S(x, 17) ^ SHA256_S(x, 19) ^ SHA256_R(x, 10))
+
+#define SHA256_ROUND(a, b, c, d, e, f, g, h, i)    \
+  t0 = h + SHA256_SIGMA1(e) + SHA256_XCHG(e, f, g) + SHA256_K[i] + W[i]; \
+  t1 = SHA256_SIGMA0(a) + SHA256_MAJ(a, b, c);                  \
+  d += t0;                                        \
+  h = t0 + t1;
+
+static void Sha256TransformFunction(Sha256Context* Context, uint8_t const* Buffer)
+{
+	uint32_t S[8];
+	uint32_t W[64];
+	uint32_t t0;
+	uint32_t t1;
+	uint32_t t;
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		S[i] = Context->state[i];
+	}
+
+	for (i = 0; i < 16; i++) {
+		SHA256_LOAD32H(W[i], Buffer + (4 * i));
+	}
+
+	for (i = 16; i < 64; i++) {
+		W[i] = SHA256_GAMMA1(W[i - 2]) + W[i - 7] + SHA256_GAMMA0(W[i - 15]) + W[i - 16];
+	}
+
+	for (i = 0; i < 64; i++) {
+		SHA256_ROUND(S[0], S[1], S[2], S[3], S[4], S[5], S[6], S[7], i);
+		t = S[7];
+		S[7] = S[6];
+		S[6] = S[5];
+		S[5] = S[4];
+		S[4] = S[3];
+		S[3] = S[2];
+		S[2] = S[1];
+		S[1] = S[0];
+		S[0] = t;
+	}
+
+	for (i = 0; i < 8; i++) {
+		Context->state[i] = Context->state[i] + S[i];
+	}
+}
+
+void Sha256Initialise(Sha256Context* Context)
+{
+	Context->curlen = 0;
+	Context->length = 0;
+	Context->state[0] = 0x6A09E667UL;
+	Context->state[1] = 0xBB67AE85UL;
+	Context->state[2] = 0x3C6EF372UL;
+	Context->state[3] = 0xA54FF53AUL;
+	Context->state[4] = 0x510E527FUL;
+	Context->state[5] = 0x9B05688CUL;
+	Context->state[6] = 0x1F83D9ABUL;
+	Context->state[7] = 0x5BE0CD19UL;
+}
+
+void Sha256Update(Sha256Context* Context, void const* Buffer, uint32_t BufferSize)
+{
+	uint32_t n;
+
+	if (Context->curlen > sizeof(Context->buf)) {
+		return;
+	}
+
+	while (BufferSize > 0) {
+		if (Context->curlen == 0 && BufferSize >= SHA256_BLOCK_SIZE) {
+			Sha256TransformFunction(Context, (uint8_t*)Buffer);
+			Context->length += SHA256_BLOCK_SIZE * 8;
+			Buffer = (uint8_t*)Buffer + SHA256_BLOCK_SIZE;
+			BufferSize -= SHA256_BLOCK_SIZE;
+		}
+		else {
+			n = SHA256_MIN(BufferSize, (SHA256_BLOCK_SIZE - Context->curlen));
+			memcpy(Context->buf + Context->curlen, Buffer, (size_t)n);
+			Context->curlen += n;
+			Buffer = (uint8_t*)Buffer + n;
+			BufferSize -= n;
+			if (Context->curlen == SHA256_BLOCK_SIZE) {
+				Sha256TransformFunction(Context, Context->buf);
+				Context->length += 8 * SHA256_BLOCK_SIZE;
+				Context->curlen = 0;
+			}
+		}
+	}
+}
+
+void Sha256Finalise(Sha256Context* Context, SHA256_HASH* Digest)
+{
+	int i;
+
+	if (Context->curlen >= sizeof(Context->buf))
+		return;
+
+	Context->length += Context->curlen * 8;
+	Context->buf[Context->curlen++] = (uint8_t)0x80;
+
+	if (Context->curlen > 56) {
+		while (Context->curlen < 64)
+			Context->buf[Context->curlen++] = (uint8_t)0;
+		Sha256TransformFunction(Context, Context->buf);
+		Context->curlen = 0;
+	}
+
+	while (Context->curlen < 56)
+		Context->buf[Context->curlen++] = (uint8_t)0;
+
+	STORE64H(Context->length, Context->buf + 56);
+	Sha256TransformFunction(Context, Context->buf);
+
+	for (i = 0; i < 8; i++)
+    {
+		SHA256_STORE32H(Context->state[i], Digest->bytes + (4 * i));
+	}
+}
+
+void Sha256Calculate(void const* Buffer, uint32_t BufferSize, SHA256_HASH* Digest)
+{
+	Sha256Context context;
+
+	Sha256Initialise(&context);
+	Sha256Update(&context, Buffer, BufferSize);
+	Sha256Finalise(&context, Digest);
+}
+
+std::string Sha256OfText(std::string_view data)
+{
+	SHA256_HASH hash;
+	Sha256Calculate(data.data(), data.size(), &hash);
+	return BytesToHexString(&hash.bytes[0], sizeof(hash.bytes));
+}
+
+bool Sha256OfFile(const fs::path& path, std::string& outHashString)
+{
+    std::vector<uint8_t> data;
+    if (!LoadFileToBuffer(path, data))
+        return false;
+
+    SHA256_HASH hash;
+    Sha256Calculate(data.data(), data.size(), &hash);
+
+    outHashString = BytesToHexString(&hash.bytes[0], sizeof(hash.bytes));
+    return true;
+}
+
+
+//--
+
+#define SHA256_BLOCK_SIZE 64
+
+static void* sha256(const void* data,
+	const size_t datalen,
+	void* out,
+	const size_t outlen) {
+	size_t sz;
+	Sha256Context ctx;
+	SHA256_HASH hash;
+
+	Sha256Initialise(&ctx);
+	Sha256Update(&ctx, data, (uint32_t)datalen);
+	Sha256Finalise(&ctx, &hash);
+
+	sz = (outlen > SHA256_HASH_SIZE) ? SHA256_HASH_SIZE : outlen;
+	return memcpy(out, hash.bytes, sz);
+}
+
+static void* hmac_H(const void* x,
+	const size_t xlen,
+	const void* y,
+	const size_t ylen,
+	void* out,
+	const size_t outlen) {
+	void* result;
+	size_t buflen = (xlen + ylen);
+	uint8_t* buf = (uint8_t*)malloc(buflen);
+
+	memcpy(buf, x, xlen);
+	memcpy(buf + xlen, y, ylen);
+	result = sha256(buf, buflen, out, outlen);
+
+	free(buf);
+	return result;
+}
+
+size_t hmac_sha256(const void* key,
+	const size_t keylen,
+	const void* data,
+	const size_t datalen,
+	void* out,
+	const size_t outlen) {
+	uint8_t k[SHA256_BLOCK_SIZE];
+	uint8_t k_ipad[SHA256_BLOCK_SIZE];
+	uint8_t k_opad[SHA256_BLOCK_SIZE];
+	uint8_t ihash[SHA256_HASH_SIZE];
+	uint8_t ohash[SHA256_HASH_SIZE];
+	size_t sz;
+	int i;
+
+	memset(k, 0, sizeof(k));
+	memset(k_ipad, 0x36, SHA256_BLOCK_SIZE);
+	memset(k_opad, 0x5c, SHA256_BLOCK_SIZE);
+
+	if (keylen > SHA256_BLOCK_SIZE)
+		sha256(key, keylen, k, sizeof(k));
+	else
+		memcpy(k, key, keylen);
+
+	for (i = 0; i < SHA256_BLOCK_SIZE; i++) {
+		k_ipad[i] ^= k[i];
+		k_opad[i] ^= k[i];
+	}
+
+	// Perform HMAC algorithm: ( https://tools.ietf.org/html/rfc2104 )
+	//      `H(SHA256_K XOR opad, H(SHA256_K XOR ipad, data))`
+    hmac_H(k_ipad, sizeof(k_ipad), data, datalen, ihash, sizeof(ihash));
+    hmac_H(k_opad, sizeof(k_opad), ihash, sizeof(ihash), ohash, sizeof(ohash));
+
+	sz = (outlen > SHA256_HASH_SIZE) ? SHA256_HASH_SIZE : outlen;
+	memcpy(out, ohash, sz);
+	return sz;
+}
+
+const char* HexTable =
+"00\00001\00002\00003\00004\00005\00006\00007\00008\00009\0000a\0000b\0000c\0000d\0000e\0000f\000"
+"10\00011\00012\00013\00014\00015\00016\00017\00018\00019\0001a\0001b\0001c\0001d\0001e\0001f\000"
+"20\00021\00022\00023\00024\00025\00026\00027\00028\00029\0002a\0002b\0002c\0002d\0002e\0002f\000"
+"30\00031\00032\00033\00034\00035\00036\00037\00038\00039\0003a\0003b\0003c\0003d\0003e\0003f\000"
+"40\00041\00042\00043\00044\00045\00046\00047\00048\00049\0004a\0004b\0004c\0004d\0004e\0004f\000"
+"50\00051\00052\00053\00054\00055\00056\00057\00058\00059\0005a\0005b\0005c\0005d\0005e\0005f\000"
+"60\00061\00062\00063\00064\00065\00066\00067\00068\00069\0006a\0006b\0006c\0006d\0006e\0006f\000"
+"70\00071\00072\00073\00074\00075\00076\00077\00078\00079\0007a\0007b\0007c\0007d\0007e\0007f\000"
+"80\00081\00082\00083\00084\00085\00086\00087\00088\00089\0008a\0008b\0008c\0008d\0008e\0008f\000"
+"90\00091\00092\00093\00094\00095\00096\00097\00098\00099\0009a\0009b\0009c\0009d\0009e\0009f\000"
+"a0\000a1\000a2\000a3\000a4\000a5\000a6\000a7\000a8\000a9\000aa\000ab\000ac\000ad\000ae\000af\000"
+"b0\000b1\000b2\000b3\000b4\000b5\000b6\000b7\000b8\000b9\000ba\000bb\000bc\000bd\000be\000bf\000"
+"c0\000c1\000c2\000c3\000c4\000c5\000c6\000c7\000c8\000c9\000ca\000cb\000cc\000cd\000ce\000cf\000"
+"d0\000d1\000d2\000d3\000d4\000d5\000d6\000d7\000d8\000d9\000da\000db\000dc\000dd\000de\000df\000"
+"e0\000e1\000e2\000e3\000e4\000e5\000e6\000e7\000e8\000e9\000ea\000eb\000ec\000ed\000ee\000ef\000"
+"f0\000f1\000f2\000f3\000f4\000f5\000f6\000f7\000f8\000f9\000fa\000fb\000fc\000fd\000fe\000ff\000";
+
+void BytesToHexString(std::stringstream& str, const uint8_t* data, uint32_t length)
+{
+	const auto* end = data + length;
+	while (data < end)
+	{
+		const auto byte = *data++;
+		const char* txt = HexTable + (3 * byte);
+		str << txt;
+	}
+}
+
+void BytesToHexString(std::stringstream& str, const std::vector<uint8_t>& bytes)
+{
+    BytesToHexString(str, bytes.data(), bytes.size());
+}
+
+std::string BytesToHexString(const std::string& bytes)
+{
+	std::stringstream str;
+	BytesToHexString(str, (const uint8_t*)bytes.data(), bytes.length());
+	return str.str();
+}
+
+std::string BytesToHexString(const std::vector<uint8_t>& bytes)
+{
+	std::stringstream str;
+    BytesToHexString(str, bytes);
+	return str.str();
+}
+
+std::string BytesToHexString(const uint8_t* data, uint32_t length)
+{
+    std::stringstream str;
+    BytesToHexString(str, data, length);
+    return str.str();  
+}
+
+//--
+
+std::string hmac_sha256_str(std::string_view key, std::string_view payload)
+{
+    std::vector<uint8_t> out(SHA256_HASH_SIZE);
+	hmac_sha256(
+		key.data(), key.size(),
+		payload.data(), payload.size(),
+		out.data(), out.size()
+	);
+
+    return BytesToHexString(out);
+}
+
+std::string hmac_sha256_binstr(std::string_view key, std::string_view payload)
+{
+    std::string out;
+    out.resize(SHA256_HASH_SIZE);
+
+	hmac_sha256(
+		key.data(), key.size(),
+		payload.data(), payload.size(),
+		out.data(), out.size()
+	);
+
+    return out;
+}
+
+//--

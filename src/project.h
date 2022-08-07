@@ -54,7 +54,7 @@ struct ProjectInfo
 	//--
 
 	std::vector<ProjectInfo*> resolvedDependencies; // resolved dependencies on other projects
-	std::vector<ExternalLibraryManifest*> resolvedLibraryDependencies; // resolved dependencies on libraries
+	std::vector<const ExternalLibraryManifest*> resolvedLibraryDependencies; // resolved dependencies on libraries
 
 	std::vector<ProjectFileInfo*> files; // discovered FINAL project files
 

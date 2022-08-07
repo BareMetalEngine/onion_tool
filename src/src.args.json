@@ -24,7 +24,7 @@
     },
     {
       "Id": "8b048d70-c195-4606-99f1-9abda2f8c1a7",
-      "Command": "make"
+      "Command": "generate"
     },
     {
       "Id": "77e22798-2e62-428d-b5c0-08ed7a43cf72",
@@ -41,6 +41,14 @@
     {
       "Id": "1270abad-e98d-4df0-8d18-9c1b5d941edc",
       "Command": "library"
+    },
+    {
+      "Id": "4cd9f5d5-6305-4fa0-9314-75949fb54233",
+      "Command": "-awsKey=\"AKIATNQ26KZE7PMDM4HR\""
+    },
+    {
+      "Id": "475638b9-46b0-4706-bdd1-1cb36756c90f",
+      "Command": "-awsSecret=\"eX9VQvkIg8ymEGimi3APmEp+Bb2mTYYMiWwQ/0YE\""
     },
     {
       "Id": "58756693-b3c5-4994-aeed-6e9a93e52b9c",
@@ -63,12 +71,12 @@
       "Command": "-module=\"Z:\\internal\\onion_test\\app_self_contained\""
     },
     {
-      "Id": "eda8c926-2420-4d6e-b7fe-01b4c51f32b9",
-      "Command": "-module=\"Z:\\internal\\bm_core\""
-    },
-    {
       "Id": "2059df3d-18e6-4d1f-ad94-dff8820ab748",
       "Command": "-module=\"Z:\\BareMetalEngine\\network\""
+    },
+    {
+      "Id": "fa0c21b7-fdea-4608-9f19-960e20077ddb",
+      "Command": "-module=\"Z:\\BareMetalEngine\\core\""
     },
     {
       "Id": "71c57d14-0de9-470e-a371-e38d750e8083",
@@ -164,7 +172,7 @@
     },
     {
       "Id": "e4bca3cd-71df-482d-870c-81cd767aab08",
-      "Command": "-release"
+      "Command": "-upload"
     },
     {
       "Id": "03f8aefc-e56f-43e3-b285-ff711da9ddfa",
@@ -173,6 +181,18 @@
     {
       "Id": "cc0b90fd-337d-49b7-8153-2eca120c38ff",
       "Command": "-config=final -libs=static"
+    },
+    {
+      "Id": "fe626842-26d8-4d3b-af08-3dd2926326ea",
+      "Command": "-library=\"Z:\\BareMetalEngine\\dependencies_scripts\\scripts\\zlib.onion\""
+    },
+    {
+      "Id": "39ddeb64-3c22-438a-8218-4d648f4ce1e8",
+      "Command": "-library=\"Z:\\BareMetalEngine\\dependencies_scripts\\scripts\\mbedtls.onion\""
+    },
+    {
+      "Id": "4656500e-326c-4677-b50f-299f2a6a3a86",
+      "Command": "-library=\"Z:\\BareMetalEngine\\dependencies_scripts\\scripts\\curl.onion\""
     }
   ]
 }

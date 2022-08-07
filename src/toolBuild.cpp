@@ -2,7 +2,6 @@
 #include "utils.h"
 #include "toolBuild.h"
 #include "configuration.h"
-#include "configurationList.h"
 
 //--
 
@@ -86,9 +85,9 @@ static bool BuildConfigurationVS(const Configuration& cfg, const Commandline& cm
 
 	// find solution file
 	fs::path solutionFilePath;
-	if (!FindSolution(cfg.solutionPath, solutionFilePath))
+	if (!FindSolution(cfg.derivedSolutionPath, solutionFilePath))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to find solution file at " << cfg.solutionPath << "\n" << RST;
+		std::cerr << KRED << "[BREAKING] Failed to find solution file at " << cfg.derivedSolutionPath << "\n" << RST;
 		return false;
 	}
 	else
@@ -121,19 +120,19 @@ static bool BuildConfiguration(const Configuration& cfg, const Commandline& cmdL
 	std::cout << "Building '" << cfg.mergedName() << "'\n";
 	
 	// no solution directory
-	if (!fs::is_directory(cfg.solutionPath))
+	if (!fs::is_directory(cfg.derivedSolutionPath))
 	{
-		std::cerr << "[BREAKING] Make file/solution directory " << cfg.solutionPath << " does not exist\n";
+		std::cerr << "[BREAKING] Make file/solution directory " << cfg.derivedSolutionPath << " does not exist\n";
 		return false;
 	}
 
 	// change to solution path
 	std::error_code er;
 	const auto rootPath = fs::current_path();
-	fs::current_path(cfg.solutionPath, er);
+	fs::current_path(cfg.derivedSolutionPath, er);
 	if (er)
 	{
-		std::cerr << "[BREAKING] Failed to change directory to " << cfg.solutionPath << ", error: " << er << "\n";
+		std::cerr << "[BREAKING] Failed to change directory to " << cfg.derivedSolutionPath << ", error: " << er << "\n";
 		return false;
 	}
 
@@ -176,7 +175,7 @@ static bool BuildConfiguration(const Configuration& cfg, const Commandline& cmdL
 ToolBuild::ToolBuild()
 {}
 
-void ToolBuild::printUsage(const char* argv0)
+void ToolBuild::printUsage()
 {
 	auto platform = DefaultPlatform();
 
@@ -188,92 +187,15 @@ void ToolBuild::printUsage(const char* argv0)
 	std::cout << "\n";
 }
 
-int ToolBuild::run(const char* argv0, const Commandline& cmdline)
+int ToolBuild::run(const Commandline& cmdline)
 {
-	const auto builderExecutablePath = fs::absolute(argv0);
-	if (!fs::is_regular_file(builderExecutablePath))
-	{
-		std::cerr << KRED << "[BREAKING] Invalid local executable name: " << builderExecutablePath << "\n" << RST;
+	Configuration config;
+	if (!Configuration::Parse(cmdline, config))
 		return 1;
-	}
 
-	//--
-
-	fs::path buildListPath;
-	{
-		const auto str = cmdline.get("module");
-		if (str.empty())
-		{
-			auto testPath = fs::current_path() / BUILD_LIST_NAME;
-			if (!fs::is_regular_file(testPath))
-			{
-				std::cerr << KRED "[BREAKING] Onion build tool run in a directory without \"" << BUILD_LIST_NAME << "\", specify path to a valid build list via -module\n";
- 				return 1;
-			}
-			else
-			{
-				buildListPath = fs::weakly_canonical(testPath.make_preferred());
-			}
-		}
-		else
-		{
-			buildListPath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred() / BUILD_LIST_NAME));
-			if (!fs::is_regular_file(buildListPath))
-			{
-				std::cerr << KRED << "[BREAKING] Directory " << buildListPath << " does not contain '" << BUILD_LIST_NAME << "' file\n" << RST;
-				return 1;
-			}
-		}
-	}
-
-	std::cout << "Using build list at " << buildListPath << "\n";
-
-	//--
-
-	auto platform = DefaultPlatform();
-
-	{
-		const auto str = cmdline.get("platform");
-		if (!str.empty())
-		{
-			if (!ParsePlatformType(str, platform))
-			{
-				std::cerr << KRED "[BREAKING] Unknown platform \"" << str << "\"\n" << RST;
-				std::cout << "Valid platforms are : " << PrintEnumOptions(DefaultPlatform()) << "\n";
-				return 1;
-			}
-		}
-	}
-
-	//--
-
-	const auto buildList = ConfigurationList::Load(buildListPath);
-	if (!buildList)
-	{
-		std::cerr << KRED "[BREAKING] Failed to load build list from " << buildListPath << "\n";
+	if (!BuildConfiguration(config, cmdline))
 		return 1;
-	}
 
-	// collect configurations for selected platform
-	std::vector<Configuration> buildConfigurations;
-	buildList->collect(platform, buildConfigurations);
-	if (buildConfigurations.empty())
-	{
-		std::cout << KYEL "[WARNING] Nothing to build for platform \"" << NameEnumOption(platform) << "\"\n";
-		return 0;
-	}
-	
-	// list configurations
-	std::cout << "Following " << buildConfigurations.size() << " configuration(s) will be built:\n";
-	for (const auto& build : buildConfigurations)
-		std::cout << "  " << build.mergedName() << "\n";
-
-	// build configurations
-	for (const auto& cfg : buildConfigurations)
-		if (!BuildConfiguration(cfg, cmdline))
-			return 1;
-
-	// done
 	return 0;
 }
 

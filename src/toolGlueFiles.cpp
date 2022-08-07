@@ -215,7 +215,7 @@ static bool GlueFile_Unpack(const fs::path& path, const Commandline& cmdline)
 ToolGlueFiles::ToolGlueFiles()
 {}
 
-int ToolGlueFiles::run(const char* argv0, const Commandline& cmdline)
+int ToolGlueFiles::run(const Commandline& cmdline)
 {
 	//--
 

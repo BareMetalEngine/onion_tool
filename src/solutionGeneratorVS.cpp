@@ -132,7 +132,7 @@ bool SolutionGeneratorVS::generateSolution(FileGenerator& gen)
     const auto solutionCoreName = ToLower(m_rootGroup->name);
     const auto solutionFileName = solutionCoreName + "." + m_config.mergedName() + ".sln";
 
-    auto* file = gen.createFile(m_config.solutionPath / solutionFileName);
+    auto* file = gen.createFile(m_config.derivedSolutionPath / solutionFileName);
     auto& f = file->content;
 
     std::cout << "-------------------------------------------------------------------------------------------\n";
@@ -262,7 +262,7 @@ void SolutionGeneratorVS::extractSourceRoots(const SolutionProject* project, std
         outPaths.push_back(project->rootPath / "include");
     }
 
-    outPaths.push_back(m_config.solutionPath / "generated/_shared");
+    outPaths.push_back(m_config.derivedSolutionPath / "generated/_shared");
     outPaths.push_back(project->generatedPath);
 
     for (const auto& path : project->additionalIncludePaths)
@@ -357,11 +357,11 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
 
     writelnf(f, " 	<ProjectOutputPath>%s\\</ProjectOutputPath>", project->outputPath.u8string().c_str());
     writelnf(f, " 	<ProjectGeneratedPath>%s\\</ProjectGeneratedPath>", project->generatedPath.u8string().c_str());
-    writelnf(f, " 	<ProjectPublishPath>%s\\</ProjectPublishPath>", m_config.binaryPath.u8string().c_str());
+    writelnf(f, " 	<ProjectPublishPath>%s\\</ProjectPublishPath>", m_config.derivedBinaryPath.u8string().c_str());
     writelnf(f, " 	<ProjectSourceRoot>%s\\</ProjectSourceRoot>", project->rootPath.u8string().c_str());
     writelnf(f, " 	<ProjectMediaRoot>%s\\</ProjectMediaRoot>", (project->rootPath / "media").u8string().c_str());
 
-    if (!m_config.staticBuild) // tool paths for runtime rebuilds
+    if (!m_config.flagStaticBuild) // tool paths for runtime rebuilds
     {
         fs::path toolPath;
         if (m_files.resolveDirectoryPath("tools/bison/windows/", toolPath))
@@ -370,7 +370,7 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
             writelnf(f, " 	<ProjectBisonToolPath>%s</ProjectBisonToolPath>", bisonExecutablePath.u8string().c_str());
         }
 
-		writelnf(f, " 	<ProjectOnionExecutable>%s</ProjectOnionExecutable>", m_config.builderExecutablePath.u8string().c_str());
+		writelnf(f, " 	<ProjectOnionExecutable>%s</ProjectOnionExecutable>", m_config.executablePath.u8string().c_str());
     }
 
 	if (project->optionWarningLevel == 0)
@@ -423,8 +423,10 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
     if (!project->optionUseWindowSubsystem)
         f  << "CONSOLE;";
 
-    if (m_config.build == BuildType::Development)
-        f << "BUILD_WITH_DEVTOOLS;";
+    if (m_config.flagShipmentBuild)
+        f << "ONION_SHIPMENT;";
+    else
+        f << "ONION_DEVELOPMENT;";
 
     if (m_config.platform == PlatformType::UWP)
         f << "WINAPI_FAMILY=WINAPI_FAMILY_APP;";
@@ -625,7 +627,7 @@ bool SolutionGeneratorVS::generateSourcesProjectFileEntry(const SolutionProject*
 
         case ProjectFileType::Bison:
         {
-            if (m_config.staticBuild)
+            if (m_config.flagStaticBuild)
             {
 				writelnf(f, "   <None Include=\"%s\">", file->absolutePath.u8string().c_str());
 				writelnf(f, "      <SubType>Bison</SubType>");
@@ -646,7 +648,7 @@ bool SolutionGeneratorVS::generateSourcesProjectFileEntry(const SolutionProject*
 
         case ProjectFileType::MediaFile:
         {
-            if (m_config.staticBuild)
+            if (m_config.flagStaticBuild)
                 writelnf(f, "   <None Include=\"%s\"/>", file->absolutePath.u8string().c_str());
             else
                 writelnf(f, "   <MediaFile Include=\"%s\"/>", file->absolutePath.u8string().c_str());
@@ -718,10 +720,10 @@ bool SolutionGeneratorVS::generateSourcesProjectFilters(const SolutionProject* p
                     filterType = "ClCompile";
                     break;
 				case ProjectFileType::Bison:
-					filterType = m_config.staticBuild ? "None" : "BisonScripts";
+					filterType = m_config.flagStaticBuild ? "None" : "BisonScripts";
 					break;
                 case ProjectFileType::MediaFile:
-                    filterType = m_config.staticBuild ? "None" : "MediaFile";
+                    filterType = m_config.flagStaticBuild ? "None" : "MediaFile";
                     break;
 				case ProjectFileType::NatVis:
 					filterType = "NatVis";

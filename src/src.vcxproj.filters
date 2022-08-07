@@ -24,7 +24,6 @@
     <ClCompile Include="moduleConfiguration.cpp" />
     <ClCompile Include="toolConfigure.cpp" />
     <ClCompile Include="toolBuild.cpp" />
-    <ClCompile Include="configurationList.cpp" />
     <ClCompile Include="libraryManifest.cpp" />
     <ClCompile Include="toolLibrary.cpp" />
     <ClCompile Include="toolRelease.cpp" />
@@ -50,6 +49,8 @@
     <ClCompile Include="toolSign.cpp" />
     <ClCompile Include="toolTest.cpp" />
     <ClCompile Include="toolDeploy.cpp" />
+    <ClCompile Include="aws.cpp" />
+    <ClCompile Include="externalLibraryInstaller.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.h" />
@@ -87,7 +88,6 @@
     <ClInclude Include="moduleConfiguration.h" />
     <ClInclude Include="toolConfigure.h" />
     <ClInclude Include="toolBuild.h" />
-    <ClInclude Include="configurationList.h" />
     <ClInclude Include="libraryManifest.h" />
     <ClInclude Include="toolLibrary.h" />
     <ClInclude Include="toolRelease.h" />
@@ -117,6 +117,8 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="toolTest.h" />
     <ClInclude Include="toolDeploy.h" />
+    <ClInclude Include="aws.h" />
+    <ClInclude Include="externalLibraryInstaller.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\..\src\base\config\build.lua" />

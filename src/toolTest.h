@@ -7,7 +7,7 @@ class ToolTest
 public:
     ToolTest();
 
-    int run(const char* argv0, const Commandline& cmdline);
+    int run(const Commandline& cmdline);
 	void printUsage();
 
 private:    

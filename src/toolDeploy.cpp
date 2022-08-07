@@ -203,44 +203,27 @@ private:
 ToolDeploy::ToolDeploy()
 {}
 
-void ToolDeploy::printUsage(const char* argv0)
+void ToolDeploy::printUsage()
 {
-	Configuration cfg;
-	Commandline cmdLine;
-	cfg.parseOptions(argv0, cmdLine);
-
     std::cout << KBOLD << "onion deploy [options]\n" << RST;
     std::cout << "\n";
-    std::cout << "Build configuration options (only selected configuration is deployed):\n";
-	std::cout << "  -platform=" << PrintEnumOptions(cfg.platform) << "\n";
-    std::cout << "  -config=" << PrintEnumOptions(cfg.configuration) << "\n";
-	std::cout << "  -generator=" << PrintEnumOptions(cfg.generator) << "\n";
-    std::cout << "  -libs=" << PrintEnumOptions(cfg.libs) << "\n";
-    std::cout << "  -build=" << PrintEnumOptions(cfg.build) << "\n";
-    std::cout << "\n";
-    std::cout << "General options:\n";
+	std::cout << "General options:\n";
+	std::cout << "  -module=<path to configured module directory>\n";
+	std::cout << "  -app=<application project to deploy>\n";
+	std::cout << "  -build=<build configuration string>\n";
+	std::cout << "  -tempDir=<custom temporary directory>\n";
+	std::cout << "  -cacheDir=<custom library/module cache directory>\n";
     std::cout << "  -deployDir=<where all stuff is copied to>\n";
-    std::cout << "  -app=<application project to deploy>\n";
-	std::cout << "\n";
-
-	std::cout << "Current configuration (if no arguments given): " << KBOLD << KGRN << cfg.mergedName() << RST << "\n";
 	std::cout << "\n";
 }
 
-int ToolDeploy::run(const char* argv0, const Commandline& cmdline)
+int ToolDeploy::run(const Commandline& cmdline)
 {
     //--
 
     Configuration config;
-    if (!config.parseOptions(argv0, cmdline)) {
-        std::cerr << KRED << "[BREAKING] Invalid/incomplete configuration\n" << RST;
-        return 1;
-    }
-
-	if (!config.parsePaths(argv0, cmdline)) {
-		std::cerr << KRED << "[BREAKING] Invalid/incomplete configuration\n" << RST;
+    if (!Configuration::Parse(cmdline, config))
 		return 1;
-	}
 
     //--
 
@@ -248,20 +231,9 @@ int ToolDeploy::run(const char* argv0, const Commandline& cmdline)
 	{
 		const auto& str = cmdline.get("deployDir");
 		if (str.empty())
-		{
-			//std::cout << "No deploy directory specified, using default one\n";
-
-			std::string solutionPartialPath = ".deploy/";
-			solutionPartialPath += config.mergedName();
-
-			deployDir = config.modulePath / solutionPartialPath;
-		}
+            deployDir = (config.derivedConfigurationPath / "deploy").make_preferred();
 		else
-		{
             deployDir = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
-		}
-
-        deployDir.make_preferred();
 
 		std::error_code ec;
 		if (!fs::is_directory(deployDir, ec))
@@ -290,17 +262,13 @@ int ToolDeploy::run(const char* argv0, const Commandline& cmdline)
 
     //--
 
-    const auto moduleConfigPath = config.modulePath / CONFIGURATION_NAME;
-    const auto moduleConfig = std::unique_ptr<ModuleConfigurationManifest>(ModuleConfigurationManifest::Load(moduleConfigPath));
-    if (!moduleConfig)
-    {
-        const auto moduleDefinitionPath = config.modulePath / MODULE_MANIFEST_NAME;
-        if (fs::is_regular_file(moduleDefinitionPath))
-            std::cerr << KRED << "[BREAKING] Module at \"" << config.modulePath << "\" was not configured, run:\nonion configure -module=\"" << config.modulePath << "\"\n" << RST;
-        else
-			std::cerr << KRED << "[BREAKING] Directory \"" << config.modulePath << "\" does not contain properly configured module (or any module to be fair)\n" << RST;
+	const auto moduleConfigPath = config.platformConfigurationFile();
+	const auto moduleConfig = std::unique_ptr<ModuleConfigurationManifest>(ModuleConfigurationManifest::Load(moduleConfigPath));
+	if (!moduleConfig)
+	{
+		std::cerr << KRED << "[BREAKING] Unable to load platform configuration from " << moduleConfigPath << ", run \"onion configure\" to properly configure the environment before generating any projects\n" << RST;
 		return 1;
-    }
+	}
 
     const bool verifyVersions = !cmdline.has("noverify");
 
@@ -334,7 +302,13 @@ int ToolDeploy::run(const char* argv0, const Commandline& cmdline)
 
     //--
 
-	ExternalLibraryReposistory libraries(config.tempPath / "cache", config.platform);
+	ExternalLibraryReposistory libraries;
+    if (!libraries.installConfiguredLibraries(*moduleConfig))
+    {
+		std::cerr << KRED << "[BREAKING] Failed to install configured third party libraries\n" << RST;
+		return 1;
+    }
+
 	if (!structure.resolveLibraries(libraries))
 	{
 		std::cerr << KRED << "[BREAKING] Failed to resolve third party libraries\n" << RST;
@@ -343,7 +317,7 @@ int ToolDeploy::run(const char* argv0, const Commandline& cmdline)
 
     //--
 
-    ProjectDeployExplorer deployList(structure, deployDir, config.binaryPath);
+    ProjectDeployExplorer deployList(structure, deployDir, config.derivedBinaryPath);
     for (const auto name : applicationsToDeploy)
         if (!deployList.exploreApp(name))
             return 1;

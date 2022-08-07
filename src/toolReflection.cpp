@@ -403,7 +403,7 @@ bool ToolReflection::runStatic(FileGenerator& fileGenerator, const std::vector<f
     return reflection.generateReflection(fileGenerator);
 }
 
-int ToolReflection::run(const char* argv0, const Commandline& cmdline)
+int ToolReflection::run(const Commandline& cmdline)
 {
     std::string fileListPath = cmdline.get("list");
     if (fileListPath.empty())

@@ -4,7 +4,8 @@
 #include "toolRelease.h"
 #include "libraryManifest.h"
 #include "externalLibrary.h"
-#include "git.h"
+#include "externalLibraryInstaller.h"
+#include "aws.h"
 #include <thread>
 
 //--
@@ -31,17 +32,12 @@ struct ToolLibraryConfig
 
 	bool ignorePullErrors = false;
 	bool forceOperation = false;
-	bool releaseToGitHub = false;
-	bool commitToGitHub = false;
+	bool upload = false;
 
 	fs::path srcPath; // {$ManifsetDir}/.temp/<platform/source/{$LibraryName}
 	fs::path buildPath; // {$ManifsetDir}/.temp/<platform/build/{$LibraryName}
 	fs::path deployPath; // {$ManifsetDir}/.temp/<platform/out/{$LibraryName}
 	fs::path hackPath; // {$ManifsetDir}/hacks/{$LibraryName}
-	
-	std::string releaseName;
-	std::string commitRepo;
-	std::string commitToken;
 };
 
 static std::string FormatReleaseName()
@@ -257,29 +253,8 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 		}
 	}
 
-	if (cmdline.has("release"))
-	{
-		outConfig.releaseToGitHub = true;
-
-		const auto str = cmdline.get("release");
-		if (str.empty())
-			outConfig.releaseName = FormatReleaseName();
-		else
-			outConfig.releaseName = str;
-	}
-
-	if (cmdline.has("commit"))
-	{
-		outConfig.commitToGitHub = true;
-
-		const auto str = cmdline.get("commit");
-		if (str.empty())
-			outConfig.commitRepo = DEFAULT_DEPENDENCIES_REPO;
-		else
-			outConfig.commitRepo = str;
-
-		outConfig.commitToken = cmdline.get("token");
-	}
+	if (cmdline.has("upload"))
+		outConfig.upload = true;
 
 	outConfig.forceOperation = cmdline.has("force");
 	return true;
@@ -447,185 +422,11 @@ static bool LibraryCloneRepo(const LibraryManifest& lib, ToolLibraryConfig& conf
 
 //--
 
-static std::string MakeDependencyArchiveFileName(ToolLibraryConfig& config, const LibraryDependencyInfo& dep)
-{
-	std::stringstream str;
-	str << "libs/";
-	str << NameEnumOption(config.platform);
-	str << "/";
-	str << dep.name;
-	str << ".zip";
-	return str.str();
-}
-
 struct DependencySymbol
 {
 	std::string name;
 	fs::path value;
 };
-
-static bool LibraryInstallDependency(const LibraryManifest& lib, ToolLibraryConfig& config, const LibraryDependencyInfo& dep, std::vector<DependencySymbol>& outDefines)
-{
-	const auto dependencyDownloadDirectory = (config.dependenciesRootPath / "download").make_preferred();
-	const auto dependencyUnpackDirectory = (config.dependenciesRootPath / "unpacked" / dep.name).make_preferred();
-
-	if (!CreateDirectories(dependencyDownloadDirectory))
-		return false;
-	if (!CreateDirectories(dependencyUnpackDirectory))
-		return false;
-
-	const auto dependencyDirectory = (dependencyDownloadDirectory / dep.name).make_preferred();
-	const auto dependencyFile = MakeDependencyArchiveFileName(config, dep);
-	const auto dependencyFileFullPath = (dependencyDirectory / dependencyFile).make_preferred();
-
-	// sync only if not there already
-	if (!fs::is_directory(dependencyDirectory))
-	{
-		// partial sync of the target repo
-		// git clone --no-checkout --filter=blob:none https://github.com/BareMetalEngine/dependencies.git
-		{
-			std::stringstream command;
-			command << "git clone --sparse --no-checkout --filter=blob:none ";
-			command << dep.repo;
-			command << " ";
-			command << dep.name;
-			if (!RunWithArgsInDirectory(dependencyDownloadDirectory, command.str()))
-			{
-				std::cout << KRED << "Failed to fetch dependency repository " << dep.repo << "\n" << RST;
-				return false;
-			}
-		}
-
-		// setup the partial checkout
-		{
-			// git sparse-checkout set "windows/zlib.zip"
-			std::stringstream command;
-			command << "git sparse-checkout set \"";
-			command << dependencyFile;
-			command << "\"";
-			if (!RunWithArgsInDirectory(dependencyDirectory, command.str()))
-			{
-				std::cout << KRED << "Failed to download dependency library for " << dep.name << "\n" << RST;
-				return false;
-			}
-		}
-
-		// checkout the current lib file
-		{
-			// git checkout
-			std::stringstream command;
-			command << "git checkout";
-			if (!RunWithArgsInDirectory(dependencyDirectory, command.str()))
-			{
-				std::cout << KRED << "Failed to download dependency library for " << dep.name << "\n" << RST;
-				return false;
-			}
-		}
-	}
-
-	// pull the latest file
-	{
-		// git pull
-		std::stringstream command;
-		command << "git pull";
-		if (!RunWithArgsInDirectory(dependencyDirectory, command.str()))
-		{
-			std::cout << KRED << "Failed to download dependency library for " << dep.name << "\n" << RST;
-			return false;
-		}
-	}
-
-	// check if file exists 
-	if (!fs::is_regular_file(dependencyFileFullPath))
-	{
-		std::cout << KRED << "Failed to download dependency archive " << dependencyFileFullPath << "\n" << RST;
-		return false;
-	}
-
-	// decompress the directory
-	{
-		if (!CreateDirectories(dependencyUnpackDirectory))
-			return false;
-
-		std::stringstream cmd;
-		cmd << "tar -xvf ";
-		cmd << dependencyFileFullPath;
-		cmd << " -C ";
-		cmd << dependencyUnpackDirectory;
-
-		std::cout << cmd.str() << "\n";
-
-		if (!RunWithArgs(cmd.str()))
-		{
-			std::cerr << KRED << "[BREAKING] Failed to decompress downloaded dependency file '" << dependencyFileFullPath << "\n" << RST;
-			return false;
-		}
-	}
-
-	// check if library was properly unpacked
-	const auto dependencyManifestPath = (dependencyUnpackDirectory / (dep.name + ".onion")).make_preferred();
-	if (!fs::is_regular_file(dependencyManifestPath))
-	{
-		std::cerr << KRED << "[BREAKING] No library manifest found in unpacked dependency library at '" << dependencyManifestPath << "\n" << RST;
-		return false;
-	}
-
-	// load the library manifest
-	auto dependencyManifest = ExternalLibraryManifest::Load(dependencyManifestPath);
-	if (!dependencyManifest)
-	{
-		std::cerr << KRED << "[BREAKING] Failed to load library manifest found in unpacked dependency library at '" << dependencyManifestPath << "\n" << RST;
-		return false;
-	}
-
-	// include var ?
-	if (!dep.includeVar.empty())
-	{
-		if (!dependencyManifest->includePath.empty())
-		{
-			std::cout << "Found include '" << dep.includeVar << "' as " << dependencyManifest->includePath << "\n";
-			outDefines.push_back({ dep.includeVar, dependencyManifest->includePath });
-		}
-	}
-
-	// libraries ?
-	for (const auto& libVar : dep.libraryVars)
-	{
-		fs::path foundPath;
-
-		if (libVar.fileName.empty())
-		{
-			if (dependencyManifest->libraryFiles.size() == 1)
-			{
-				foundPath = dependencyManifest->libraryFiles[0];
-			}
-		}
-		else
-		{
-			for (const auto& libFile : dependencyManifest->libraryFiles)
-			{
-				if (libFile.filename().u8string() == libVar.fileName)
-				{
-					foundPath = libFile;
-					break;
-				}
-			}
-		}
-
-		if (foundPath.empty())
-		{
-			std::cerr << KRED << "[BREAKING] Dependency library '" << dep.name << "' has no library file named '" << libVar.fileName << "'\n" << RST;
-			return false;
-		}
-		else
-		{
-			std::cout << "Found library '" << libVar.varName << "' as " << foundPath << "\n";
-			outDefines.push_back({ libVar.varName, foundPath });
-		}
-	}
-
-	return true;
-}
 
 //--
 
@@ -653,9 +454,80 @@ static bool LibraryConfigure(const LibraryManifest& lib, ToolLibraryConfig& conf
 
 	// install dependencies
 	std::vector<DependencySymbol> additionalDefines;
-	for (const auto& dep : lib.dependencies)
-		if (!LibraryInstallDependency(lib, config, dep, additionalDefines))
-			return false;
+	if (!lib.dependencies.empty())
+	{
+		AWSConfig aws; // read only, no init requires
+		ExternalLibraryInstaller installer(aws, config.platform, config.dependenciesRootPath);
+
+		installer.collect();
+
+		for (const auto& dep : lib.dependencies)
+		{
+			std::string verison;
+			fs::path manifestPath;
+			if (installer.install(dep.name, manifestPath, verison))
+			{
+				// load the library manifest
+				auto dependencyManifest = ExternalLibraryManifest::Load(manifestPath);
+				if (!dependencyManifest)
+				{
+					std::cerr << KRED << "[BREAKING] Failed to load library manifest found in unpacked dependency library at '" << manifestPath << "\n" << RST;
+					return false;
+				}
+
+				// include var ?
+				if (!dep.includeVar.empty())
+				{
+					if (!dependencyManifest->includePath.empty())
+					{
+						std::cout << "Found include '" << dep.includeVar << "' as " << dependencyManifest->includePath << "\n";
+						additionalDefines.push_back({ dep.includeVar, dependencyManifest->includePath });
+					}
+				}
+
+				// libraries ?
+				for (const auto& libVar : dep.libraryVars)
+				{
+					fs::path foundPath;
+
+					if (libVar.fileName.empty())
+					{
+						if (dependencyManifest->libraryFiles.size() == 1)
+						{
+							foundPath = dependencyManifest->libraryFiles[0];
+						}
+					}
+					else
+					{
+						for (const auto& libFile : dependencyManifest->libraryFiles)
+						{
+							if (libFile.filename().u8string() == libVar.fileName)
+							{
+								foundPath = libFile;
+								break;
+							}
+						}
+					}
+
+					if (foundPath.empty())
+					{
+						std::cerr << KRED << "[BREAKING] Dependency library '" << dep.name << "' has no library file named '" << libVar.fileName << "'\n" << RST;
+						return false;
+					}
+					else
+					{
+						std::cout << "Found library '" << libVar.varName << "' as " << foundPath << "\n";
+						additionalDefines.push_back({ libVar.varName, foundPath });
+					}
+				}
+			}
+			else
+			{
+				std::cerr << KRED << "[BREAKING] Dependency library '" << dep.name << "' failed to install\n" << RST;
+				return false;
+			}
+		}
+	}
 	
 	// run the config command in the build directory
 	const auto runDirectory = fs::weakly_canonical((config.buildPath / lib.configRelativePath).make_preferred());
@@ -1051,7 +923,18 @@ static bool LibraryPackage(const LibraryManifest& lib, ToolLibraryConfig& config
 
 //--
 
-static bool LibraryRelease(GitHubConfig& git, const LibraryManifest& lib, ToolLibraryConfig& config, std::string_view releaseId)
+static std::string MakeLibraryObjectName(PlatformType platform, std::string_view name)
+{
+	std::stringstream str;
+	str << "libraries/";
+	str << NameEnumOption(platform);
+	str << "/";
+	str << name;
+	str << ".zip";
+	return str.str();
+}
+
+static bool LibraryUpload(AWSConfig& aws, const LibraryManifest& lib, ToolLibraryConfig& config)
 {
 	// get manifest for the library and load it
 	const auto manifestPath = LibraryManifestPath(lib, config);
@@ -1070,50 +953,21 @@ static bool LibraryRelease(GitHubConfig& git, const LibraryManifest& lib, ToolLi
 		return false;
 	}
 
-	// asset file name
-	const auto assetFileName = archivePath.filename().u8string();
-
-	// list all current artifacts of the release
-	std::vector<GitArtifactInfo> artifacts;
-	if (!GitApi_ListReleaseArtifacts(git, releaseId, artifacts))
+	// upload file
+	if (!AWS_S3_UploadLibrary(aws, archivePath, config.platform, manifest->name))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to list git artifacts for release '" << config.releaseName << "' at ID " << releaseId << "\n" << RST;
+		std::cerr << KRED << "[BREAKING] Archived library file " << archivePath << " failed to upload to AWS" << RST;
 		return false;
 	}
 
-	// check if we have existing deployment of such file
-	{
-		std::string matchingAssetID;
-		for (const auto& info : artifacts)
-		{
-			if (info.name == assetFileName)
-			{
-				matchingAssetID = info.id;
-				break;
-			}
-		}
-
-		if (!matchingAssetID.empty())
-		{
-			std::cout << "Github Release Asset for '" << assetFileName << "' in release '" << config.releaseName << "' already found at ID " << matchingAssetID << "\n";
-			return false;
-		}
-	}
-
-	// push asset
-	{
-		if (!GitApi_UploadReleaseArtifact(git, releaseId, assetFileName, archivePath))
-		{
-			std::cerr << KRED << "[BREAKING] Upload failed" << RST;
-			return false;
-		}
-	}
-
+	// uploaded
+	std::cerr << KGRN << "Archived library file " << archivePath << " was uploaded to AWS S3" << RST;
 	return true;	
 }
 
 //--
 
+#if 0
 static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLibraryConfig& config)
 {
 	// get manifest for the library and load it
@@ -1274,13 +1128,14 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 	std::cout << KRED << "Failed to push file\n" << RST;
 	return false;
 }
+#endif
 
 //--
 
 ToolLibrary::ToolLibrary()
 {}
 
-void ToolLibrary::printUsage(const char* argv0)
+void ToolLibrary::printUsage()
 {
 	auto platform = DefaultPlatform();
 
@@ -1298,15 +1153,8 @@ void ToolLibrary::printUsage(const char* argv0)
 	std::cout << "\n";
 }
 
-int ToolLibrary::run(const char* argv0, const Commandline& cmdline)
+int ToolLibrary::run(const Commandline& cmdline)
 {
-	const auto builderExecutablePath = fs::absolute(argv0);
-	if (!fs::is_regular_file(builderExecutablePath))
-	{
-		std::cerr << KRED << "[BREAKING] Invalid local executable name: " << builderExecutablePath << "\n" << RST;
-		return 1;
-	}
-
 	ToolLibraryConfig config;
 	if (!ParseArgs(cmdline, config))
 		return 1;
@@ -1334,21 +1182,14 @@ int ToolLibrary::run(const char* argv0, const Commandline& cmdline)
 
 	//--
 
-	GitHubConfig git;
-	std::string releaseId;
-	if (config.releaseToGitHub)
+	AWSConfig aws;
+	if (config.upload)
 	{
 		const auto libraryRoot = config.libraryManifestPath.parent_path();
-		if (!git.init(libraryRoot, cmdline))
+		if (!aws.init(cmdline, libraryRoot))
 		{
-			std::cerr << KRED << "[BREAKING] Failed to initialize Git for release mode\n" << RST;
+			std::cerr << KRED << "[BREAKING] Failed to initialize AWS interface\n" << RST;
 			return-1;
-		}
-
-		if (!Release_GetCurrentReleaseId(git, cmdline, releaseId))
-		{
-			std::cerr << KRED << "[BREAKING] No active release in progress\n" << RST;
-			return 1;
 		}
 	}
 
@@ -1397,20 +1238,11 @@ int ToolLibrary::run(const char* argv0, const Commandline& cmdline)
 		}
 	}
 
-	if (config.commitToGitHub)
+	if (config.upload)
 	{
-		if (!LibraryCommit(git, *library, config))
+		if (!LibraryUpload(aws, *library, config))
 		{
-			std::cerr << KRED << "[BREAKING] Release step for library " << library->name << " failed\n" << RST;
-			return 1;
-		}
-	}
-
-	if (config.releaseToGitHub)
-	{
-		if (!LibraryRelease(git, *library, config, releaseId))
-		{
-			std::cerr << KRED << "[BREAKING] Release step for library " << library->name << " failed\n" << RST;
+			std::cerr << KRED << "[BREAKING] Upload step for library " << library->name << " failed\n" << RST;
 			return 1;
 		}
 	}

@@ -79,7 +79,7 @@ struct SolutionProject
 
 	std::vector<SolutionProject*> directDependencies;
 	std::vector<SolutionProject*> allDependencies;
-	std::vector<ExternalLibraryManifest*> libraryDependencies;
+	std::vector<const ExternalLibraryManifest*> libraryDependencies;
 
 	std::vector<SolutionProjectFile*> files; // may be empty
 	std::vector<fs::path> additionalIncludePaths;

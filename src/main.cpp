@@ -48,29 +48,27 @@ static std::string MergeCommandline(int argc, char** argv)
     return ret;
 }
 
-static void PrintUsage(const char* argv0)
+static void PrintUsage()
 {
     std::cout << "\n";
     std::cout << "---------------------------------------------------------\n";
     ToolConfigure().printUsage();
     std::cout << "---------------------------------------------------------\n";
-    ToolMake().printUsage(argv0);
+    ToolMake().printUsage();
 	std::cout << "---------------------------------------------------------\n";
-	ToolBuild().printUsage(argv0);
+	ToolBuild().printUsage();
 	std::cout << "---------------------------------------------------------\n";
-	ToolLibrary().printUsage(argv0);
+	ToolLibrary().printUsage();
 	std::cout << "---------------------------------------------------------\n";
-	ToolRelease().printUsage(argv0);
+	ToolRelease().printUsage();
 	std::cout << "---------------------------------------------------------\n";
-	ToolDeploy().printUsage(argv0);
+	ToolDeploy().printUsage();
 	std::cout << "---------------------------------------------------------\n";
 	ToolTest().printUsage();
 }
 
 int main(int argc, char** argv)
 {
-    const auto executablePath = GetExecutablePath();
-
 #ifndef _WIN32
     //setvbuf(stdout, NULL, _IONBF, 0);
     //setvbuf(stderr, NULL, _IONBF, 0);
@@ -80,7 +78,7 @@ int main(int argc, char** argv)
     if (!cmdLine.parse(MergeCommandline(argc, argv)) || cmdLine.commands.size() != 1)
     {
 		std::cout << "Onion Build Tool v1.0\n";
-        PrintUsage(executablePath.c_str());
+        PrintUsage();
         return 1;
     }
 
@@ -93,62 +91,62 @@ int main(int argc, char** argv)
 	if (tool == "configure")
 	{
 		ToolConfigure tool;
-		return tool.run(executablePath.c_str(), cmdLine);
+		return tool.run(cmdLine);
 	}
-    else if (tool == "make")
+    else if (tool == "make" || tool == "generate")
     {
         ToolMake tool;
-        return tool.run(executablePath.c_str(), cmdLine);
+        return tool.run(cmdLine);
     }	
     else if (tool == "reflection")
     {
         ToolReflection tool;
-        return tool.run(executablePath.c_str(), cmdLine);
+        return tool.run(cmdLine);
     }
 	else if (tool == "embed")
 	{
 		ToolEmbed tool;
-		return tool.run(executablePath.c_str(), cmdLine);
+		return tool.run(cmdLine);
 	}
 	else if (tool == "build")
 	{
 		ToolBuild tool;
-		return tool.run(executablePath.c_str(), cmdLine);
+		return tool.run(cmdLine);
 	}
 	else if (tool == "library")
 	{
 		ToolLibrary tool;
-		return tool.run(executablePath.c_str(), cmdLine);
+		return tool.run(cmdLine);
 	}
 	else if (tool == "release")
 	{
 		ToolRelease tool;
-		return tool.run(executablePath.c_str(), cmdLine);
+		return tool.run(cmdLine);
 	}
 	else if (tool == "glue")
 	{
 		ToolGlueFiles tool;
-		return tool.run(executablePath.c_str(), cmdLine);
+		return tool.run(cmdLine);
 	}
 	else if (tool == "sign")
 	{
 		ToolSign tool;
-		return tool.run(executablePath.c_str(), cmdLine);
+		return tool.run(cmdLine);
 	}
 	else if (tool == "test")
 	{
 		ToolTest tool;
-		return tool.run(executablePath.c_str(), cmdLine);
+		return tool.run(cmdLine);
 	}
 	else if (tool == "deploy")
 	{
 		ToolDeploy tool;
-		return tool.run(executablePath.c_str(), cmdLine);
+		return tool.run(cmdLine);
 	}
     else
     {
         std::cerr << "Unknown tool specified :(\n\n";
-        PrintUsage(argv[0]);
+        PrintUsage();
         return 1;
     }
 

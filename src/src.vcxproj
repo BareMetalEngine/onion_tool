@@ -64,6 +64,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="aws.cpp" />
     <ClCompile Include="codeParser.cpp" />
     <ClCompile Include="common.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
@@ -71,8 +72,8 @@
     </ClCompile>
     <ClCompile Include="configuration.cpp" />
     <ClCompile Include="configurationInteractive.cpp" />
-    <ClCompile Include="configurationList.cpp" />
     <ClCompile Include="externalLibrary.cpp" />
+    <ClCompile Include="externalLibraryInstaller.cpp" />
     <ClCompile Include="externalLibraryRepository.cpp" />
     <ClCompile Include="fileGenerator.cpp" />
     <ClCompile Include="fileRepository.cpp" />
@@ -124,12 +125,13 @@
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="aws.h" />
     <ClInclude Include="codeParser.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="configuration.h" />
     <ClInclude Include="configurationInteractive.h" />
-    <ClInclude Include="configurationList.h" />
     <ClInclude Include="externalLibrary.h" />
+    <ClInclude Include="externalLibraryInstaller.h" />
     <ClInclude Include="externalLibraryRepository.h" />
     <ClInclude Include="fileGenerator.h" />
     <ClInclude Include="fileRepository.h" />

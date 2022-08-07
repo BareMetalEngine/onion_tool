@@ -159,7 +159,7 @@ bool ProjectInfo::resolveLibraries(ExternalLibraryReposistory& libs)
 
 	for (const auto& dep : manifest->libraryDependencies)
 	{
-		if (auto* lib = libs.installLibrary(dep))
+		if (auto* lib = libs.findLibrary(dep))
 		{
 			PushBackUnique(resolvedLibraryDependencies, lib);
 		}

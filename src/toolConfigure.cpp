@@ -1,8 +1,13 @@
 #include "common.h"
+#include "configuration.h"
 #include "moduleManifest.h"
+#include "projectManifest.h"
 #include "utils.h"
+#include "aws.h"
 #include "toolConfigure.h"
 #include "moduleConfiguration.h"
+#include "externalLibrary.h"
+#include "externalLibraryInstaller.h"
 
 //--
 
@@ -33,26 +38,141 @@ ModuleResolver::~ModuleResolver()
 		delete it.second;
 }
 
+static bool ExploreProjectDependencies(const ProjectManifest* proj, const std::unordered_map<std::string, const ProjectManifest*>& projectMap, std::unordered_set<const ProjectManifest*>& outUsedProjects)
+{
+	// only visit project once
+	if (outUsedProjects.insert(proj).second)
+		return true;
+
+	// explore dependencies
+	bool valid = true;
+	for (const auto& dep : proj->dependencies)
+	{
+		const auto it = projectMap.find(dep);
+		if (it == projectMap.end())
+		{
+			std::cerr << KRED << "[BREAKING] Project '" << proj->rootPath << "' has dependency on '" << dep << "' that could not be find in any loaded modules\n" << RST;
+			valid = false;
+		}
+		else
+		{
+			valid &= ExploreProjectDependencies(it->second, projectMap, outUsedProjects);
+		}
+	}
+
+	// explore optional dependencies (but to not fail if they don't exist)
+	for (const auto& dep : proj->dependencies)
+	{
+		const auto it = projectMap.find(dep);
+		if (it == projectMap.end())
+		{
+			std::cerr << KYEL << "[BREAKING] Project '" << proj->rootPath << "' has OPTIONAL dependency on '" << dep << "' that could not be find in any loaded modules\n" << RST;
+		}
+		else
+		{
+			auto copiedUsedProjects = outUsedProjects;
+			if (ExploreProjectDependencies(it->second, projectMap, copiedUsedProjects))
+			{
+				outUsedProjects = copiedUsedProjects;
+			}
+			else
+			{
+				std::cerr << KYEL << "[BREAKING] Project '" << dep << "' that was OPTIONAL dependency of '" << proj->rootPath << "' has missing it's dependencies and will not be remembered as a dependency\n" << RST;
+			}
+		}
+	}
+
+	return valid;
+
+}
+
 bool ModuleResolver::exportToManifest(ModuleConfigurationManifest& cfg) const
 {
 	assert(!cfg.rootPath.empty());
 
-	// start with local dependencies
-	uint32_t numModules = 0;
-	uint32_t numProjects = 0;
-	const auto rootDir = cfg.rootPath.parent_path().make_preferred();
-	for (const auto& dep : m_modulesByGuid)
-	{
-		ModuleConfigurationEntry entry;
-		entry.path = fs::relative(dep.second->path, rootDir).u8string();
-		entry.local = dep.second->local;
-		cfg.modules.push_back(entry);		
+	// gather projects and modules
+	std::unordered_map<std::string, const ProjectManifest*> projectsByName;
 
-		numModules += 1;
-		numProjects += (uint32_t)dep.second->manifest->projects.size();
+	{
+		for (const auto& dep : m_modulesByGuid)
+		{
+			const auto* moduleInfo = dep.second;
+
+			ModuleConfigurationEntry entry;
+			entry.path = moduleInfo->path;
+			entry.local = moduleInfo->local;
+			cfg.modules.push_back(entry);
+
+			for (const auto* proj : moduleInfo->manifest->projects)
+			{
+				// do not consider test projects in non-root modules
+				if (!moduleInfo->root && proj->type == ProjectType::TestApplication)
+					continue;
+
+				// duplicated project ?
+				const auto it = projectsByName.find(proj->localRoot);
+				if (it != projectsByName.end())
+				{
+					std::cerr << KRED << "[BREAKING] Project at path " << proj->localRoot << " is defined in more than one module, configuration is invalid\n" << RST;
+					return false;
+				}
+
+				// add to list
+				projectsByName[proj->localRoot] = proj;
+
+			}
+		}
+
+		std::cout << "Configured " << m_modulesByGuid.size() << " module(s) containing " << projectsByName.size() << " project(s)\n";
 	}
 
-	std::cout << "Configured " << numModules << " module(s) containing " << numProjects << " project(s)\n";
+	//--
+
+	// gather dependencies reachable from final applications
+	std::unordered_set<const ProjectManifest*> usedProjects;
+	{
+		bool valid = true;
+		for (const auto& it : projectsByName)
+			valid &= ExploreProjectDependencies(it.second, projectsByName, usedProjects);
+
+		if (!valid)
+		{
+			std::cerr << KRED << "[BREAKING] Project configuration failed, there are some dependencies missing\n" << RST;
+			return false;
+		}
+
+		std::cout << "Discovered " << usedProjects.size()  << " used project out of " << projectsByName.size() << " total projects(s)\n";
+	}
+
+	//--
+
+	// collect libraries from the actually used projects only
+	std::unordered_set<std::string> libraryNames;
+	{
+		bool valid = true;
+		for (const auto* proj : usedProjects)
+		{
+			for (const auto& lib : proj->libraryDependencies)
+			{
+				if (libraryNames.insert(lib).second)
+					std::cout << "Discovered third party library '" << lib << "' as being used by the projects\n";				
+			}
+		}
+
+		std::cout << "Discovered " << libraryNames.size() << " used third party libraries\n";
+	}
+
+	//--
+
+	for (const auto& libName : libraryNames)
+	{
+		ModuleLibraryEntry info;
+		info.name = libName;
+		cfg.libraries.push_back(info);
+	}
+
+	//--
+
 	return true;
 }
 
@@ -122,6 +242,7 @@ bool ModuleResolver::processSingleModuleFile(const fs::path& moduleDirectory, bo
 		auto* info = new ModuleInfo();
 		info->guid = manifest->guid;
 		info->local = localFile;
+		info->root = (m_modulesByGuid.size() == 0); // first module added is the root one
 		info->path = moduleDirectory;
 		info->manifest = manifest;
 		m_modulesByGuid[info->guid] = info;
@@ -453,8 +574,6 @@ bool ModuleResolver::ensureRepositoryDownloaded(const std::string_view repoPath,
 
 //--
 
-//--
-
 ToolConfigure::ToolConfigure()
 {}
 
@@ -468,14 +587,15 @@ void ToolConfigure::printUsage()
 	std::cout << "\n";
 }
 
-int ToolConfigure::run(const char* argv0, const Commandline& cmdline)
+int ToolConfigure::run(const Commandline& cmdline)
 {
-	const auto builderExecutablePath = fs::absolute(argv0);
-	if (!fs::is_regular_file(builderExecutablePath))
-	{
-		std::cerr << KRED << "[BREAKING] Invalid local executable name: " << builderExecutablePath << "\n" << RST;
+	//--
+
+	Configuration config;
+	if (!Configuration::Parse(cmdline, config))
 		return false;
-	}
+
+	//--
 
 #ifdef _WIN32
     if (!CheckVersion("git", "git version", ".windows", "2.32.0"))
@@ -487,76 +607,71 @@ int ToolConfigure::run(const char* argv0, const Commandline& cmdline)
 	if (!CheckVersion("git-lfs", "git-lfs/", "(", "3.0.0"))
         return false;
 
-	fs::path modulePath;
-	{
-		const auto str = cmdline.get("module");
-		if (str.empty())
-		{
-			auto testPath = fs::current_path() / MODULE_MANIFEST_NAME;
-			if (!fs::is_regular_file(testPath))
-			{
-				std::cerr << KRED "[BREAKING] Onion build tool run in a directory without \"" << MODULE_MANIFEST_NAME << "\", specify path to a valid module via -module\n";
-				return false;
-			}
-			else
-			{
-				modulePath = fs::weakly_canonical(fs::current_path().make_preferred());
-			}
-		}
-		else
-		{
-			modulePath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
 
-			const auto moduleFilePath = (modulePath / MODULE_MANIFEST_NAME).make_preferred();
-			if (!fs::is_regular_file(moduleFilePath))
-			{
-				std::cerr << KRED << "[BREAKING] Module directory " << modulePath << " does not contain '" << MODULE_MANIFEST_NAME << "' file\n" << RST;
-				return false;
-			}
-		}
-	}
 
-	std::cout << "Using module at " << modulePath << "\n";
+	//--
 
-	auto cachePath = (modulePath / ".cache").make_preferred();
-	{
-		const auto str = cmdline.get("cachePath");
-		if (!str.empty())
-			cachePath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
-	}
-	std::cout << "Using cache at " << cachePath << "\n";
-
-	auto configPath = (modulePath / CONFIGURATION_NAME).make_preferred();
-	{
-		const auto str = cmdline.get("configPath");
-		if (!str.empty())
-			configPath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
-	}
-	std::cout << "Using configuration at " << configPath << "\n";
+	const auto configPath = config.platformConfigurationFile();
+	std::cout << "Using configuration file " << configPath << "\n";
 
 	//--
 
 	// resolve all modules, download dependencies and libraries
-	ModuleResolver resolver(cachePath);
-	if (!resolver.processModuleFile(modulePath, true))
+	ModuleResolver resolver(config.cachePath);
+	if (!resolver.processModuleFile(config.modulePath, true))
 	{
 		std::cerr << KRED << "[BREAKING] Configuration failed\n" << RST;
 		return 1;
 	}
 
 	// export resolved configuration
-	ModuleConfigurationManifest config;
-	config.rootPath = configPath;
-	if (!resolver.exportToManifest(config))
+	ModuleConfigurationManifest manifest;
+	manifest.rootPath = configPath;
+	manifest.platform = config.platform;
+	if (!resolver.exportToManifest(manifest))
 	{
 		std::cerr << KRED << "[BREAKING] Configuration export failed\n" << RST;
-		return-1;
+		return 1;
+	}
+
+	//--
+
+	// install libraries
+	{
+		AWSConfig aws; // no initialization needed
+		ExternalLibraryInstaller libraryInstaller(aws, config.platform, config.cachePath);
+		if (!libraryInstaller.collect())
+		{
+			std::cerr << KRED << "[BREAKING] External library repository failed to initialize\n" << RST;
+			return 1;
+		}
+
+		bool valid = true;
+		for (auto& lib : manifest.libraries)
+		{
+			fs::path installPath;
+			std::string installVersion;
+			if (!libraryInstaller.install(lib.name, installPath, installVersion))
+			{
+				std::cerr << KRED << "[BREAKING] External third-party library '" << lib.name << "' failed to initialize\n" << RST;
+				valid = false;
+			}
+
+			lib.path = installPath;
+			lib.version = installVersion;
+		}
+
+		if (!valid)
+		{
+			std::cerr << KRED << "[BREAKING] Failed to install all required libraries, project is not configured properly\n" << RST;
+			return 1;
+		}
 	}
 
 	//--
 
 	// write configuration file
-	if (!config.save(configPath))
+	if (!manifest.save(configPath))
 	{
 		std::cerr << KRED << "[BREAKING] Configuration saving failed\n" << RST;
 		return 1;
@@ -564,6 +679,8 @@ int ToolConfigure::run(const char* argv0, const Commandline& cmdline)
 
 	std::cout << KGRN << "Configuration saved\n" << RST;
 	return 0;
+
+	//--
 }
 
 //--
