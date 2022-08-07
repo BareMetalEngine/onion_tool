@@ -647,6 +647,9 @@ static uint32_t LibraryCollectArtifactsFromDirectory(LibraryArtifactType type, c
 {
 	uint32_t count = 0;
 
+	if (!fs::is_directory(sourcePath))
+		return 0;
+
 	for (const auto& entry : fs::directory_iterator(sourcePath))
 	{
 		const auto name = entry.path().filename().u8string();
