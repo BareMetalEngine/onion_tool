@@ -91,7 +91,7 @@ std::unique_ptr<ExternalLibraryManifest> ExternalLibraryManifest::Load(const fs:
 
 				ExternalLibraryDeployFile file;
 				file.absoluteSourcePath = fullPath;
-				file.relativeDeployPath = relativePath;
+				file.relativeDeployPath = fs::path(relativePath).filename().u8string();
 				lib->deployFiles.emplace_back(file);
 				lib->allFiles.emplace_back(fullPath);
 			}
@@ -140,7 +140,7 @@ bool ExternalLibraryManifest::deployFilesToTarget(const fs::path& targetPath) co
 
 	for (const auto& file : deployFiles)
 	{
-		fs::path finalTargetPath = targetPath / file.relativeDeployPath;
+		const auto finalTargetPath = (targetPath / file.relativeDeployPath).make_preferred();
 		valid &= CopyNewerFile(file.absoluteSourcePath, finalTargetPath);
 	}
 

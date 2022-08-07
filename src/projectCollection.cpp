@@ -36,6 +36,10 @@ bool ProjectCollection::populateFromModules(const std::vector<const ModuleManife
 
 		for (const auto* proj : mod->projects)
 		{
+			// do not extract test modules that are coming from externally referenced projects
+			if (proj->type == ProjectType::TestApplication && !mod->local)
+				continue;
+
 			auto* info = new ProjectInfo();
 			info->parentModule = mod;
 			info->manifest = proj;
