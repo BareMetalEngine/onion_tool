@@ -1,0 +1,56 @@
+name: Test Single Project
+on:
+  workflow_call:
+    inputs:
+      lib:
+        required: true
+        type: string
+jobs:
+  TestWindows:
+    strategy:
+      matrix:
+        config: [release, debug, checked, final]
+        libs: [shared, static]
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v3
+      - uses: lukka/get-cmake@v3.23.0
+      - run: |
+                git clone https://github.com/BareMetalEngine/onion.git C:\onion
+                pushd ${{inputs.lib}}
+                C:\onion\onion.exe configure
+                C:\onion\onion.exe make -config=${{matrix.config}} -libs=${{matrix.libs}}
+                C:\onion\onion.exe build
+                C:\onion\onion.exe test
+  TestLinux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        config: [release, debug, checked, final]
+        libs: [static]    
+    steps:
+      - uses: actions/checkout@v3
+      - uses: lukka/get-cmake@v3.23.0
+      - run: |
+                git clone https://github.com/BareMetalEngine/onion.git ~/onion/
+                pushd ${{inputs.lib}}
+                ~/onion/onion configure
+                ~/onion/onion make -config=${{matrix.config}} -libs=${{matrix.libs}}
+                ~/onion/onion build
+                ~/onion/onion test
+  TestMac:
+    runs-on: macos-12
+    strategy:
+      matrix:
+        config: [release, debug, checked, final]
+        libs: [static]    
+    steps:
+      - uses: actions/checkout@v3
+      - uses: lukka/get-cmake@v3.23.0
+      - run: |
+                git clone https://github.com/BareMetalEngine/onion.git ~/onion/
+                pushd ${{inputs.lib}}
+                ~/onion/onion_mac configure
+                ~/onion/onion_mac make -config=${{matrix.config}} -libs=${{matrix.libs}}
+                ~/onion/onion_mac build
+                ~/onion/onion_mac test                
