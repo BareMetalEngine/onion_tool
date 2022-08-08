@@ -46,3 +46,96 @@ jobs:
               git config --global user.email "actions@github.com"
               git config --global user.name "GitHub Actions"
               ./build_darwin.sh
+  TestAppWithExternalStaticLib:
+    uses: ./.github/workflows/test_single.yml
+    needs: 
+      - BuildLinux
+      - BuildMac
+      - BuildWindows
+    secrets: inherit
+    with:
+      lib: tests/app_with_external_static_lib
+  TestAppWithLib:
+    uses: ./.github/workflows/test_single.yml
+    needs: 
+      - BuildLinux
+      - BuildMac
+      - BuildWindows
+    secrets: inherit
+    with:
+      lib: tests/app_with_lib
+  TestAppWithLibAndTests:
+    uses: ./.github/workflows/test_single.yml
+    needs: 
+      - BuildLinux
+      - BuildMac
+      - BuildWindows
+    secrets: inherit
+    with:
+      lib: tests/app_with_lib_and_tests
+  TestAppWithLocalStaticLib:
+    uses: ./.github/workflows/test_single.yml
+    needs: 
+      - BuildLinux
+      - BuildMac
+      - BuildWindows
+    secrets: inherit
+    with:
+      lib: tests/app_with_local_static_lib      
+  TestAppWithThirdpartyDep:
+    uses: ./.github/workflows/test_single.yml
+    needs: 
+      - BuildLinux
+      - BuildMac
+      - BuildWindows
+    secrets: inherit
+    with:
+      lib: tests/app_with_thirdparty_dep
+  TestBisonFile:
+    uses: ./.github/workflows/test_single.yml
+    needs: 
+      - BuildLinux
+      - BuildMac
+      - BuildWindows
+    secrets: inherit
+    with:
+      lib: tests/bison_file
+  TestCommonStaticLib:
+    uses: ./.github/workflows/test_single.yml
+    needs: 
+      - BuildLinux
+      - BuildMac
+      - BuildWindows
+    secrets: inherit
+    with:
+      lib: tests/common_static_lib
+  TestDetachedLib:
+    uses: ./.github/workflows/test_single.yml
+    needs: 
+      - BuildLinux
+      - BuildMac
+      - BuildWindows
+    secrets: inherit
+    with:
+      lib: tests/detached_lib
+  TestEmbedFile:
+    uses: ./.github/workflows/test_single.yml
+    needs: 
+      - BuildLinux
+      - BuildMac
+      - BuildWindows
+    secrets: inherit
+    with:
+      lib: tests/embed_file
+  TestModuleWithStaticLib:
+    uses: ./.github/workflows/test_single.yml
+    needs: 
+      - BuildLinux
+      - BuildMac
+      - BuildWindows
+    secrets: inherit
+    with:
+      lib: tests/module_with_static_lib
+
+
+
