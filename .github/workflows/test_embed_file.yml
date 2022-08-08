@@ -1,0 +1,14 @@
+name: embed_file
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * *'
+  push:
+    paths:
+      - 'tests/embed_file/**'
+jobs:
+  embed_file:
+    uses: ./.github/workflows/test_single.yml
+    secrets: inherit
+    with:
+      lib: tests/embed_file

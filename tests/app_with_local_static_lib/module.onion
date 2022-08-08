@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<Module guid="b7f258bb-bf38-4250-ae38-4a9754751d92">	
+
+	<ModuleDependency path="../module_with_static_lib"/>
+
+	<Application>
+		<SourceRoot>app</SourceRoot>
+		<SelfTest>True</SelfTest>
+		<Dependency>lib</Dependency>
+	</Application>
+	
+</Module>

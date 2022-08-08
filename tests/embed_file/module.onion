@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<Module guid="b7f258bb-bf38-4250-ae38-4a9754751d92">	
+	<Application>
+		<SourceRoot>app</SourceRoot>
+		<SelfTest>True</SelfTest>
+	</Application>
+</Module>

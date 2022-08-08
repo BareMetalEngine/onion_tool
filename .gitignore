@@ -5,6 +5,7 @@ bin
 .release
 .release_token
 .publish
+.cache
 .temp
 .vs
 *.user

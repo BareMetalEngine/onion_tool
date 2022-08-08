@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<Module guid="b7f258bb-bf38-4250-ae38-4a9754751d92">	
+	<Application>
+		<SourceRoot>app</SourceRoot>
+		<SelfTest>True</SelfTest>
+		<Dependency>dyn1</Dependency>
+		<Dependency>dyn2</Dependency>
+	</Application>
+
+	<StaticLibrary>
+		<SourceRoot>static</SourceRoot>
+	</StaticLibrary>	
+
+	<Library>
+		<SourceRoot>dyn1</SourceRoot>
+		<Dependency>static</Dependency>
+	</Library>	
+
+	<Library>
+		<SourceRoot>dyn2</SourceRoot>
+		<Dependency>static</Dependency>
+	</Library>
+</Module>

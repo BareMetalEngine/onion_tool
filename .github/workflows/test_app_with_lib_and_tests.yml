@@ -1,0 +1,14 @@
+name: app_with_lib_and_tests
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * *'
+  push:
+    paths:
+      - 'tests/app_with_lib_and_tests/**'
+jobs:
+  app_with_lib_and_tests:
+    uses: ./.github/workflows/test_single.yml
+    secrets: inherit
+    with:
+      lib: tests/app_with_lib_and_tests
