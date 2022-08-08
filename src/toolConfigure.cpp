@@ -603,7 +603,7 @@ int ToolConfigure::run(const Commandline& cmdline)
 #else
 	if (!CheckVersion("git", "git version", "", "2.32.0"))
 		return false;
-#indef __APPLE__
+#ifdef __APPLE__
     if (!CheckVersion("clang", "version", "-", "14.0.0"))
         return false;
 #else
