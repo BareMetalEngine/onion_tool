@@ -756,7 +756,7 @@ int ToolConfigure::run(const Commandline& cmdline)
         const auto packagesString = BuildPackagesString(requiredSystemPacakges);
         std::cout << KYEL << "[WARNING] Following system packages are required but are not checked: '" << packagesString << "'\n" << RST;
 
-        const auto packagesFilePath = fs::path(cmdline.get("packagesString"));
+        const auto packagesFilePath = fs::path(cmdline.get("exportPackageList"));
         SaveFileFromString(packagesFilePath, packagesString);
     }
     else if (!cmdline.has("skipPackageCheck"))
