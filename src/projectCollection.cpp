@@ -94,7 +94,7 @@ bool ProjectCollection::scanContent(uint32_t& outTotalFiles) const
 
 bool ProjectCollection::resolveDependency(const std::string_view name, std::vector<ProjectInfo*>& outProjects, bool soft) const
 {
-	if (EndsWith(name, "_*"))
+	if (EndsWith(name, "*"))
 	{
 		const auto pattern = name.substr(0, name.length() - 1);
 		for (auto* proj : m_projects)

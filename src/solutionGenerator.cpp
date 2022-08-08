@@ -244,7 +244,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         {
             const bool isLocalProject = proj->parentModule ? proj->parentModule->local : true;
             const auto parentGroup = isLocalProject ? m_rootGroup : createGroup("external");
-            const auto groupName = PartBefore(proj->name, "_");
+            const auto groupName = PartBeforeLast(generatorProject->name, "_");
 
             generatorProject->group = createGroup(groupName, parentGroup);
             generatorProject->group->projects.push_back(generatorProject);

@@ -39,7 +39,9 @@ void SolutionGeneratorVS::printSolutionDeclarations(std::stringstream& f, const 
         auto projectFilePath = p->projectPath / p->name;
         projectFilePath += ".vcxproj";
 
-        writelnf(f, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%s\", \"%s\", \"%s\"", p->name.c_str(), projectFilePath.u8string().c_str(), p->assignedVSGuid.c_str());
+        const auto shortName = PartAfterLast(p->name, "_", true);
+
+        writelnf(f, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%s\", \"%s\", \"%s\"", std::string(shortName).c_str(), projectFilePath.u8string().c_str(), p->assignedVSGuid.c_str());
 
         /*for (const auto* dep : p->directDependencies)
         {
