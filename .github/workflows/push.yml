@@ -1,5 +1,12 @@
 name: Build Onion Tool
-on: [push]
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 1 * * *'
+  push:
+    paths:
+      - 'src/**'
+      - 'files/**'
 jobs:
   BuildLinux:
     runs-on: ubuntu-latest
