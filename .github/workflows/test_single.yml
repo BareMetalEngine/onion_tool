@@ -23,7 +23,7 @@ jobs:
                 C:\onion\onion.exe build
                 C:\onion\onion.exe test
   TestLinux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         config: [release, debug, checked, final]
