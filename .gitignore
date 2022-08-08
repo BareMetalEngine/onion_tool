@@ -7,5 +7,7 @@ bin
 .publish
 .cache
 .temp
+.idea
+cmake-build-*
 .vs
 *.user

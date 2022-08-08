@@ -2300,25 +2300,10 @@ bool CheckVersion(std::string_view app, std::string_view prefix, std::string_vie
     auto version = std::string(Trim(lines[0]));
 
     if (!prefix.empty())
-    {
-        if (!BeginsWith(version, prefix))
-        {
-            std::cerr << KRED << "[BREAKING] Version check on '" << app << "' failed, because '" << version << "' does not start with '" << prefix << "' \n" << RST;
-            return false;
-        }
-
-        version = std::string(Trim(version.substr(prefix.length())));
-    }
+        version = Trim(PartAfter(version, prefix));
 
      if (!postfix.empty())
-     {
          version = Trim(PartBefore(version, postfix));
-         if (version.empty())
-         {
-             std::cerr << KRED << "[BREAKING] Version check on '" << app << "' failed, because '" << version << "' does not end with '" << postfix << "' \n" << RST;
-             return false;
-         }
-     }
 
      std::cout << "Version string for '" << app << "': '" << version << "'\n";
 
