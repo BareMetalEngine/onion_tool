@@ -249,6 +249,8 @@ std::unique_ptr<LibraryManifest> LibraryManifest::Load(const fs::path& manifestP
 				valid &= EvalLibraryDependency(ret.get(), node, filters);
             else if (option == "AdditionalSystemLibrary")
                 ret->additionalSystemLibraries.emplace_back(XMLNodeValue(node));
+            else if (option == "AdditionalSystemPackage")
+                ret->additionalSystemPackages.emplace_back(XMLNodeValue(node));
 			else
 			{
 				std::cerr << "Unknown library's manifest option '" << option << "'\n";

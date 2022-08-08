@@ -123,6 +123,12 @@ std::unique_ptr<ExternalLibraryManifest> ExternalLibraryManifest::Load(const fs:
         lib->additionalSystemLibraries.push_back(std::string(name));
     });
 
+    XMLNodeIterate(root, "AdditionalSystemPackage", [&valid, &lib](const XMLNode* node)
+    {
+        const auto name = XMLNodeValue(node);
+        lib->additionalSystemPackages.push_back(std::string(name));
+    });
+
 	if (!valid)
 		return nullptr;
 

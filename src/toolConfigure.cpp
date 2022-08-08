@@ -587,22 +587,14 @@ void ToolConfigure::printUsage()
 	std::cout << "\n";
 }
 
-int ToolConfigure::run(const Commandline& cmdline)
+static bool CheckSoftwareVersions()
 {
-	//--
-
-	Configuration config;
-	if (!Configuration::Parse(cmdline, config))
-		return false;
-
-	//--
-
 #ifdef _WIN32
     if (!CheckVersion("git", "git version", ".windows", "2.32.0"))
         return false;
 #else
-	if (!CheckVersion("git", "git version", "", "2.32.0"))
-		return false;
+    if (!CheckVersion("git", "git version", "", "2.32.0"))
+        return false;
 #ifdef __APPLE__
     if (!CheckVersion("clang", "version", "-", "14.0.0"))
         return false;
@@ -615,6 +607,80 @@ int ToolConfigure::run(const Commandline& cmdline)
 #endif
     if (!CheckVersion("curl", "curl", "(", "7.10.0"))
         return false;
+
+#ifndef _WIN32
+#ifdef __APPLE__
+    if (!CheckVersion("m4", "GNU M4", "", "1.4.0"))
+        return false;
+#else
+    if (!CheckVersion("m4", "m4 (GNU M4)", "", "1.4.0"))
+        return false;
+#endif
+#endif
+
+    return true;
+}
+
+static bool CheckSystemPackageInstalled(const std::string& name)
+{
+    bool valid = true;
+#ifdef _WIN32
+    // TODO
+#elif defined(__APPLE__)
+    // TODO
+#else
+    std::stringstream args;
+    args << "dpkg -s ";
+    args << name;
+    args << " > /dev/null";
+
+    int exitCode = -1;
+    RunWithArgs(args.str(), &exitCode);
+    valid = (exitCode == 0);
+#endif
+
+    if (valid)
+        std::cout << "Found package '" << name << "' installed on the system\n";
+    else
+        std::cerr << KRED << "[BREAKING] System package '" << name << "' is not installed on the system\n";
+
+    return valid;
+}
+
+static std::string BuildPackagesString(const std::unordered_set<std::string>& packages)
+{
+    std::stringstream str;
+
+    bool first = true;
+    for (const auto& name : packages)
+    {
+        if (!first) str << " ";
+        str << name;
+        first = false;
+    }
+
+    return str.str();
+}
+
+int ToolConfigure::run(const Commandline& cmdline)
+{
+	//--
+
+	Configuration config;
+	if (!Configuration::Parse(cmdline, config))
+		return false;
+
+	//--
+
+    if (!cmdline.has("skipVersionCheck"))
+    {
+        if (!CheckSoftwareVersions())
+            return false;
+    }
+    else
+    {
+        std::cout << KYEL << "[WARNING] System software version check was disabled (-skipVersionCheck)\n" << RST;
+    }
 
 	//--
 
@@ -644,6 +710,7 @@ int ToolConfigure::run(const Commandline& cmdline)
 	//--
 
 	// install libraries
+    std::unordered_set<std::string> requiredSystemPacakges;
 	{
 		AWSConfig aws; // no initialization needed
 		ExternalLibraryInstaller libraryInstaller(aws, config.platform, config.cachePath);
@@ -658,7 +725,7 @@ int ToolConfigure::run(const Commandline& cmdline)
 		{
 			fs::path installPath;
 			std::string installVersion;
-			if (!libraryInstaller.install(lib.name, installPath, installVersion))
+			if (!libraryInstaller.install(lib.name, installPath, installVersion, requiredSystemPacakges))
 			{
 				std::cerr << KRED << "[BREAKING] External third-party library '" << lib.name << "' failed to initialize\n" << RST;
 				valid = false;
@@ -676,6 +743,33 @@ int ToolConfigure::run(const Commandline& cmdline)
 	}
 
 	//--
+
+    if (cmdline.has("packagesString"))
+    {
+        const auto packagesString = BuildPackagesString(requiredSystemPacakges);
+        std::cout << KYEL << "[WARNING] Following system packages are required but are not checked: '" << packagesString << "'\n" << RST;
+
+        const auto packagesFilePath = fs::path(cmdline.get("packagesString"));
+        SaveFileFromString(packagesFilePath, packagesString);
+    }
+    else if (!cmdline.has("skipPackageCheck"))
+    {
+        bool valid = true;
+        for (const auto& name : requiredSystemPacakges)
+            valid &= CheckSystemPackageInstalled(name);
+
+        if (!valid)
+        {
+            std::cerr << KRED << "[BREAKING] Required system packages are not installed, please install them and run the configuration again\n" << RST;
+            return 1;
+        }
+    }
+    else
+    {
+        std::cout << KYEL << "[WARNING] System packages version check was disabled (-skipPackageCheck)\n" << RST;
+    }
+
+    //--
 
 	// write configuration file
 	if (!manifest.save(configPath))

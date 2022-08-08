@@ -14,7 +14,7 @@ public:
 
 	bool collect();
 
-	bool install(std::string_view name, fs::path& outInstalledPath, std::string& outInstalledVersion) const;
+	bool install(std::string_view name, fs::path& outInstalledPath, std::string& outInstalledVersion, std::unordered_set<std::string>& outRequiredSystemPacakges) const;
 
 private:
 	AWSConfig& m_aws;

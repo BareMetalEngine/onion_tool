@@ -68,7 +68,7 @@ fs::path ExternalLibraryInstaller::buildLibraryManifestPath(std::string_view nam
 	return fs::path(str.str()).make_preferred();
 }
 
-bool ExternalLibraryInstaller::install(std::string_view name, fs::path& outInstalledPath, std::string& outInstalledVersion) const
+bool ExternalLibraryInstaller::install(std::string_view name, fs::path& outInstalledPath, std::string& outInstalledVersion, std::unordered_set<std::string>& outRequiredSystemPacakges) const
 {
 	const auto it = m_libs.find(std::string(name));
 	if (it == m_libs.end())
@@ -99,6 +99,9 @@ bool ExternalLibraryInstaller::install(std::string_view name, fs::path& outInsta
 			}
 			else
 			{
+                for (const auto& name : libraryManifest->additionalSystemPackages)
+                    outRequiredSystemPacakges.insert(name);
+
 				outInstalledPath = libraryManifestPath;
 				outInstalledVersion = info.version;
 				std::cerr << KGRN << "Found already installed directory third-party library '" << name << "' at version '" << info.version << "\n" << RST;
@@ -181,7 +184,10 @@ bool ExternalLibraryInstaller::install(std::string_view name, fs::path& outInsta
 			std::cerr << KRED << "[BREAKING] Install directory for third-party library '" << name << "' exists and contains the manifest but it is invalid\n" << RST;
 			return false;
 		}
-	}
+
+        for (const auto& name : libraryManifest->additionalSystemPackages)
+            outRequiredSystemPacakges.insert(name);
+    }
 
 	// valid third-party library
 	outInstalledPath = libraryManifestPath;

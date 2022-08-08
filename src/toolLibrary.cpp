@@ -465,7 +465,8 @@ static bool LibraryConfigure(const LibraryManifest& lib, ToolLibraryConfig& conf
 		{
 			std::string verison;
 			fs::path manifestPath;
-			if (installer.install(dep.name, manifestPath, verison))
+            std::unordered_set<std::string> requiredPackages;
+			if (installer.install(dep.name, manifestPath, verison, requiredPackages))
 			{
 				// load the library manifest
 				auto dependencyManifest = ExternalLibraryManifest::Load(manifestPath);
@@ -759,6 +760,8 @@ static void LibraryBuildManifest(const LibraryManifest& lib, ToolLibraryConfig& 
 
     for (const auto& name : lib.additionalSystemLibraries)
         writelnf(f, "<AdditionalSystemLibrary>%hs</AdditionalSystemLibrary>", name.c_str());
+    for (const auto& name : lib.additionalSystemPackages)
+        writelnf(f, "<AdditionalSystemPackage>%hs</AdditionalSystemPackage>", name.c_str());
 
 	writeln(f, "</ExternalLibrary>");
 }
