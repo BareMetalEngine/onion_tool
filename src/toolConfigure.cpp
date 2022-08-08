@@ -744,7 +744,14 @@ int ToolConfigure::run(const Commandline& cmdline)
 
 	//--
 
-    if (cmdline.has("packagesString"))
+#ifndef _WIN32
+    requiredSystemPacakges.insert("m4");
+#ifndef __APPLE__
+    requiredSystemPacakges.insert("libncurses-dev");
+#endif
+#endif
+
+    if (cmdline.has("exportPackageList"))
     {
         const auto packagesString = BuildPackagesString(requiredSystemPacakges);
         std::cout << KYEL << "[WARNING] Following system packages are required but are not checked: '" << packagesString << "'\n" << RST;
