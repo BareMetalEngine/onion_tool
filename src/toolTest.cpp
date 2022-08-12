@@ -57,6 +57,9 @@ bool ProjectBinaryName(const ProjectInfo* project, std::string& outName)
 		outName = safeName + ".so";
 #endif
 		return true;
+
+        default:
+            break;
 	}
 
 	return false;

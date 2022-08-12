@@ -730,7 +730,7 @@ static bool LibraryCollectArtifacts(const LibraryManifest& lib, ToolLibraryConfi
 		}
 	}
 
-	return true;
+	return valid;
 }
 
 static fs::path LibraryManifestPath(const LibraryManifest& lib, ToolLibraryConfig& config)

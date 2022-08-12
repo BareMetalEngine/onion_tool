@@ -46,96 +46,88 @@ jobs:
               git config --global user.email "actions@github.com"
               git config --global user.name "GitHub Actions"
               ./build_darwin.sh
-  TestAppWithExternalStaticLib:
-    uses: ./.github/workflows/test_single.yml
-    needs: 
-      - BuildLinux
-      - BuildMac
-      - BuildWindows
-    secrets: inherit
-    with:
-      lib: tests/app_with_external_static_lib
-  TestAppWithLib:
-    uses: ./.github/workflows/test_single.yml
-    needs: 
-      - BuildLinux
-      - BuildMac
-      - BuildWindows
-    secrets: inherit
-    with:
-      lib: tests/app_with_lib
-  TestAppWithLibAndTests:
-    uses: ./.github/workflows/test_single.yml
-    needs: 
-      - BuildLinux
-      - BuildMac
-      - BuildWindows
-    secrets: inherit
-    with:
-      lib: tests/app_with_lib_and_tests
-  TestAppWithLocalStaticLib:
-    uses: ./.github/workflows/test_single.yml
-    needs: 
-      - BuildLinux
-      - BuildMac
-      - BuildWindows
-    secrets: inherit
-    with:
-      lib: tests/app_with_local_static_lib      
-  TestAppWithThirdpartyDep:
-    uses: ./.github/workflows/test_single.yml
-    needs: 
-      - BuildLinux
-      - BuildMac
-      - BuildWindows
-    secrets: inherit
-    with:
-      lib: tests/app_with_thirdparty_dep
-  TestBisonFile:
-    uses: ./.github/workflows/test_single.yml
-    needs: 
-      - BuildLinux
-      - BuildMac
-      - BuildWindows
-    secrets: inherit
-    with:
-      lib: tests/bison_file
-  TestCommonStaticLib:
-    uses: ./.github/workflows/test_single.yml
-    needs: 
-      - BuildLinux
-      - BuildMac
-      - BuildWindows
-    secrets: inherit
-    with:
-      lib: tests/common_static_lib
-  TestDetachedLib:
-    uses: ./.github/workflows/test_single.yml
-    needs: 
-      - BuildLinux
-      - BuildMac
-      - BuildWindows
-    secrets: inherit
-    with:
-      lib: tests/detached_lib
-  TestEmbedFile:
-    uses: ./.github/workflows/test_single.yml
-    needs: 
-      - BuildLinux
-      - BuildMac
-      - BuildWindows
-    secrets: inherit
-    with:
-      lib: tests/embed_file
-  TestModuleWithStaticLib:
-    uses: ./.github/workflows/test_single.yml
-    needs: 
-      - BuildLinux
-      - BuildMac
-      - BuildWindows
-    secrets: inherit
-    with:
-      lib: tests/module_with_static_lib
-
-
-
+  BuildMacM1:
+    runs-on: [self-hosted, macos, arm64]
+    needs: BuildMac
+    env:
+      GITHUB_TOKEN: ${{secrets.ONION_GIT_PUBLIC_TOKEN}}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v1
+      - uses: lukka/get-cmake@v3.23.0
+      - run: |
+              git config --global user.email "actions@github.com"
+              git config --global user.name "GitHub Actions"
+              ./build_darwin.sh
+  TestWindows:
+    runs-on: windows-2022
+    needs: BuildWindows
+    strategy:
+      matrix:
+        config: [release, debug, checked, final]
+        test: [tests/app_self_contained, tests/app_with_lib, tests/app_with_lib_and_tests, tests/app_with_local_static_lib, tests/app_with_external_static_lib, tests/app_with_thirdparty_dep, tests/common_static_lib, tests/bison_file, tests/detached_lib, tests/embed_file, tests/module_with_static_lib]
+        libs: [shared, static]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: lukka/get-cmake@v3.23.0
+      - run: |
+                git clone https://github.com/BareMetalEngine/onion.git C:\onion
+                pushd ${{matrix.test}}
+                C:\onion\onion.exe configure
+                C:\onion\onion.exe make -config=${{matrix.config}} -libs=${{matrix.libs}}
+                C:\onion\onion.exe build
+                C:\onion\onion.exe test
+  TestLinux:
+    runs-on: ubuntu-22.04
+    needs: BuildLinux
+    strategy:
+      matrix:
+        config: [release, debug, checked, final]
+        test: [tests/app_self_contained, tests/app_with_lib, tests/app_with_lib_and_tests, tests/app_with_local_static_lib, tests/app_with_external_static_lib, tests/app_with_thirdparty_dep, tests/common_static_lib, tests/bison_file, tests/detached_lib, tests/embed_file, tests/module_with_static_lib]
+        libs: [static]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: lukka/get-cmake@v3.23.0
+      - run: |
+                git clone https://github.com/BareMetalEngine/onion.git ~/onion/
+                pushd ${{matrix.test}}
+                ~/onion/onion configure
+                ~/onion/onion make -config=${{matrix.config}} -libs=${{matrix.libs}}
+                ~/onion/onion build
+                ~/onion/onion test
+  TestMac:
+    runs-on: macos-12
+    needs: BuildMac
+    strategy:
+      matrix:
+        config: [release, debug, checked, final]
+        test: [tests/app_self_contained, tests/app_with_lib, tests/app_with_lib_and_tests, tests/app_with_local_static_lib, tests/app_with_external_static_lib, tests/app_with_thirdparty_dep, tests/common_static_lib, tests/bison_file, tests/detached_lib, tests/embed_file, tests/module_with_static_lib]
+        libs: [static]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: lukka/get-cmake@v3.23.0
+      - run: |
+                git clone https://github.com/BareMetalEngine/onion.git ~/onion/
+                pushd ${{matrix.test}}
+                ~/onion/onion_mac configure
+                ~/onion/onion_mac make -config=${{matrix.config}} -libs=${{matrix.libs}}
+                ~/onion/onion_mac build
+                ~/onion/onion_mac test
+  TestMacM1:
+    runs-on: [self-hosted, macos, arm64]
+    needs: BuildMacM1
+    strategy:
+      matrix:
+        config: [release, debug, checked, final]
+        libs: [static]
+        test: [tests/app_self_contained, tests/app_with_lib, tests/app_with_lib_and_tests, tests/app_with_local_static_lib, tests/app_with_external_static_lib, tests/app_with_thirdparty_dep, tests/common_static_lib, tests/bison_file, tests/detached_lib, tests/embed_file, tests/module_with_static_lib]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: lukka/get-cmake@v3.23.0
+      - run: |
+                git clone https://github.com/BareMetalEngine/onion.git ~/onion/
+                pushd ${{matrix.test}}
+                ~/onion/onion_mac configure
+                ~/onion/onion_mac make -config=${{matrix.config}} -libs=${{matrix.libs}}
+                ~/onion/onion_mac build
+                ~/onion/onion_mac test

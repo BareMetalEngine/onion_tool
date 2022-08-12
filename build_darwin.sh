@@ -2,12 +2,22 @@
 
 set -e
 
+if [[ $(uname -m) == 'arm64' ]]; then
+  echo M1 detected, using onion_arm
+  export RELEASE_NAME=onion_arm
+else
+  echo x64 detected, using onion_mac
+  export RELEASE_NAME=onion_max
+fi
+
 export MAIN_DIR=`pwd`
 export OUTPUT_BINARY=$MAIN_DIR/.build/bin/onion
 export RELEASE_DIR=$MAIN_DIR/.release
-export RELEASE_BINARY=$MAIN_DIR/.release/onion/onion_mac
+export RELEASE_BINARY=$MAIN_DIR/.release/onion/$RELEASE_NAME
 export FILES_DIR=$MAIN_DIR/files
 export BUILD_DIR=$MAIN_DIR/.build
+
+
 
 if [ -d $RELEASE_DIR ]; then
 	echo Cleanup release dir...
@@ -53,7 +63,7 @@ $OUTPUT_BINARY glue -action=pack -file="$RELEASE_BINARY" -source="$FILES_DIR"
 echo Submit...
 
 pushd $RELEASE_DIR/onion
-git add -f onion_mac
+git add -f $RELEASE_NAME
 git commit --allow-empty -m "Updated compiled Mac binaries"
 git push
 popd

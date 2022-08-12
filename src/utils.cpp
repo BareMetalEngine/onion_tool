@@ -1644,7 +1644,11 @@ std::string_view DefaultPlatformStr()
 PlatformType DefaultPlatform()
 {
 #ifdef __APPLE__
+#ifdef __arm64__
+    return PlatformType::DarwinArm;
+#else
     return PlatformType::Darwin;
+#endif
 #elif defined(_WIN32)
 	return PlatformType::Windows;
 #else
@@ -1711,6 +1715,7 @@ std::string_view NameEnumOption(PlatformType type)
     case PlatformType::iOS: return "ios";
     case PlatformType::Android: return "android";
     case PlatformType::Darwin: return "darwin";
+    case PlatformType::DarwinArm: return "darwin_arm";
     default: break;
     }
     return "";

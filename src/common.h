@@ -27,6 +27,7 @@ enum class PlatformType : uint8_t {
 	iOS,
 	Android,
     Darwin,
+    DarwinArm,
 
     MAX,
 };

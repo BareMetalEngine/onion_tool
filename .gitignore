@@ -10,4 +10,7 @@ bin
 .idea
 cmake-build-*
 .vs
+/
 *.user
+.DS_Store
+

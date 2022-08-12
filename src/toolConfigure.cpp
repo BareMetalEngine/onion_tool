@@ -596,12 +596,12 @@ static bool CheckSoftwareVersions()
     if (!CheckVersion("git", "git version", "", "2.32.0"))
         return false;
 #ifdef __APPLE__
-    if (!CheckVersion("clang", "version", "-", "14.0.0"))
+    if (!CheckVersion("clang", "version", "-", "13.0.0"))
         return false;
 #else
     if (!CheckVersion("gcc", ")", "", "11.0.0"))
         return false;
-    if (!CheckVersion("clang", "version", "-", "13.0.0"))
+    if (!CheckVersion("clang", "version", "-", "14.0.0"))
         return false;
 #endif
 #endif
