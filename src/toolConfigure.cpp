@@ -614,7 +614,7 @@ static bool CheckSoftwareVersions()
         return false;
 #else
     if (!CheckVersion("m4", "m4 (GNU M4)", "", "1.4.0"))
-        return fals
+        return false;
 #endif
 #endif
 
