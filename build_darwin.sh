@@ -7,7 +7,7 @@ if [[ $(uname -m) == 'arm64' ]]; then
   export RELEASE_NAME=onion_arm
 else
   echo x64 detected, using onion_mac
-  export RELEASE_NAME=onion_max
+  export RELEASE_NAME=onion_mac
 fi
 
 export MAIN_DIR=`pwd`
