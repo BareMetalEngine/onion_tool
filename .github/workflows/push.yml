@@ -47,7 +47,7 @@ jobs:
               git config --global user.name "GitHub Actions"
               ./build_darwin.sh
   BuildMacM1:
-    runs-on: [self-hosted, macos, arm64]
+    runs-on: [self-hosted, macOS, ARM64]
     needs: BuildMac
     env:
       GITHUB_TOKEN: ${{secrets.ONION_GIT_PUBLIC_TOKEN}}
@@ -114,7 +114,7 @@ jobs:
                 ~/onion/onion_mac build
                 ~/onion/onion_mac test
   TestMacM1:
-    runs-on: [self-hosted, macos, arm64]
+    runs-on: [self-hosted, macOS, ARM64]
     needs: BuildMacM1
     strategy:
       matrix:
