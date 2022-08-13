@@ -34,6 +34,7 @@ struct ToolLibraryConfig
 	bool forceOperation = false;
 	bool upload = false;
 
+    fs::path unpackPath; // {$ManifsetDir}/.temp/<platform/source/{$LibraryName}
 	fs::path srcPath; // {$ManifsetDir}/.temp/<platform/source/{$LibraryName}
 	fs::path buildPath; // {$ManifsetDir}/.temp/<platform/build/{$LibraryName}
 	fs::path deployPath; // {$ManifsetDir}/.temp/<platform/out/{$LibraryName}
@@ -389,16 +390,16 @@ static bool LibraryCloneRepo_URL(const LibraryManifest& lib, ToolLibraryConfig& 
 		}
 	}
 
-	if (!fs::is_directory(config.srcPath))
+	if (!fs::is_directory(config.unpackPath))
 	{
-		if (!CreateDirectories(config.srcPath))
+		if (!CreateDirectories(config.unpackPath))
 			return false;
 
 		std::stringstream cmd;
 		cmd << "tar -xvf ";
 		cmd << downloadFileName;
 		cmd << " -C ";
-		cmd << config.srcPath;
+		cmd << config.unpackPath;
 
 		if (!RunWithArgs(cmd.str()))
 		{
@@ -1182,7 +1183,8 @@ int ToolLibrary::run(const Commandline& cmdline)
 		return 1;
 	}
 
-	config.srcPath = (config.srcRootPath / library->name / library->sourceRelativePath).make_preferred();
+	config.unpackPath = (config.srcRootPath / library->name).make_preferred();
+    config.srcPath = (config.srcRootPath / library->name / library->sourceRelativePath).make_preferred();
 	if (library->sourceBuild)
 		config.buildPath = config.srcPath;
 	else
