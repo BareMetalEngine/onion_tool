@@ -22,6 +22,7 @@ struct ExternalLibraryManifest
 	std::vector<ExternalLibraryDeployFile> deployFiles; // individual files to deploy - copy to binary folder
     std::vector<std::string> additionalSystemLibraries; // additional libraries to link with
     std::vector<std::string> additionalSystemPackages; // additional system packages that must be installed
+    std::vector<std::string> additionalSystemFrameworks; // additional frameworks to links with (ios/macos)
 
 	std::vector<fs::path> allFiles; // all files referened by the library
 

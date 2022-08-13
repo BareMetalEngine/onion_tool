@@ -123,6 +123,7 @@ struct LibraryManifest
 	std::vector<LibraryDependencyInfo> dependencies;
     std::vector<std::string> additionalSystemLibraries;
     std::vector<std::string> additionalSystemPackages;
+    std::vector<std::string> additionalSystemFrameworks;
 
 	//--
 

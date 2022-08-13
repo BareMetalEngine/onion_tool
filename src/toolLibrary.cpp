@@ -762,6 +762,8 @@ static void LibraryBuildManifest(const LibraryManifest& lib, ToolLibraryConfig& 
         writelnf(f, "<AdditionalSystemLibrary>%hs</AdditionalSystemLibrary>", name.c_str());
     for (const auto& name : lib.additionalSystemPackages)
         writelnf(f, "<AdditionalSystemPackage>%hs</AdditionalSystemPackage>", name.c_str());
+    for (const auto& name : lib.additionalSystemFrameworks)
+        writelnf(f, "<AdditionalSystemFramework>%hs</AdditionalSystemFramework>", name.c_str());
 
 	writeln(f, "</ExternalLibrary>");
 }
@@ -1180,7 +1182,7 @@ int ToolLibrary::run(const Commandline& cmdline)
 		return 1;
 	}
 
-	config.srcPath = (config.srcRootPath / library->name).make_preferred();
+	config.srcPath = (config.srcRootPath / library->name / library->sourceRelativePath).make_preferred();
 	if (library->sourceBuild)
 		config.buildPath = config.srcPath;
 	else

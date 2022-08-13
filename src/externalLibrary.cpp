@@ -121,12 +121,21 @@ std::unique_ptr<ExternalLibraryManifest> ExternalLibraryManifest::Load(const fs:
     {
         const auto name = XMLNodeValue(node);
         lib->additionalSystemLibraries.push_back(std::string(name));
+        std::cout << "Additional system library needed for '" << lib->name << "': '" << name << "'\n";
     });
 
     XMLNodeIterate(root, "AdditionalSystemPackage", [&valid, &lib](const XMLNode* node)
     {
         const auto name = XMLNodeValue(node);
         lib->additionalSystemPackages.push_back(std::string(name));
+        std::cout << "Additional system package needed for '" << lib->name << "': '" << name << "'\n";
+    });
+
+    XMLNodeIterate(root, "AdditionalSystemFramework", [&valid, &lib](const XMLNode* node)
+    {
+        const auto name = XMLNodeValue(node);
+        lib->additionalSystemFrameworks.push_back(std::string(name));
+        std::cout << "Additional system framework needed for '" << lib->name << "': '" << name << "'\n";
     });
 
 	if (!valid)

@@ -627,7 +627,14 @@ static bool CheckSystemPackageInstalled(const std::string& name)
 #ifdef _WIN32
     // TODO
 #elif defined(__APPLE__)
-    // TODO
+    std::stringstream args;
+    args << "brew list --versions | grep ";
+    args << name;
+    args << " > /dev/null";
+
+    int exitCode = -1;
+    RunWithArgs(args.str(), &exitCode);
+    valid = (exitCode == 0);
 #else
     std::stringstream args;
     args << "dpkg -s ";

@@ -316,18 +316,29 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
     }*/
     writeln(f, "");
 
-    if (m_config.platform == PlatformType::Linux)
+    if (m_config.platform == PlatformType::Linux || m_config.platform == PlatformType::Darwin || m_config.platform == PlatformType::DarwinArm)
     {
         writeln(f, "# Hardcoded system libraries");
 
-        std::vector<std::string> extraLibs;
+        std::vector<std::string> extraLibs, extraFrameworks;
         extraLibs.push_back("dl");
-        extraLibs.push_back("rt");
+
+        if (m_config.platform == PlatformType::Linux)
+            extraLibs.push_back("rt");
+        else if (m_config.platform == PlatformType::DarwinArm || m_config.platform == PlatformType::Darwin)
+            extraLibs.push_back("stdc++");
 
         for (const auto* lib : p->libraryDependencies)
-            for (const auto& name : lib->additionalSystemLibraries)
+        {
+            for (const auto &name: lib->additionalSystemLibraries)
                 if (!Contains(extraLibs, name))
                     extraLibs.push_back(name);
+
+            for (const auto &name: lib->additionalSystemFrameworks)
+                if (!Contains(extraFrameworks, name))
+                    extraFrameworks.push_back(name);
+
+        }
 
         bool first = true;
         std::stringstream libStr;
@@ -336,6 +347,19 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
             if (!first) libStr << " ";
             libStr << name;
             first = false;
+        }
+
+        if (m_config.platform == PlatformType::DarwinArm || m_config.platform == PlatformType::Darwin)
+        {
+            for (const auto& name : extraFrameworks)
+            {
+                if (!first) libStr << " ";
+                libStr << "\"-framework " << name << "\"";
+                first = false;
+            }
+
+            if (!extraFrameworks.empty())
+                libStr << " objc";
         }
 
         writelnf(f, "target_link_libraries(%s %s)", p->name.c_str(), libStr.str().c_str());

@@ -241,6 +241,8 @@ std::unique_ptr<LibraryManifest> LibraryManifest::Load(const fs::path& manifestP
 				valid &= EvalLibrarySourceType(ret.get(), node);
 			else if (option == "SourceURL")
 				ret->sourceURL = XMLNodeValue(node);
+            else if (option == "SourceRelativePath")
+                ret->sourceRelativePath = XMLNodeValue(node);
 			else if (option == "ConfigCommand")
 				ret->configCommand = XMLNodeValue(node);
 			else if (option == "BuildCommand")
@@ -255,6 +257,8 @@ std::unique_ptr<LibraryManifest> LibraryManifest::Load(const fs::path& manifestP
                 ret->additionalSystemLibraries.emplace_back(XMLNodeValue(node));
             else if (option == "AdditionalSystemPackage")
                 ret->additionalSystemPackages.emplace_back(XMLNodeValue(node));
+            else if (option == "AdditionalSystemFramework")
+                ret->additionalSystemFrameworks.emplace_back(XMLNodeValue(node));
 			else
 			{
 				std::cerr << "Unknown library's manifest option '" << option << "'\n";

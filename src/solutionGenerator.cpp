@@ -1302,8 +1302,13 @@ bool SolutionGenerator::processBisonFile(SolutionProject* project, const Solutio
 		const auto executablePath = (toolPath / "win_bison.exe").make_preferred();
 #elif defined(__APPLE__)
         fs::path toolPath;
+#if defined(__arm64__)
+        if (!m_files.resolveDirectoryPath("tools/bison/darwin_arm", toolPath))
+            return false;
+#else
         if (!m_files.resolveDirectoryPath("tools/bison/darwin", toolPath))
             return false;
+#endif
 
         const auto executablePath = (toolPath / "run_bison.sh").make_preferred();
 #else
