@@ -27,7 +27,7 @@ struct AWSConfig
 
 	AWSConfig();
 
-	bool init(const Commandline& cmdLine, const fs::path& referencePath);
+	bool init(const Commandline& cmdLine);
 
 	std::string_view endpoint(AWSEndpoint type) const;
 
@@ -37,8 +37,8 @@ struct AWSConfig
 
 	//--
 
-	static std::string GetSecret(const fs::path& referencePath);
-	static std::string GetKey(const fs::path& referencePath);
+	static std::string GetSecret();
+	static std::string GetKey();
 
 };
 

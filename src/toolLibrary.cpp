@@ -392,14 +392,15 @@ static bool LibraryCloneRepo_URL(const LibraryManifest& lib, ToolLibraryConfig& 
 
 	if (!fs::is_directory(config.unpackPath))
 	{
-		if (!CreateDirectories(config.unpackPath))
+		const auto srcPath = (config.srcRootPath / lib.name).make_preferred();
+		if (!CreateDirectories(srcPath))
 			return false;
 
 		std::stringstream cmd;
 		cmd << "tar -xvf ";
 		cmd << downloadFileName;
 		cmd << " -C ";
-		cmd << config.unpackPath;
+		cmd << srcPath;
 
 		if (!RunWithArgs(cmd.str()))
 		{
@@ -447,7 +448,7 @@ static std::string FormatAdditionalDefines(const std::vector<DependencySymbol>& 
 	return str.str();
 }
 
-static bool LibraryConfigure(const LibraryManifest& lib, ToolLibraryConfig& config)
+static bool LibraryConfigure(const Commandline& cmdLine, const LibraryManifest& lib, ToolLibraryConfig& config)
 {
 	// make sure build directory exists
 	if (!CreateDirectories(config.buildPath))
@@ -457,17 +458,16 @@ static bool LibraryConfigure(const LibraryManifest& lib, ToolLibraryConfig& conf
 	std::vector<DependencySymbol> additionalDefines;
 	if (!lib.dependencies.empty())
 	{
-		AWSConfig aws; // read only, no init requires
-		ExternalLibraryInstaller installer(aws, config.platform, config.dependenciesRootPath);
-
-		installer.collect();
+		auto libraryInstaller = ILibraryInstaller::MakeLibraryInstaller(config.platform, config.dependenciesRootPath);
+		if (!libraryInstaller->collect(cmdLine))
+			return false;
 
 		for (const auto& dep : lib.dependencies)
 		{
 			std::string verison;
 			fs::path manifestPath;
             std::unordered_set<std::string> requiredPackages;
-			if (installer.install(dep.name, manifestPath, verison, requiredPackages))
+			if (libraryInstaller->install(dep.name, manifestPath, verison, requiredPackages))
 			{
 				// load the library manifest
 				auto dependencyManifest = ExternalLibraryManifest::Load(manifestPath);
@@ -513,7 +513,28 @@ static bool LibraryConfigure(const LibraryManifest& lib, ToolLibraryConfig& conf
 
 					if (foundPath.empty())
 					{
-						std::cerr << KRED << "[BREAKING] Dependency library '" << dep.name << "' has no library file named '" << libVar.fileName << "'\n" << RST;
+						if (!libVar.fileName.empty())
+						{
+							std::cerr << KRED << "[BREAKING] Dependency library '" << dep.name << "' has no library file named '" << libVar.fileName << "'\n" << RST;
+							return false;
+						}
+						else
+						{
+							if (!dependencyManifest->libraryFiles.size())
+							{
+								std::cerr << KRED << "[BREAKING] Dependency library '" << dep.name << "' has no library file to link with!\n" << RST;
+							}
+							else
+							{
+								std::cerr << KRED << "[BREAKING] Dependency library '" << dep.name << "' has more than one library file to link with. Specify file name directly.!\n" << RST;
+
+								for (const auto& libFile : dependencyManifest->libraryFiles)
+								{
+									std::cout << "Potential library file: '" << libFile << "'\n";
+								}
+							}
+						}
+
 						return false;
 					}
 					else
@@ -1183,8 +1204,10 @@ int ToolLibrary::run(const Commandline& cmdline)
 		return 1;
 	}
 
-	config.unpackPath = (config.srcRootPath / library->name).make_preferred();
-    config.srcPath = (config.srcRootPath / library->name / library->sourceRelativePath).make_preferred();
+	if (library->sourceRelativePath.empty())
+		config.srcPath = (config.srcRootPath / library->name).make_preferred();
+	else
+		config.srcPath = (config.srcRootPath / library->name / library->sourceRelativePath).make_preferred();
 	if (library->sourceBuild)
 		config.buildPath = config.srcPath;
 	else
@@ -1198,8 +1221,7 @@ int ToolLibrary::run(const Commandline& cmdline)
 	AWSConfig aws;
 	if (config.upload)
 	{
-		const auto libraryRoot = config.libraryManifestPath.parent_path();
-		if (!aws.init(cmdline, libraryRoot))
+		if (!aws.init(cmdline))
 		{
 			std::cerr << KRED << "[BREAKING] Failed to initialize AWS interface\n" << RST;
 			return-1;
@@ -1217,7 +1239,7 @@ int ToolLibrary::run(const Commandline& cmdline)
 
 	if (config.performConfigure)
 	{
-		if (!LibraryConfigure(*library, config))
+		if (!LibraryConfigure(cmdline, *library, config))
 		{
 			std::cerr << KRED << "[BREAKING] Configure step for library " << library->name << " failed\n" << RST;
 			return 1;

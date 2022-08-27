@@ -719,11 +719,10 @@ int ToolConfigure::run(const Commandline& cmdline)
 	// install libraries
     std::unordered_set<std::string> requiredSystemPacakges;
 	{
-		AWSConfig aws; // no initialization needed
-		ExternalLibraryInstaller libraryInstaller(aws, config.platform, config.cachePath);
-		if (!libraryInstaller.collect())
+		auto libraryInstaller = ILibraryInstaller::MakeLibraryInstaller(config.platform, config.cachePath);
+		if (!libraryInstaller->collect(cmdline))
 		{
-			std::cerr << KRED << "[BREAKING] External library repository failed to initialize\n" << RST;
+			std::cerr << KRED << "[BREAKING] Offline library repository failed to initialize\n" << RST;
 			return 1;
 		}
 
@@ -732,7 +731,7 @@ int ToolConfigure::run(const Commandline& cmdline)
 		{
 			fs::path installPath;
 			std::string installVersion;
-			if (!libraryInstaller.install(lib.name, installPath, installVersion, requiredSystemPacakges))
+			if (!libraryInstaller->install(lib.name, installPath, installVersion, requiredSystemPacakges))
 			{
 				std::cerr << KRED << "[BREAKING] External third-party library '" << lib.name << "' failed to initialize\n" << RST;
 				valid = false;

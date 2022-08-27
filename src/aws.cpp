@@ -11,13 +11,13 @@ AWSConfig::AWSConfig()
 {
 }
 
-bool AWSConfig::init(const Commandline& cmdLine, const fs::path& referencePath)
+bool AWSConfig::init(const Commandline& cmdLine)
 {
 	{
 		secret = cmdLine.get("awsSecret");
 		if (secret.empty())
 		{
-			secret = GetSecret(referencePath);
+			secret = GetSecret();
 			if (secret.empty())
 			{
 				std::cerr << KRED << "[BREAKING] Unable to retrieve AWS secret\n" << RST;
@@ -30,7 +30,7 @@ bool AWSConfig::init(const Commandline& cmdLine, const fs::path& referencePath)
 		key = cmdLine.get("awsKey");
 		if (key.empty())
 		{
-			key = GetKey(referencePath);
+			key = GetKey();
 			if (key.empty())
 			{
 				std::cerr << KRED << "[BREAKING] Unable to retrieve AWS key\n" << RST;
@@ -53,29 +53,8 @@ std::string_view AWSConfig::endpoint(AWSEndpoint type) const
 	return "";
 }
 
-std::string AWSConfig::GetSecret(const fs::path& referencePath)
+std::string AWSConfig::GetSecret()
 {
-	std::string token;
-	{
-		auto searchPath = fs::current_path();
-		while (fs::is_directory(searchPath))
-		{
-			if (LoadFileToString(searchPath / ".awssecret", token))
-				return token;
-
-			const auto old = searchPath;
-			searchPath = searchPath.parent_path();
-			if (old == searchPath)
-				break;
-		}
-	}
-
-	if (!referencePath.empty())
-	{
-		if (LoadFileToString(referencePath / ".awssecret", token))
-			return token;
-	}
-
 	const char* str = std::getenv("ONION_AWS_SECRET");
 	if (str && *str)
 		return str;
@@ -84,29 +63,8 @@ std::string AWSConfig::GetSecret(const fs::path& referencePath)
 	return "";
 }
 
-std::string AWSConfig::GetKey(const fs::path& referencePath)
+std::string AWSConfig::GetKey()
 {
-	std::string token;
-	{
-		auto searchPath = fs::current_path();
-		while (fs::is_directory(searchPath))
-		{
-			if (LoadFileToString(searchPath / ".awskey", token))
-				return token;
-
-			const auto old = searchPath;
-			searchPath = searchPath.parent_path();
-			if (old == searchPath)
-				break;
-		}
-	}
-
-	if (!referencePath.empty())
-	{
-		if (LoadFileToString(referencePath / ".awskey", token))
-			return token;
-	}
-
 	const char* str = std::getenv("ONION_AWS_KEY");
 	if (str && *str)
 		return str;

@@ -334,6 +334,7 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
         f << "  <SourcesRoot>";
         std::vector<fs::path> sourceRoots;
         extractSourceRoots(project, sourceRoots);
+        std::sort(sourceRoots.begin(), sourceRoots.end());
 
         for (auto& root : sourceRoots)
             f << root.make_preferred().u8string() << "\\;";

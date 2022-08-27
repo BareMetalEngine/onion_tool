@@ -220,7 +220,11 @@ bool ProjectReflection::parseDeclarations()
     for (int i = 0; i < files.size(); ++i)
     {
         auto* file = files[i];
-        valid &= file->tokenized.process() ? 1 : 0;
+        if (!file->tokenized.process())
+        {
+            std::cerr << KRED << "[BREKAING] Failed to process declaration from " << file->absoluitePath << "\n" << RST;
+            valid = 0;
+        }
     }
 
     uint32_t totalDeclarations = 0;

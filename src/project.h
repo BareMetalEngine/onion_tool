@@ -11,6 +11,7 @@ enum class ProjectFileType : uint8_t
 	WindowsResources,
 	BuildScript,
 	MediaFile,
+	TextFile,
 	NatVis,
 };
 

@@ -450,6 +450,23 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
 
     // generate reflection file
     {
+		if (project->optionUseReflection)
+		{
+			const auto reflectionFilePath = (project->generatedPath / "reflection.txt").make_preferred();
+
+			auto* info = new SolutionProjectFile;
+			info->type = ProjectFileType::TextFile;
+			info->absolutePath = reflectionFilePath;
+			info->filterPath = "_generated";
+			info->name = "reflection.txt";
+			project->files.push_back(info);
+
+			auto generatedFile = fileGenerator.createFile(info->absolutePath);
+			for (const auto* file : project->files)
+				if (file->type == ProjectFileType::CppSource && file->name != "reflection.cpp")
+					writelnf(generatedFile->content, "%s", file->absolutePath.u8string().c_str());
+		}
+
         if (project->optionUseReflection)
         {
 			const auto reflectionFilePath = (project->generatedPath / "reflection.cpp").make_preferred();
@@ -722,6 +739,14 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
             writelnf(f, "    InitModule_%hs(nullptr);", project->name.c_str());
         }
         writeln(f, "");
+
+        writeln(f, "    if (!onion::modules::HasAllModulesInitialize()) {");
+        writeln(f, "      TRACE_ERROR(\"No all required modules were initialized, application cannot start\");");        
+		if (project->optionUseWindowSubsystem)
+            writeln(f, "      MessageBoxA(NULL, \"No all required modules (DLLs) were initialized, application cannot start.\", \"BareMetalEngine startup\", MB_ICONERROR | MB_TASKMODAL);");
+        writeln(f, "      return 5;");
+        writeln(f, "    }");
+        writeln(f, "");
     }
 
 
@@ -875,22 +900,29 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
     return true;
 }
 
-static void CollectDirectlyStaticallyLinkedProjects(const SolutionProject* project, std::unordered_set< const SolutionProject*>& outVisited, std::vector<const SolutionProject*>& outStaticallyLinked, int depth)
+struct LinkedProject
 {
-    // visit only once
+    const SolutionProject* project = nullptr;
+    bool staticallyLinked = false;
+};
+
+static void CollectDirectlyLinkedProjects(const SolutionProject* project, std::unordered_set< const SolutionProject*>& outVisited, std::vector<LinkedProject>& outLinkedProjects, int depth)
+{
     if (!outVisited.insert(project).second)
         return;
 
-    // this is a dynamically linked stuff
-    if (depth && project->type != ProjectType::StaticLibrary)
-        return;
-
-    // collect
-    outStaticallyLinked.push_back(project);
+    // collect only projects linked by the main one
+    if (depth)
+    {
+        LinkedProject entry;
+        entry.staticallyLinked = (project->type == ProjectType::StaticLibrary);
+        entry.project = project;
+        outLinkedProjects.push_back(entry);
+    }
 
     // check local dependencies
     for (const auto* dep : project->directDependencies)
-        CollectDirectlyStaticallyLinkedProjects(dep, outVisited, outStaticallyLinked, depth + 1);
+        CollectDirectlyLinkedProjects(dep, outVisited, outLinkedProjects, depth + 1);
 }
 
 bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* project, std::stringstream& f)
@@ -911,15 +943,23 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
     }
 
     // collect all projects that are STATICALLY linked to this project
-    std::vector<const SolutionProject*> staticallyLinkedProjects, orderedStaticallyLinkedProjects;
+    std::vector<LinkedProject> staticallyLinkedProjects, orderedStaticallyLinkedProjects;
     {
         std::unordered_set< const SolutionProject*> visited;
-        CollectDirectlyStaticallyLinkedProjects(project, visited, staticallyLinkedProjects, 0);
+        CollectDirectlyLinkedProjects(project, visited, staticallyLinkedProjects, 0);
 
         // collect in right order!
         for (const auto* dep : project->allDependencies)
-            if (Contains(staticallyLinkedProjects, dep))
-                orderedStaticallyLinkedProjects.push_back(dep);
+        {
+            for (const auto& linkedProject : staticallyLinkedProjects)
+            {
+                if (linkedProject.project == dep)
+                {
+                    orderedStaticallyLinkedProjects.push_back(linkedProject);
+                    break;
+                }
+            }
+        }                
     }
 
     // determine if project requires static initialization (the apps and console apps require that)
@@ -928,9 +968,17 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
     {
         // direct third party libraries used by this project
         std::unordered_set<const ExternalLibraryManifest*> exportedLibs;
-        for (const auto* proj : staticallyLinkedProjects)
-            for (const auto* dep : proj->libraryDependencies)
-                exportedLibs.insert(dep);
+        for (const auto& proj : staticallyLinkedProjects)
+        {
+            if (proj.staticallyLinked)
+            {
+                for (const auto* dep : proj.project->libraryDependencies)
+                    exportedLibs.insert(dep);
+            }
+        }
+
+		for (const auto* dep : project->libraryDependencies)
+			exportedLibs.insert(dep);
 
         if (!exportedLibs.empty())
         {
@@ -1029,23 +1077,47 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
         // initialize statically linked modules
         if (project->type != ProjectType::StaticLibrary)
         {
-		    for (const auto* dep : orderedStaticallyLinkedProjects)
+		    for (const auto& dep : orderedStaticallyLinkedProjects)
 		    {
-                if (dep != project && !dep->optionDetached)
+                if (dep.project->optionDetached || dep.project == project)
+                    continue;
+
+                if (dep.staticallyLinked)
                 {
-                    writelnf(f, "    extern void InitModule_%s(void*);", dep->name.c_str());
-                    writelnf(f, "    InitModule_%s(handle);", dep->name.c_str());
+                    writelnf(f, "    extern void InitModule_%s(void*);", dep.project->name.c_str());
+                    writelnf(f, "    InitModule_%s(handle);", dep.project->name.c_str());
+                }
+                else
+                {
+                    writelnf(f, "    onion::modules::LoadDynamicModule(\"%s\");", dep.project->name.c_str());
                 }
 			}
 		}
 
         // initialize self
-        if (project->optionUseStaticInit) {
-            writelnf(f, "    onion::modules::TModuleInitializationFunc initFunc = []() { InitializeReflection_%hs(); InitializeEmbeddedFiles_%hs(); };", project->name.c_str(), project->name.c_str(), project->name.c_str());
-            writelnf(f, "    onion::modules::RegisterModule(\"%hs\", __DATE__, __TIME__, _MSC_FULL_VER, initFunc);", project->name.c_str());
+        if (project->optionUseStaticInit)
+        {
+            std::stringstream dependenciesString;
+            bool first = true;
 
-            if (project->type == ProjectType::Application || project->type == ProjectType::TestApplication)
-                writelnf(f, "    onion::modules::InitializePendingModules();");
+            for (const auto* dep : project->allDependencies)
+            {
+                if (Contains<SolutionProject*>(project->directDependencies, (SolutionProject*)dep))
+                {
+                    if (dep->name == "core_system")
+                        continue;
+
+                    if (!first) dependenciesString << ";";
+                    first = false;
+                    dependenciesString << dep->name;
+                }
+            }
+
+            writelnf(f, "    const char* deps = \"%s\";", dependenciesString.str().c_str());
+
+            writelnf(f, "    onion::modules::TModuleInitializationFunc initFunc = []() { InitializeReflection_%hs(); InitializeEmbeddedFiles_%hs(); };", project->name.c_str(), project->name.c_str(), project->name.c_str());
+            writelnf(f, "    onion::modules::RegisterModule(\"%hs\", __DATE__, __TIME__, _MSC_FULL_VER, initFunc, deps);", project->name.c_str());
+            writelnf(f, "    onion::modules::InitializePendingModules();");
         }
         writeln(f, "}");
         writeln(f, "");

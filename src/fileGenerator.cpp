@@ -26,7 +26,7 @@ bool FileGenerator::saveFiles(bool print)
     }
     else*/
     {
-        #pragma omp parallel for
+        //#pragma omp parallel for
         for (int i = 0; i < files.size(); ++i)
         {
             const auto* file = files[i];
