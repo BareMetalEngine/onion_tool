@@ -24,8 +24,9 @@ struct AWSConfig
 {
 	std::string secret;
 	std::string key;
+	bool needsSecrets = false;
 
-	AWSConfig();
+	AWSConfig(bool needsSecrets);
 
 	bool init(const Commandline& cmdLine);
 

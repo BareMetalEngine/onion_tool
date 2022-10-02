@@ -10,6 +10,7 @@ enum class ProjectType : uint8_t
     StaticLibrary, // statically linked library
     SharedLibrary, // dynamically linked library
     AutoLibrary, // automatic library
+    RttiGenerator, // hack project to generate RTTI
 };
 
 enum class ProjectLibraryLinkType : uint8_t

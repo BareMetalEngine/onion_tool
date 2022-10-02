@@ -77,7 +77,7 @@ public:
     std::string_view get(std::string_view name, std::string_view defaultValue) const;
 
     bool has(std::string_view name) const;
-    bool parse(std::string_view text);    
+    bool parse(std::string_view text);
 };
 
 //--

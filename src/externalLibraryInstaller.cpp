@@ -54,6 +54,7 @@ fs::path ILibraryInstaller::buildLibraryManifestPath(std::string_view name, std:
 
 ExternalLibraryInstaller::ExternalLibraryInstaller(PlatformType platform, const fs::path& cacheDirectory)
 	: ILibraryInstaller(platform, cacheDirectory)
+	, m_aws(false)
 {
 }
 
@@ -65,7 +66,7 @@ bool ExternalLibraryInstaller::collect(const Commandline& cmdLine)
 	std::vector<AWSLibraryInfo> libs;
 	if (!AWS_S3_ListLibraries(m_aws, m_platform, libs))
 	{
-		std::cerr << KRED << "[BREAKING] Unable to retrieve library listing from the AWS endpoint, supporting infrastructure seems to be broken. Please use offline libraries.\n" << RST;
+		std::cerr << KRED << "[BREAKING] Unable to retrieve library listing from the AWS endpoint, supporting infrastructure seems to be broken. Please set path to offline downloaded libraries in ONION_OFFLINE_LIB_DIRECTORY and run generator again.\n" << RST;
 		return false;
 	}
 

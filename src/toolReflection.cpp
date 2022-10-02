@@ -31,7 +31,7 @@ static bool ProjectsNeedsReflectionUpdate(const fs::path& reflectionFile, const 
         bool hasChangedDetected = false;
         for (const auto* file : files)
         {
-            const auto sourceFileTimestamp = fs::last_write_time(file->absoluitePath);
+            const auto sourceFileTimestamp = fs::last_write_time(file->absolutePath);
           //  std::cout << "Timestamp for source " << file->absoluitePath << ": " << sourceFileTimestamp.time_since_epoch().count() << "\n";
 
             if (sourceFileTimestamp > reflectionFileTimestamp)
@@ -40,7 +40,7 @@ static bool ProjectsNeedsReflectionUpdate(const fs::path& reflectionFile, const 
                 {
                     //std::cout << "Reflection timestamp for " << reflectionFile << ": " << reflectionFileTimestamp.time_since_epoch().count() << "\n";
                     //std::cout << "Timestamp for source " << file->absoluitePath << ": " << sourceFileTimestamp.time_since_epoch().count() << "\n";
-                    std::cout << "Detected change in file " << file->absoluitePath << ", reflection has to be scanned for project\n";
+                    std::cout << "Detected change in file " << file->absolutePath << ", reflection has to be scanned for project\n";
                     outNewstTimestamp = sourceFileTimestamp;
 					hasChangedDetected = true;
                 }
@@ -63,17 +63,183 @@ static bool ProjectsNeedsReflectionUpdate(const fs::path& reflectionFile, const 
     }
 }
 
-/*bool ProjectReflection::extractFromList(const fs::path& fileList)
+template <typename TP>
+std::string print_time(TP tp)
+{
+	using namespace std::chrono;
+	auto sctp = time_point_cast<system_clock::duration>(tp - TP::clock::now()
+		+ system_clock::now());
+
+	auto tt = system_clock::to_time_t(sctp);
+	std::tm* gmt = std::gmtime(&tt);
+	std::stringstream buffer;
+	buffer << std::put_time(gmt, "%A, %d %B %Y %H:%M");
+	return buffer.str();
+}
+
+bool ProjectReflection::GetFileTime(const fs::path& path, fs::file_time_type& outLastWriteTime)
+{
+    try
+    {
+        std::error_code ec;
+        outLastWriteTime = fs::last_write_time(path, ec);
+        //std::cout << "Last write time " << path << ": " << print_time(outLastWriteTime) << "\n";
+        return !ec;
+    }
+	catch (...)
+	{
+		return false;
+	}
+}
+
+bool ProjectReflection::CheckFileUpToDate(const fs::file_time_type& referenceTime, const fs::path& path)
+{
+    fs::file_time_type lastModificationTime;
+    if (!GetFileTime(path, lastModificationTime))
+    {
+        std::cout << "Compact list not up to date because " << path << " does not exist\n";
+        return false; // file does not exist
+    }
+
+    if (lastModificationTime > referenceTime)
+    {
+		std::cout << "Compact list not up to date because " << path << " was modified: " << print_time(lastModificationTime) << " > " << print_time(referenceTime) << "\n";
+		return false; // file does not exist
+    }
+
+    return true;
+}
+
+bool ProjectReflection::CheckIfCompactListUpToDate(const fs::path& outputFilePath, const std::vector<CompactProjectInfo>& compactProjects)
+{
+    fs::file_time_type referenceTime;
+    if (!GetFileTime(outputFilePath, referenceTime))
+    {
+        std::cout << "Compact list not up to date because " << outputFilePath << " does not exist\n";
+        return false; // there's no compact list xD
+    }
+
+    for (const auto& proj : compactProjects)
+    {
+        if (!CheckFileUpToDate(referenceTime, proj.sourceDirectoryPath))
+            return false;
+		if (!CheckFileUpToDate(referenceTime, proj.vxprojFilePath))
+			return false;
+    }
+
+    return true; // file list seems to be up to date
+}
+
+bool ProjectReflection::LoadCompactProjectsFromFileList(const fs::path& inputFilePath, std::vector<CompactProjectInfo>& outCompactProjects)
+{
+    try
+    {
+        std::ifstream file(inputFilePath);
+
+        std::string str;
+        while (std::getline(file, str))
+        {
+            if (str == "PROJECT")
+            {
+                CompactProjectInfo info;
+                std::getline(file, info.name);
+                std::getline(file, info.vxprojFilePath);
+                std::getline(file, info.sourceDirectoryPath);
+                std::getline(file, info.reflectionFilePath);
+                outCompactProjects.push_back(info);
+                continue;
+            }
+        }
+
+        std::cout << "Loaded " << outCompactProjects.size() << " project entries\n";
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << "Error parsing reflection list " << e.what() << "\n";
+        return false;
+    }
+
+    return true;
+}
+
+
+bool ProjectReflection::CollectSourcesFromDirectory(const fs::path& directoryPath, std::vector<fs::path>& outSources, fs::file_time_type& outTimeStamp)
+{
+	bool valid = true;
+
+	try
+	{
+		if (fs::is_directory(directoryPath))
+		{
+            outTimeStamp = std::max(outTimeStamp, fs::last_write_time(directoryPath));
+
+			for (const auto& entry : fs::directory_iterator(directoryPath))
+			{
+				const auto name = entry.path().filename().u8string();
+                if (name.c_str()[0] == '.')
+                    continue; // skip the hidden crap
+
+                if (entry.is_directory())
+                {
+                    valid &= CollectSourcesFromDirectory(entry.path(), outSources, outTimeStamp);
+                }
+                else if (entry.is_regular_file())
+                {
+                    if (EndsWith(name, ".cpp") && name != "reflection.cpp" && name != "build.cpp")
+                    {
+                        auto path = fs::path(entry.path()).make_preferred();
+                        outSources.push_back(path);
+
+                        outTimeStamp = std::max(outTimeStamp, fs::last_write_time(path));
+                    }
+                }
+			}
+		}
+	}
+	catch (fs::filesystem_error& e)
+	{
+		std::cout << "Filesystem Error: " << e.what() << "\n";
+		valid = false;
+	}
+
+	return valid;
+}
+
+void ProjectReflection::PrintExpandedFileList(std::stringstream& f, const std::vector<CompactProjectInfo>& compactProjects)
+{
+	for (const auto& proj : compactProjects)
+	{
+        writeln(f, "PROJECT");
+        writeln(f, proj.name);
+        writeln(f, fs::path(proj.reflectionFilePath).u8string());
+		for (const auto& filePath : proj.sourceFiles)
+			writeln(f, filePath.u8string().c_str());
+	}
+}
+
+void ProjectReflection::PrintReadTlog(std::stringstream& f, const std::vector<CompactProjectInfo>& compactProjects)
+{
+    writeln(f, GetExecutablePath()); // rebuild every time onion changes as well
+
+    for (const auto& proj : compactProjects)
+    {
+        writeln(f, fs::path(proj.vxprojFilePath).make_preferred().u8string().c_str());
+        for (const auto& filePath : proj.sourceFiles)
+            writeln(f, filePath.u8string().c_str());
+    }
+}
+
+void ProjectReflection::PrintWriteTlog(std::stringstream& f, const std::vector<CompactProjectInfo>& compactProjects)
+{
+	for (const auto& proj : compactProjects)
+		writeln(f, fs::path(proj.reflectionFilePath).make_preferred().u8string().c_str());
+}
+
+bool ProjectReflection::extractFromExpandedList(const fs::path& fileList)
 {
     try
     {
         std::ifstream file(fileList);
-
-        {
-            std::string str;
-            std::getline(file, str);
-            std::getline(file, str);            
-        }
 
         RefelctionProject* project = nullptr;
 
@@ -88,17 +254,18 @@ static bool ProjectsNeedsReflectionUpdate(const fs::path& reflectionFile, const 
 
                 std::getline(file, project->mergedName);
                 std::getline(file, str);
-                project->reflectionFilePath = str;
+                project->reflectionFilePath = fs::path(str).make_preferred();
                 continue;
             }
 
             if (project)
             {
                 auto* file = new RefelctionFile();
-                file->absoluitePath = str;
+                file->absolutePath = str;
+                file->tokenized.contextPath = str;
                 project->files.push_back(file);
 
-				numFiles += 1;
+                numFiles += 1;
             }
         }
 
@@ -111,8 +278,69 @@ static bool ProjectsNeedsReflectionUpdate(const fs::path& reflectionFile, const 
     }
 
     return true;
-}*/
+}
 
+bool ProjectReflection::extractFromCompactList(const fs::path& fileList, const fs::path& outputReadTlog, const fs::path& outputWriteTlog)
+{
+    // load the compact project list - just the basic information that does not depend on the directory content
+    std::vector<CompactProjectInfo> compactProjects;
+    LoadCompactProjectsFromFileList(fileList, compactProjects);
+
+    // read/write tlogs
+    bool hasValidTlogs = true;
+    if (!outputWriteTlog.empty()) hasValidTlogs &= fs::is_regular_file(outputWriteTlog);
+    if (!outputReadTlog.empty()) hasValidTlogs &= fs::is_regular_file(outputReadTlog);
+
+    // check if need to expand the file list
+    auto fileListExpanded = fileList;
+    fileListExpanded += ".expanded";
+    if (!CheckIfCompactListUpToDate(fileListExpanded, compactProjects) || !hasValidTlogs)
+    {
+        // expand the projects (basically collect source files)
+        fs::file_time_type expandedTimestamp;
+        for (auto& proj : compactProjects)
+        {
+            if (!CollectSourcesFromDirectory(proj.sourceDirectoryPath, proj.sourceFiles, expandedTimestamp))
+                return false;
+
+            // make sure to include source directory and project file in the reflection BS
+            expandedTimestamp = std::max(expandedTimestamp, fs::last_write_time(proj.vxprojFilePath));
+            expandedTimestamp = std::max(expandedTimestamp, fs::last_write_time(proj.sourceDirectoryPath));
+
+            std::sort(proj.sourceFiles.begin(), proj.sourceFiles.end());
+        }
+
+		// write read tlog
+		if (!outputReadTlog.empty())
+		{
+			std::stringstream str;
+			PrintReadTlog(str, compactProjects);
+			SaveFileFromString(outputReadTlog, str.str(), false, false, nullptr, expandedTimestamp);
+		}
+
+		// write read tlog
+		if (!outputWriteTlog.empty())
+		{
+			std::stringstream str;
+			PrintWriteTlog(str, compactProjects);
+			SaveFileFromString(outputWriteTlog, str.str(), false, false, nullptr, expandedTimestamp);
+		}
+
+        // write expanded file
+        // NOTE: should be written LAST (after tlogs)
+        {
+            std::stringstream str;
+            PrintExpandedFileList(str, compactProjects);
+            SaveFileFromString(fileListExpanded, str.str(), false, false, nullptr, expandedTimestamp);
+            GetFileTime(fileListExpanded, expandedTimestamp);
+        }
+    }
+
+    // load the expanded list and continue
+    return extractFromExpandedList(fileListExpanded);
+}
+
+#if 0
 bool ProjectReflection::extractFromArgs(const std::string& fileList, const std::string& projectName, const fs::path& outputFile)
 {
 	std::string txt;
@@ -133,6 +361,7 @@ bool ProjectReflection::extractFromArgs(const std::string& fileList, const std::
 
     return extractFromFileList(filePathsEx, projectName, outputFile);
 }
+#endif
 
 bool ProjectReflection::extractFromFileList(const std::vector<fs::path>& filePaths, const std::string& projectName, const fs::path& outputFile)
 {
@@ -151,7 +380,7 @@ bool ProjectReflection::extractFromFileList(const std::vector<fs::path>& filePat
         if (EndsWith(fileName.c_str(), ".cpp"))
         {
             auto* file = new RefelctionFile();
-            file->absoluitePath = path;
+            file->absolutePath = path;
             file->tokenized.contextPath = path;
             project->files.push_back(file);
         }
@@ -198,13 +427,13 @@ bool ProjectReflection::tokenizeFiles()
         auto* file = files[i];
 
         std::string content;
-        if (LoadFileToString(file->absoluitePath, content))
+        if (LoadFileToString(file->absolutePath, content))
         {
             valid &= file->tokenized.tokenize(content);
         }
         else
         {
-            std::cout << "Failed to load content of file " << file->absoluitePath << "\n";
+            std::cout << "Failed to load content of file " << file->absolutePath << "\n";
             valid = false;
         }
     }
@@ -222,7 +451,7 @@ bool ProjectReflection::parseDeclarations()
         auto* file = files[i];
         if (!file->tokenized.process())
         {
-            std::cerr << KRED << "[BREKAING] Failed to process declaration from " << file->absoluitePath << "\n" << RST;
+            std::cerr << KRED << "[BREKAING] Failed to process declaration from " << file->absolutePath << "\n" << RST;
             valid = 0;
         }
     }
@@ -409,32 +638,23 @@ bool ToolReflection::runStatic(FileGenerator& fileGenerator, const std::vector<f
 
 int ToolReflection::run(const Commandline& cmdline)
 {
-    std::string fileListPath = cmdline.get("list");
-    if (fileListPath.empty())
-    {
-        std::cout << "Reflection file list must be specified by -list\n";
-        return 1;
-    }    
-
-	std::string projectName = cmdline.get("project");
-	if (projectName.empty())
-	{
-		std::cout << "Reflection project name must be specified by -project\n";
-		return 1;
-	}
-
-	std::string outputFilePath = cmdline.get("output");
-	if (outputFilePath.empty())
-	{
-		std::cout << "Reflection output file path must be specified by -output\n";
-		return 1;
-	}
-
 	ProjectReflection reflection;
-	if (!reflection.extractFromArgs(fileListPath, projectName, outputFilePath))
-		return 2;
+    {
+        std::string fileListPath = cmdline.get("list");
+        if (fileListPath.empty())
+        {
+            std::cout << "Reflection file list must be specified by -list\n";
+            return 1;
+        }
 
-    if (!reflection.filterProjects())
+        const auto readTlogPath = fs::path(cmdline.get("readTlog")).make_preferred();
+        const auto writeTlogPath = fs::path(cmdline.get("writeTlog")).make_preferred();
+
+        if (!reflection.extractFromCompactList(fs::path(fileListPath), readTlogPath, writeTlogPath))
+            return 2;
+    }
+
+	if (!reflection.filterProjects())
         return 2;
 
     if (reflection.files.empty() && reflection.projects.empty())

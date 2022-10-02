@@ -1218,7 +1218,7 @@ int ToolLibrary::run(const Commandline& cmdline)
 
 	//--
 
-	AWSConfig aws;
+	AWSConfig aws(true);
 	if (config.upload)
 	{
 		if (!aws.init(cmdline))

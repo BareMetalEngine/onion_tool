@@ -157,7 +157,7 @@ protected:
 	bool generateProjectTestMainSourceFile(const SolutionProject* project, std::stringstream& outContent);
 
     bool generateSolutionEmbeddFileList(std::stringstream& outContent);
-    bool generateSolutionReflectionFileList(std::stringstream& outContent);
+	bool generateSolutionReflectionFileProcessingList(std::stringstream& outContent);
 	bool generateSolutionFstabFile(std::stringstream& outContent);
 
     SolutionGroup* findOrCreateGroup(std::string_view name, SolutionGroup* parent);

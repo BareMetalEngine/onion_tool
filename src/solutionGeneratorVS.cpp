@@ -39,9 +39,7 @@ void SolutionGeneratorVS::printSolutionDeclarations(std::stringstream& f, const 
         auto projectFilePath = p->projectPath / p->name;
         projectFilePath += ".vcxproj";
 
-        const auto shortName = PartAfterLast(p->name, "_", true);
-
-        writelnf(f, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%s\", \"%s\", \"%s\"", std::string(shortName).c_str(), projectFilePath.u8string().c_str(), p->assignedVSGuid.c_str());
+        writelnf(f, "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%s\", \"%s\", \"%s\"", std::string(p->name).c_str(), projectFilePath.u8string().c_str(), p->assignedVSGuid.c_str());
 
         /*for (const auto* dep : p->directDependencies)
         {
@@ -227,17 +225,30 @@ bool SolutionGeneratorVS::generateProjects(FileGenerator& gen)
                 valid &= generateSourcesProjectFilters(p, file->content);
             }
         }
-        /*else if (p->originalProject->type == ProjectType::RttiGenerator)
+        else if (p->type == ProjectType::RttiGenerator)
         {
+			auto reflectionListPath = (p->projectPath / "reflection.txt").make_preferred();
+            //auto reflectionTlogPath = (p->projectPath / "reflection.tlog").make_preferred();
+
+			/*{
+				auto* file = gen.createFile(reflectionTlogPath);
+				valid &= generateSolutionReflectionFileTlogList(file->content);
+			}*/
+
+			{
+				auto* file = gen.createFile(reflectionListPath);
+				valid &= generateSolutionReflectionFileProcessingList(file->content);
+			}
+
             {
                 auto projectFilePath = p->projectPath / p->name;
                 projectFilePath += ".vcxproj";
 
                 auto* file = gen.createFile(projectFilePath);
-                valid &= generateRTTIGenProjectFile(p, file->content);
+                valid &= generateRTTIGenProjectFile(p, reflectionListPath, file->content);
             }
         }
-        else if (p->originalProject->type == ProjectType::EmbeddedMedia)
+        /*else if (p->originalProject->type == ProjectType::EmbeddedMedia)
         {
             {
                 auto projectFilePath = p->projectPath / p->name;
@@ -374,6 +385,11 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
         }
 
 		writelnf(f, " 	<ProjectOnionExecutable>%s</ProjectOnionExecutable>", m_config.executablePath.u8string().c_str());
+    }
+
+    if (project->optionUseReflection)
+    {
+        writeln(f, "    <ProjectGenerateReflection>yes</ProjectGenerateReflection>");
     }
 
 	if (project->optionWarningLevel == 0)
@@ -847,8 +863,9 @@ bool SolutionGeneratorVS::generateEmbeddedMediaProjectFile(const SolutionProject
 
     return true;
 }
+#endif
 
-bool SolutionGeneratorVS::generateRTTIGenProjectFile(const SolutionProject* project, std::stringstream& f) const
+bool SolutionGeneratorVS::generateRTTIGenProjectFile(const SolutionProject* project, const fs::path& reflectionListPath, std::stringstream& f) const
 {
     writeln(f, "<?xml version=\"1.0\" encoding=\"utf-8\"?>");
     writeln(f, "<!-- Auto generated file, please do not edit -->");
@@ -873,7 +890,7 @@ bool SolutionGeneratorVS::generateRTTIGenProjectFile(const SolutionProject* proj
     writelnf(f, "  <ProjectGuid>%s</ProjectGuid>", project->assignedVSGuid.c_str());
     writeln(f,  "  <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>");
     writelnf(f, " 	<ProjectOutputPath>%s\\</ProjectOutputPath>", project->outputPath.u8string().c_str());
-    writelnf(f, " 	<ProjectPublishPath>%s\\</ProjectPublishPath>", m_config.deployPath.u8string().c_str());
+    writelnf(f, " 	<ProjectPublishPath>%s\\</ProjectPublishPath>", m_config.derivedBinaryPath.u8string().c_str());
     writeln(f,  "</PropertyGroup>");
     writeln(f,  "  <PropertyGroup>");
     writeln(f,  "    <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>");
@@ -884,16 +901,11 @@ bool SolutionGeneratorVS::generateRTTIGenProjectFile(const SolutionProject* proj
     {
         std::stringstream cmd;
         f << "      <Command>";
-        f << m_config.builderExecutablePath.u8string() << " ";
-        f << "-tool=reflection ";
-
-        const auto reflectionListPath = project->generatedPath / "rtti_list.txt";
-        f << "-list= \"" << reflectionListPath.u8string() << "\"";
-        /*f << "-build=" << NameEnumOption(m_config.build) << " ";
-        f << "-config=" << NameEnumOption(m_config.configuration) << " ";
-        f << "-platform=" << NameEnumOption(m_config.platform) << " ";
-        f << "-libs=" << NameEnumOption(m_config.libs) << " ";
-        f << "-generator=" << NameEnumOption(m_config.generator) << " ";*/
+        f << m_config.executablePath.u8string() << " ";
+        f << "reflection ";
+        f << "-list=\"" << reflectionListPath.u8string() << "\" ";
+        f << "-readTlog=\"$(TLogLocation)Reflection.read.1u.tlog\" ";
+        f << "-writeTlog=\"$(TLogLocation)Reflection.write.1u.tlog\" ";
         f << "</Command>\n";
     }
 
@@ -910,6 +922,5 @@ bool SolutionGeneratorVS::generateRTTIGenProjectFile(const SolutionProject* proj
 
     return true;
 }
-#endif
 
 //--

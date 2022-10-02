@@ -722,7 +722,7 @@ int ToolConfigure::run(const Commandline& cmdline)
 		auto libraryInstaller = ILibraryInstaller::MakeLibraryInstaller(config.platform, config.cachePath);
 		if (!libraryInstaller->collect(cmdline))
 		{
-			std::cerr << KRED << "[BREAKING] Offline library repository failed to initialize\n" << RST;
+			std::cerr << KRED << "[BREAKING] Third party library repository failed to initialize\n" << RST;
 			return 1;
 		}
 

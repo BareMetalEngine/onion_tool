@@ -292,30 +292,45 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
 			proj->optionUseEmbeddedFiles = false;
     }
 
-    // create the _rtti_generator project
-    /*{
-        bool needsRttiGenerator = false;
-
-        if (auto* coreObjectsProject = findProject("core_object"))
+    // create the _rtti_generator project and make everybody a dependency
+    {
+        if (auto* coreObjectsProject = findProject("core/object"))
         {
-            // scan all project for the need of RTTI generator
-            for (auto* proj : m_projects)
-            {
-                if (proj->type == ProjectType::Application || proj->type == ProjectType::SharedLibrary || proj->type == ProjectType::SharedLibrary)
-                {
-                    // determine if the project depends on the core object project, if so it can has rtti generator
-                    if (Contains(proj->allDependencies, coreObjectsProject))
-                    {
-                        needsRttiGenerator = true;
-                        proj->hasReflection = true;
-                    }
-                }
-            }
+			// create wrapper
+			auto* generatorProject = new SolutionProject;
+			generatorProject->type = ProjectType::RttiGenerator;
+			generatorProject->name = "_rtti_generator";
 
-            // TODO: create rtti generator project ?
+			// paths
+			generatorProject->rootPath = fs::path(); // not coming from source
+			generatorProject->generatedPath = m_config.derivedSolutionPath / "generated" / generatorProject->name;
+			generatorProject->projectPath = m_config.derivedSolutionPath / "projects" / generatorProject->name;
+			generatorProject->outputPath = m_config.derivedSolutionPath / "output" / generatorProject->name;
 
+			// options
+			generatorProject->optionUsePrecompiledHeaders = false;
+			generatorProject->optionGenerateMain = false;
+			generatorProject->optionUseStaticInit = false;
+			generatorProject->optionUseWindowSubsystem = false;
+			generatorProject->optionWarningLevel = false;
+			generatorProject->optionUseExceptions = false;
+			generatorProject->optionDetached = false;
+			generatorProject->optionExportApplicataion = false;
+			generatorProject->optionUseEmbeddedFiles = false;
+            generatorProject->assignedVSGuid = GuidFromText("_rtti_generator");
+
+            // make sure all projects depend on the RTTI generator
+            for (auto* project : m_projects)
+                project->directDependencies.push_back(generatorProject);
+
+			// register in solution and map
+			m_projects.push_back(generatorProject);
+			m_projectNameMap[generatorProject->name] = generatorProject;
+
+            // add to the root group
+            m_rootGroup->projects.push_back(generatorProject);
         }
-    }*/   
+    }
 
     // build final project list
     {
@@ -450,6 +465,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
 
     // generate reflection file
     {
+#if 0
 		if (project->optionUseReflection)
 		{
 			const auto reflectionFilePath = (project->generatedPath / "reflection.txt").make_preferred();
@@ -466,6 +482,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
 				if (file->type == ProjectFileType::CppSource && file->name != "reflection.cpp")
 					writelnf(generatedFile->content, "%s", file->absolutePath.u8string().c_str());
 		}
+#endif
 
         if (project->optionUseReflection)
         {
@@ -1279,38 +1296,53 @@ bool SolutionGenerator::generateProjectBuildHeaderFile(const SolutionProject* pr
     return true;
 }
 
-bool SolutionGenerator::generateSolutionReflectionFileList(std::stringstream& f)
+#if 0
+bool SolutionGenerator::generateSolutionReflectionFileTlogList(std::stringstream& f)
 {
-    /*writeln(f, NameEnumOption(m_config.platform));
-    writeln(f, NameEnumOption(m_config.build));
+    f << m_config.executablePath.u8string() << "\n";
 
     uint32_t numReflectedFiles = 0;
-    uint32_t numTotalFiles = 0;
     for (const auto* proj : m_projects)
     {
-        if (!proj->originalProject)
-            continue;
-
-        numTotalFiles += (uint32_t)proj->files.size();
-
-        if (proj->hasReflection)
+        for (const auto* file : proj->files)
         {
-            writelnf(f, "PROJECT");
-            writelnf(f, "%hs", proj->mergedName.c_str());
-            writelnf(f, "%hs", proj->localReflectionFile.u8string().c_str());
-
-            for (const auto* file : proj->files)
+            if (file->type == ProjectFileType::CppSource)
             {
-                if (file->type == ProjectFileType::CppSource)
-                {
-                    writelnf(f, "%hs", file->absolutePath.u8string().c_str());
-                    numReflectedFiles += 1;
-                }
+				if (file->name == "build.cpp" || file->name == "reflection.cpp")
+					continue;
+
+                f << file->absolutePath.u8string() << "\n";
+                numReflectedFiles += 1;
             }
         }
     }
 
-    std::cout << "Found " << numReflectedFiles << " source code files for reflection of (" << numTotalFiles << " total)\n";*/
+    std::cout << "Found " << numReflectedFiles << " source code files for reflection\n";
+    return true;
+}
+#endif
+
+bool SolutionGenerator::generateSolutionReflectionFileProcessingList(std::stringstream& f)
+{
+    for (const auto* proj : m_projects)
+    {
+        if (!proj->localReflectionFile.empty() && !proj->rootPath.empty())
+        {
+            auto projectFilePath = (proj->projectPath / proj->name);
+            projectFilePath += ".vcxproj";
+            projectFilePath.make_preferred();
+
+			auto projectSourceDirectory = (proj->rootPath / "src");
+            projectSourceDirectory.make_preferred();
+
+            writelnf(f, "PROJECT");
+            writelnf(f, "%hs", proj->name.c_str());
+            writelnf(f, "%hs", projectFilePath.u8string().c_str());
+			writelnf(f, "%hs", projectSourceDirectory.u8string().c_str());
+            writelnf(f, "%hs", proj->localReflectionFile.u8string().c_str());
+        }
+    }
+
     return true;
 }
 

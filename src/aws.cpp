@@ -7,34 +7,38 @@
 
 //--
 
-AWSConfig::AWSConfig()
+AWSConfig::AWSConfig(bool withSecrets)
+	: needsSecrets(withSecrets)
 {
 }
 
 bool AWSConfig::init(const Commandline& cmdLine)
 {
+	if (needsSecrets)
 	{
-		secret = cmdLine.get("awsSecret");
-		if (secret.empty())
 		{
-			secret = GetSecret();
+			secret = cmdLine.get("awsSecret");
 			if (secret.empty())
 			{
-				std::cerr << KRED << "[BREAKING] Unable to retrieve AWS secret\n" << RST;
-				return false;
+				secret = GetSecret();
+				if (secret.empty())
+				{
+					std::cerr << KRED << "[BREAKING] Unable to retrieve AWS secret\n" << RST;
+					return false;
+				}
 			}
 		}
-	}
 
-	{
-		key = cmdLine.get("awsKey");
-		if (key.empty())
 		{
-			key = GetKey();
+			key = cmdLine.get("awsKey");
 			if (key.empty())
 			{
-				std::cerr << KRED << "[BREAKING] Unable to retrieve AWS key\n" << RST;
-				return false;
+				key = GetKey();
+				if (key.empty())
+				{
+					std::cerr << KRED << "[BREAKING] Unable to retrieve AWS key\n" << RST;
+					return false;
+				}
 			}
 		}
 	}
@@ -590,6 +594,12 @@ bool AWS_S3_UploadFile(const AWSConfig& aws, const fs::path& filePath, std::stri
 #endif
 
 	//--
+
+	if (!aws.needsSecrets)
+	{
+		std::cerr << KRED << "[BREAKING] AWS handler initialized without secrets, upload impossible\n" << RST;
+		return false;
+	}
 
 	std::string contentHash;
 	if (!Sha256OfFile(filePath, contentHash))

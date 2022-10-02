@@ -22,7 +22,7 @@ private:
     bool generateSourcesProjectFilters(const SolutionProject* project, std::stringstream& outContent) const;
     bool generateSourcesProjectFileEntry(const SolutionProject* project, const SolutionProjectFile* file, std::stringstream& f) const;
 
-    //bool generateRTTIGenProjectFile(const SolutionProject* project, std::stringstream& outContent) const;
+    bool generateRTTIGenProjectFile(const SolutionProject* project, const fs::path& reflectionListPath, std::stringstream& outContent) const;
     //bool generateEmbeddedMediaProjectFile(const SolutionProject* project, std::stringstream& outContent) const;
 
     void extractSourceRoots(const SolutionProject* project, std::vector<fs::path>& outPaths) const;

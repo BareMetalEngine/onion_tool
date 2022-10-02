@@ -18,7 +18,7 @@
     <Error Text="Failed to compile embedded media from '%(EmbeddedMedia.Filename)%(Extension)'" Condition="!Exists('$(ProjectGeneratedPath)EmbeddedMedia_$(ProjectName)_%(Filename)_data.cpp')" />
   </Target>-->
 
-  <!-- Bison grammar compiler -->
+  <!-- cmd grammar compiler -->
   <Target Name="_WriteBisonTlogs" Condition="'@(BisonScripts)' != ''">
 	<ItemGroup Condition="'@(BisonScripts)' != ''">
 		<_BisonReadTlog Include="^%(BisonScripts.FullPath)" />
@@ -65,7 +65,7 @@
 	  <Delete Files="@(BisonScripts->'$(ProjectGeneratedPath)%(Filename)_Parser.output')" />
   </Target>
 
-  <!-- Reflection builder -->
+  <!-- Reflection builder
   <Target Name="_WriteReflectionTlogs">
 	<WriteLinesToFile
 		File="$(TLogLocation)Reflection.read.1u.tlog"
@@ -76,19 +76,19 @@
 	
   <Target Name="GenerateReflection" BeforeTargets="ClCompile" DependsOnTargets="_WriteReflectionTlogs"
 	Inputs="@(ClCompile);$(ProjectGeneratedPath)reflection.txt"
-	Condition="'@(ClCompile)' != '' and '$(ProjectOnionExecutable)' != ''"
+	Condition="'@(ClCompile)' != '' and '$(ProjectOnionExecutable)' != '' and '$(ProjectGenerateReflection)' == 'yes'"
 	Outputs="$(ProjectGeneratedPath)reflection.cpp">
 	<Message Text="Generating reflection..." Importance="high" />
 	<Error Text="Onion tool was not found, was the Onion Build Tool installed properly?" Condition="!Exists('$(ProjectOnionExecutable)')" />
-	<!--WriteLinesToFile File="$(ProjectGeneratedPath)reflection.txt" Lines="@(ClCompile)" Overwrite="true" WriteOnlyWhenDifferent="true" /-->
+	<WriteLinesToFile File="$(ProjectGeneratedPath)reflection.txt" Lines="@(ClCompile)" Overwrite="true" WriteOnlyWhenDifferent="true" />
     <Exec Command="$(ProjectOnionExecutable) reflection -nologo -project=$(ProjectName) -list=&quot;$(ProjectGeneratedPath)reflection.txt&quot; -output=&quot;$(ProjectGeneratedPath)reflection.cpp&quot;"/>
   </Target>
 
   <Target Name="CleanReflection" BeforeTargets="Clean"
       Condition="'$(ProjectOnionExecutable)' != ''">
 	<Delete Files="$(ProjectGeneratedPath)reflection.cpp" />
-	  <!--Delete Files="$(ProjectGeneratedPath)reflection.txt" /-->
-  </Target>
+	  <! - -Delete Files="$(ProjectGeneratedPath)reflection.txt" /- ->
+  </Target-->
 
   <!-- Media file embedder -->
   <Target Name="_WriteMediaTlogs" Condition="'@(MediaFile)' != ''">

@@ -8,9 +8,19 @@ class FileGenerator;
 
 struct ProjectReflection
 {
+    struct CompactProjectInfo
+    {
+		std::string name;
+        std::string vxprojFilePath; // input
+        std::string sourceDirectoryPath; // input
+        std::string reflectionFilePath; // output
+
+		std::vector<fs::path> sourceFiles; // found
+    };
+
     struct RefelctionFile
     {
-        fs::path absoluitePath;
+        fs::path absolutePath;
         CodeTokenizer tokenized;
     };
 
@@ -27,12 +37,22 @@ struct ProjectReflection
 
     ~ProjectReflection();
 
-    bool extractFromArgs(const std::string& fileList, const std::string& projectName, const fs::path& outputFile);
+    bool extractFromExpandedList(const fs::path& fileList);
+    bool extractFromCompactList(const fs::path& fileList, const fs::path& outputReadTlog, const fs::path& outputWriteTlog);
     bool extractFromFileList(const std::vector<fs::path>& fileList, const std::string& projectName, const fs::path& outputFile);
     bool filterProjects();
     bool tokenizeFiles();
     bool parseDeclarations();
     bool generateReflection(FileGenerator& files) const;
+
+    static bool LoadCompactProjectsFromFileList(const fs::path& inputFilePath, std::vector<CompactProjectInfo>& outCompactProjects);
+    static bool CheckIfCompactListUpToDate(const fs::path& outputFilePath, const std::vector<CompactProjectInfo>& compactProjects);
+    static bool CheckFileUpToDate(const fs::file_time_type& referenceTime, const fs::path& path);
+    static bool GetFileTime(const fs::path& path, fs::file_time_type& outLastWriteTime);
+    static bool CollectSourcesFromDirectory(const fs::path& dir, std::vector<fs::path>& outSources, fs::file_time_type& outTimeStamp);
+    static void PrintExpandedFileList(std::stringstream& f, const std::vector<CompactProjectInfo>& compactProjects);
+    static void PrintReadTlog(std::stringstream& f, const std::vector<CompactProjectInfo>& compactProjects);
+    static void PrintWriteTlog(std::stringstream& f, const std::vector<CompactProjectInfo>& compactProjects);
 
 private:
     bool generateReflectionForProject(const RefelctionProject& p, std::stringstream& f) const;

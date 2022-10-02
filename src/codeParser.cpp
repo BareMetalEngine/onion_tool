@@ -546,7 +546,7 @@ bool CodeTokenizer::process()
 
             activeNamespace.clear();
         }
-        else if (token.text == "BEGIN_ONION_TYPE_ENUM")
+        else if (token.text == "BEGIN_ONION_TYPE_ENUM" || token.text == "RTTI_BEGIN_TYPE_ENUM")
         {
             if (activeNamespace.empty())
             {
@@ -576,7 +576,7 @@ bool CodeTokenizer::process()
 
             declarations.push_back(decl);
         }
-        else if (token.text == "BEGIN_ONION_TYPE_BITFIELD")
+        else if (token.text == "BEGIN_ONION_TYPE_BITFIELD" || token.text == "RTTI_BEGIN_TYPE_BITFIELD")
         {
             if (activeNamespace.empty())
             {
@@ -613,14 +613,8 @@ bool CodeTokenizer::process()
             || token.text == "RTTI_BEGIN_CUSTOM_TYPE"
             || token.text == "RTTI_BEGIN_TYPE_BITFIELD"
             || token.text == "RTTI_BEGIN_TYPE_ENUM"
-            || token.text == "RTTI_BEGIN_TYPE_STRUCT")
-        {
-            std::stringstream txt;
-		    txt << contextPath.u8string() << "(" << token.line << "): error: Outdated RTTI macro, switch to ONION macros\n";
-            std::cerr << txt.str();
-		    return false;
-        }
-        else if (token.text == "BEGIN_ONION_TYPE_RUNTIME_CLASS" 
+            || token.text == "RTTI_BEGIN_TYPE_STRUCT"
+            || token.text == "BEGIN_ONION_TYPE_RUNTIME_CLASS" 
             || token.text == "BEGIN_ONION_TYPE_ABSTRACT_CLASS"
             || token.text == "BEGIN_ONION_TYPE_CLASS"
             || token.text == "BEGIN_ONION_TYPE_STRUCT")
@@ -655,7 +649,7 @@ bool CodeTokenizer::process()
 
             declarations.push_back(decl);
         }
-        else if (token.text == "BEGIN_ONION_CUSTOM_TYPE")
+        else if (token.text == "BEGIN_ONION_CUSTOM_TYPE" || token.text == "RTTI_BEGIN_CUSTOM_TYPE")
         {
             if (activeNamespace.empty())
             {
@@ -686,7 +680,8 @@ bool CodeTokenizer::process()
 
             declarations.push_back(decl);
         }
-        else if (token.text == "RTTI_ONION_SCRIPT_GLOBAL_FUNCTION" || token.text == "RTTI_ONION_SCRIPT_GLOBAL_FUNCTION_EX")
+        else if (token.text == "RTTI_ONION_SCRIPT_GLOBAL_FUNCTION" || token.text == "RTTI_ONION_SCRIPT_GLOBAL_FUNCTION_EX"
+                || token.text == "RTTI_SCRIPT_GLOBAL_FUNCTION" || token.text == "RTTI_SCRIPT_GLOBAL_FUNCTION_EX")
         {
             if (activeNamespace.empty())
             {

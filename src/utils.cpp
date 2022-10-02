@@ -1197,6 +1197,12 @@ bool SaveFileFromString(const fs::path& path, std::string_view txt, bool force /
                         }
 
                         fs::last_write_time(path, customTime);
+
+                        auto newTime = fs::last_write_time(path);
+                        if (newTime != customTime)
+                        {
+                            std::cout << "Failed to update timestamp on " << path << "\n";
+                        }
                     }
 
                     return true;
