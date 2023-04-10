@@ -58,11 +58,6 @@ enum class GeneratorType : uint8_t {
 
 namespace fs = std::filesystem;
 
-static inline const std::string_view MODULE_MANIFEST_NAME = "module.onion";
-static inline const std::string_view PROJECT_MANIFEST_NAME = "project.onion";
-//static inline const std::string_view CONFIGURATION_NAME = ".config";
-//static inline const std::string_view BUILD_LIST_NAME = ".builds";
-
 #ifndef _WIN32
 #define _stricmp strcasecmp
 #define vsprintf_s(x, size, txt, args) vsprintf(x, txt, args)

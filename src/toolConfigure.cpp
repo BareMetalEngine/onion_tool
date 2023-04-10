@@ -110,15 +110,15 @@ bool ModuleResolver::exportToManifest(ModuleConfigurationManifest& cfg) const
 					continue;
 
 				// duplicated project ?
-				const auto it = projectsByName.find(proj->localRoot);
+				const auto it = projectsByName.find(proj->name);
 				if (it != projectsByName.end())
 				{
-					std::cerr << KRED << "[BREAKING] Project at path " << proj->localRoot << " is defined in more than one module, configuration is invalid\n" << RST;
+					std::cerr << KRED << "[BREAKING] Project '" << proj->name << "' is defined in more than one module, configuration is invalid\n" << RST;
 					return false;
 				}
 
 				// add to list
-				projectsByName[proj->localRoot] = proj;
+				projectsByName[proj->name] = proj;
 
 			}
 		}
@@ -176,10 +176,10 @@ bool ModuleResolver::exportToManifest(ModuleConfigurationManifest& cfg) const
 	return true;
 }
 
-bool ModuleResolver::processModuleFile(const fs::path& moduleDirectory, bool localFile)
+bool ModuleResolver::processModuleFile(const fs::path& moduleFilePath, bool localFile)
 {
 	// load main manifest
-	if (!processSingleModuleFile(moduleDirectory, localFile))
+	if (!processSingleModuleFile(moduleFilePath, localFile))
 		return false;
 
 	// resolved ALL dependencies in a recursive pattern
@@ -202,19 +202,18 @@ bool ModuleResolver::processModuleFile(const fs::path& moduleDirectory, bool loc
 	return true;
 }
 
-bool ModuleResolver::processSingleModuleFile(const fs::path& moduleDirectory, bool localFile)
+bool ModuleResolver::processSingleModuleFile(const fs::path& moduleManifestPath, bool localFile)
 {
-	const auto moduleManifestPath = (moduleDirectory / MODULE_MANIFEST_NAME).make_preferred();
 	if (!fs::is_regular_file(moduleManifestPath))
 	{
-		std::cerr << KRED << "[BREAKING] Module directory " << moduleManifestPath << " does not contain '" << MODULE_MANIFEST_NAME << "' file\n" << RST;
+		std::cerr << KRED << "[BREAKING] File " << moduleManifestPath << " doest not exist\n" << RST;
 		return false;
 	}
 
-	auto* manifest = ModuleManifest::Load(moduleManifestPath);
+	auto* manifest = ModuleManifest::Load(moduleManifestPath, localFile ? "" : "Extenral");
 	if (!manifest)
 	{
-		std::cerr << KRED << "[BREAKING] File " << moduleManifestPath << " does not contain valid '" << MODULE_MANIFEST_NAME << "' file\n" << RST;
+		std::cerr << KRED << "[BREAKING] File " << moduleManifestPath << " cannot be loaded\n" << RST;
 		return false;
 	}
 
@@ -232,7 +231,7 @@ bool ModuleResolver::processSingleModuleFile(const fs::path& moduleDirectory, bo
 			}
 			else
 			{
-				std::cout << KYEL << "Discarded remote module " << manifest->guid << " at " << mod->path << " as local version at " << moduleDirectory << " was found!\n" << RST;
+				std::cout << KYEL << "Discarded remote module " << manifest->guid << " at " << mod->path << " as local version at " << moduleManifestPath << " was found!\n" << RST;
 				m_modulesByGuid.erase(it);
 				delete mod;
 			}
@@ -243,7 +242,7 @@ bool ModuleResolver::processSingleModuleFile(const fs::path& moduleDirectory, bo
 		info->guid = manifest->guid;
 		info->local = localFile;
 		info->root = (m_modulesByGuid.size() == 0); // first module added is the root one
-		info->path = moduleDirectory;
+		info->path = moduleManifestPath;
 		info->manifest = manifest;
 		m_modulesByGuid[info->guid] = info;
 
@@ -253,11 +252,11 @@ bool ModuleResolver::processSingleModuleFile(const fs::path& moduleDirectory, bo
 	bool valid = true;
 
 	for (const auto& dep : manifest->moduleDependencies)
-		valid &= processSingleModuleDependency(moduleDirectory, dep);
+		valid &= processSingleModuleDependency(moduleManifestPath.parent_path(), dep);
 
 	if (!valid)
 	{
-		std::cerr << KRED << "[BREAKING] Failed to process dependencies of module " << manifest->guid << " loaded form " << moduleDirectory << "\n" << RST;
+		std::cerr << KRED << "[BREAKING] Failed to process dependencies of module " << manifest->guid << " loaded form " << moduleManifestPath << "\n" << RST;
 		return false;
 	}
 
@@ -269,10 +268,8 @@ bool ModuleResolver::processSingleModuleDependency(const fs::path& moduleDirecto
 	// local path ?
 	if (dep.gitRepoPath.empty())
 	{
-		const auto fullLocalPath = fs::weakly_canonical((moduleDirectory / dep.localRelativePath).make_preferred());
-		const auto fullLocalModuleFilePath = fullLocalPath / MODULE_MANIFEST_NAME;
-
-		if (!fs::is_regular_file(fullLocalModuleFilePath))
+		const auto fullLocalPath = fs::weakly_canonical((moduleDirectory / dep.localRelativePath / "build.xml").make_preferred());
+		if (!fs::is_regular_file(fullLocalPath))
 		{
 			std::cerr << KRED << "[BREAKING] Local relative path " << dep.localRelativePath << " resolved as " << fullLocalPath << " does not point to a valid module directory\n" << RST;
 			return false;
@@ -698,7 +695,7 @@ int ToolConfigure::run(const Commandline& cmdline)
 
 	// resolve all modules, download dependencies and libraries
 	ModuleResolver resolver(config.cachePath);
-	if (!resolver.processModuleFile(config.modulePath, true))
+	if (!resolver.processModuleFile(config.moduleFilePath, true))
 	{
 		std::cerr << KRED << "[BREAKING] Configuration failed\n" << RST;
 		return 1;

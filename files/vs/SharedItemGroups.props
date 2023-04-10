@@ -138,6 +138,7 @@
 
       <!-- We don't use exception handling by default -->
       <!-- ExceptionHandling Condition="'$(ProjectExceptionHandling)'==''">false</ExceptionHandling-->
+	  <ExceptionHandling>Sync</ExceptionHandling>
 
       <!-- PDB settings -->
       <!--ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName-->

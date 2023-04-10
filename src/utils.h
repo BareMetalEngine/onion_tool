@@ -305,7 +305,7 @@ V Find(const std::unordered_map<K, V>& ar, const K& data, const V& defaultData =
 template< typename K >
 bool Remove(std::vector<K>& ar, const K& data)
 {
-	auto it = ar.find(data);
+	auto it = std::find(ar.begin(), ar.end(), data);
     if (it != ar.end())
     {
         ar.erase(it);

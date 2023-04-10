@@ -7,7 +7,9 @@
 //--
 
 ModuleConfigurationManifest::ModuleConfigurationManifest()
-{}
+{
+	name = "moonshoot";
+}
 
 ModuleConfigurationManifest::~ModuleConfigurationManifest()
 {
@@ -51,9 +53,9 @@ static bool ParseConfigurationEntry(const XMLNode* node, ModuleConfigurationEntr
 		return false;
 
 	dep.path = fs::weakly_canonical(fs::absolute(manifestDirectory / path)).make_preferred();
-	if (!fs::is_directory(dep.path))
+	if (!fs::is_regular_file(dep.path))
 	{
-		std::cerr << KRED << "[BREAKING] Directory '" << dep.path << "' does not exist, loaded configuration is not valid\n" << RST;
+		std::cerr << KRED << "[BREAKING] Module manifest '" << dep.path << "' does not exist, loaded configuration is not valid\n" << RST;
 		return false;
 	}
 

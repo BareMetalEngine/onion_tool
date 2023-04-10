@@ -32,12 +32,10 @@ static bool ParseData(const XMLNode* node, const fs::path& moduleRootPath, Modul
 		{
 			// TODO: filter
 
-			if (option == "MountPath")
+			if (option == "VirtualPath")
 				data.mountPath = XMLNodeValue(node);
-			else if (option == "DataRoot")
+			else if (option == "SourcePath")
 				data.localSourcePath = XMLNodeValue(node);
-			else if (option == "Publish")
-				data.published = XMLNodeValueBool(node);
 			else
 			{
 				std::cerr << "Unknown module's manifest option '" << option << "' in Data block\n";
@@ -108,7 +106,7 @@ static bool IsValidProjectTag(std::string_view tag)
 	return false;
 }
 
-ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath)
+ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_view projectGroup)
 {
 	std::string txt;
 	if (!LoadFileToString(manifestPath, txt))
@@ -133,69 +131,137 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath)
 	}
 
 	auto ret = std::make_unique<ModuleManifest>();
-	ret->rootPath = manifestPath.parent_path().make_preferred();
-	ret->projectsRootPath = (ret->rootPath / "code").make_preferred();
-	ret->guid = XMLNodeAttrbiute(root, "guid");
-
-	// TODO: validate guid format
-	if (ret->guid.empty())
-	{
-		std::cerr << KRED << "[BREAKING] Module manifest XML at '" << ret->rootPath << "' has no guid specified\n" << RST;
-		return nullptr;
-	}
+	ret->guid = GuidFromText(manifestPath.u8string());
 
 	bool valid = true;
 
 	// TODO: author string
 	// TODO: license string
 
-	XMLNodeIterate(root, "ModuleDependency", [&ret, &valid](const XMLNode* node)
+	std::string localProjectGroup = std::string(projectGroup);
+
+	XMLNodeIterate(root, [&](const XMLNode* node, std::string_view name)
 		{
-			ModuleDepdencencyInfo dep;
-			if (ParseDependency(node, dep))
+			// TODO: evaluate condition
+			
+			// Include directive
+			if (name == "Include")
 			{
-				ret->moduleDependencies.push_back(dep);
+				const std::string relativePath = std::string(XMLNodeValue(node));
+				if (relativePath.empty())
+				{
+					std::cerr << KRED << "[BREAKING] Include expects a path to build.xml to include\n" << RST;
+					valid = false;
+				}
+				else
+				{
+					const fs::path includeManifestPath = fs::weakly_canonical((manifestPath.parent_path() / relativePath).make_preferred());
+					std::cout << "Including module manifest at " << includeManifestPath << "\n";
+
+					if (fs::is_regular_file(includeManifestPath))
+					{
+						if (auto* included = ModuleManifest::Load(includeManifestPath, localProjectGroup))
+						{
+							ret->moduleData.insert(ret->moduleData.end(), included->moduleData.begin(), included->moduleData.end());
+							ret->moduleDependencies.insert(ret->moduleDependencies.end(), included->moduleDependencies.begin(), included->moduleDependencies.end());
+							ret->projects.insert(ret->projects.end(), included->projects.begin(), included->projects.end());
+							ret->globalIncludePaths.insert(ret->globalIncludePaths.end(), included->globalIncludePaths.begin(), included->globalIncludePaths.end());
+						}
+						else
+						{
+							std::cerr << KRED << "[BREAKING] Specified include module " << includeManifestPath << " failed to load\n" << RST;
+							valid = false;
+						}
+					}
+					else
+					{
+						std::cerr << KRED << "[BREAKING] Specified include module " << includeManifestPath << " does not exist\n" << RST;
+						valid = false;
+					}
+				}
 			}
+
+			// Dependency on external module
+			else if (name == "ModuleDependency")
+			{
+				ModuleDepdencencyInfo dep;
+				if (ParseDependency(node, dep))
+				{
+					ret->moduleDependencies.push_back(dep);
+				}
+				else
+				{
+					std::cerr << KRED << "[BREAKING] Module manifest XML at '" << manifestPath << "' has invalid dependency definition\n" << RST;
+					valid = false;
+				}
+			}
+
+			// Data mapping
+			else if (name == "Data")
+			{
+				ModuleDataInfo data;
+				if (ParseData(node, manifestPath.parent_path(), data))
+				{
+					ret->moduleData.push_back(data);
+				}
+				else
+				{
+					std::cerr << KRED << "[BREAKING] Module manifest XML at '" << manifestPath << "' has invalid data definition\n" << RST;
+					valid = false;
+				}
+			}
+
+			// Solution project group
+			else if (name == "ProjectGroupName")
+			{
+				localProjectGroup = std::string(XMLNodeValue(node));
+			}
+
+			// Global include directory
+			else if (name == "GlobalIncludePath")
+			{
+				const std::string relativePath = std::string(XMLNodeValue(node));
+				if (relativePath.empty())
+				{
+					std::cerr << KRED << "[BREAKING] GlobalIncludePath expects a valid path, use './' to indicate current directory\n" << RST;
+					valid = false;
+				}
+				else
+				{
+					const fs::path globalIncludePath = fs::weakly_canonical((manifestPath.parent_path() / relativePath).make_preferred());
+					std::cout << "Found global include path " << globalIncludePath << "\n";
+
+					if (fs::is_directory(globalIncludePath))
+					{
+						PushBackUnique(ret->globalIncludePaths, globalIncludePath);
+					}
+					else
+					{
+						std::cerr << KRED << "[BREAKING] Specified global include path " << globalIncludePath << " does not point to a valid directory\n" << RST;
+						valid = false;
+					}
+				}
+			}
+
+			// Project template
+			else if (IsValidProjectTag(name))
+			{
+				if (auto project = ProjectManifest::Load(node, manifestPath.parent_path()))
+				{
+					project->groupName = localProjectGroup;
+					ret->projects.push_back(project);
+				}
+				else
+				{
+					std::cerr << KRED << "[BREAKING] Module manifest XML at '" << manifestPath << "' has invalid project definition\n" << RST;
+					valid = false;
+				}
+			}
+
+			// Unknown tag
 			else
 			{
-				std::cerr << KRED << "[BREAKING] Module manifest XML at '" << ret->rootPath << "' has invalid dependency definition\n" << RST;
-				valid = false;
-			}
-		});
-
-	XMLNodeIterate(root, "Data", [&ret, &valid](const XMLNode* node)
-		{
-			ModuleDataInfo data;
-			if (ParseData(node, ret->rootPath, data))
-			{
-				ret->moduleData.push_back(data);
-			}
-			else
-			{
-				std::cerr << KRED << "[BREAKING] Module manifest XML at '" << ret->rootPath << "' has invalid data definition\n" << RST;
-				valid = false;
-			}
-		});
-
-	XMLNodeIterate(root, [&ret, &valid](const XMLNode* node, std::string_view name)
-		{
-			if (name == "ModuleDependency" || name == "Data")
-				return;
-
-			if (!IsValidProjectTag(name))
-			{
-				std::cerr << KRED << "[BREAKING] Module manifest XML at '" << ret->rootPath << "' has invalid project tag\n" << RST;
-				valid = false;
-				return;
-			}
-
-			if (auto project = ProjectManifest::Load(node, ret->projectsRootPath))
-			{
-				ret->projects.push_back(project);
-			}
-			else
-			{
-				std::cerr << KRED << "[BREAKING] Module manifest XML at '" << ret->rootPath << "' has invalid project definition\n" << RST;
+				std::cerr << KRED << "[BREAKING] Module manifest XML at '" << manifestPath << "' has invalid project tag\n" << RST;
 				valid = false;
 			}
 		});

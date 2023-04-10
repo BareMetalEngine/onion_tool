@@ -442,10 +442,8 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
     if (!project->optionUseWindowSubsystem)
         f  << "CONSOLE;";
 
-    if (m_config.flagShipmentBuild)
-        f << "ONION_SHIPMENT;";
-    else
-        f << "ONION_DEVELOPMENT;";
+    if (!m_config.flagShipmentBuild)
+        f << "DEVELOPMENT;";
 
     if (m_config.platform == PlatformType::UWP)
         f << "WINAPI_FAMILY=WINAPI_FAMILY_APP;";
@@ -680,6 +678,12 @@ bool SolutionGeneratorVS::generateSourcesProjectFileEntry(const SolutionProject*
             break;
         }
 
+		case ProjectFileType::BuildScript:
+		{
+			writelnf(f, "   <None Include=\"%s\"/>", file->absolutePath.u8string().c_str());
+			break;
+		}
+
         default:
             break;
 
@@ -744,6 +748,9 @@ bool SolutionGeneratorVS::generateSourcesProjectFilters(const SolutionProject* p
                 case ProjectFileType::MediaFile:
                     filterType = m_config.flagStaticBuild ? "None" : "MediaFile";
                     break;
+				case ProjectFileType::BuildScript:
+					filterType = "None";
+					break;
 				case ProjectFileType::NatVis:
 					filterType = "NatVis";
 					break;

@@ -37,12 +37,13 @@ struct Configuration;
 
 struct ProjectManifest
 {
-    std::string localRoot; // bm/core/math
+    std::string name;
+	std::string guid; // project GUID - generated based on project name or manually assigned
+    std::string groupName; // name of the group we should place the project at
+
     fs::path rootPath; // full project's directory
 
     ProjectType type = ProjectType::Disabled; // type of the project
-
-	std::string guid; // project GUID - generated based on project name or manually assigned
 
     ProjectLibraryLinkType optionLinkType = ProjectLibraryLinkType::Auto; // how they library should be linked
     ProjectAppSubsystem optionSubstem = ProjectAppSubsystem::Console;
@@ -67,12 +68,13 @@ struct ProjectManifest
 
     std::string appClassName; // for automatically generated main with application interfaces - this is the app class name
     std::string appHeaderName; // for automatically generated main with application interfaces - this is the app header file 
+    bool appDisableLogOnStart; // start application without logging (silent output)
 
     //--
 
     // load project manifest, NOTE: loading is configuration dependent due to conditions
     //static ProjectManifest* Load(const fs::path& path, const Configuration& config);
-    static ProjectManifest* Load(const void* node, const fs::path& moduleRootPath);
+    static ProjectManifest* Load(const void* node, const fs::path& modulePath);
 
     //--
 };

@@ -109,7 +109,7 @@ bool ToolEmbed::writeFile(FileGenerator& gen, const fs::path& inputPath, std::st
 	// header
 	auto& f = file->content;
 	writeln(f, "/***");
-	writeln(f, "* Onion Embedded File");
+	writeln(f, "* Embedded File");
 	writeln(f, "* Auto generated, do not modify - add stuff to public.h instead");
 	writeln(f, "***/");
 	writeln(f, "");

@@ -31,8 +31,8 @@ bool ProjectCollection::populateFromModules(const std::vector<const ModuleManife
 
 	for (const auto* mod : modules)
 	{
-		if (!mod->projectsRootPath.empty())
-			m_rootIncludePaths.push_back(mod->projectsRootPath);
+		for (const auto& path : mod->globalIncludePaths)
+			PushBackUnique(m_rootIncludePaths, path);
 
 		for (const auto* proj : mod->projects)
 		{
@@ -44,7 +44,8 @@ bool ProjectCollection::populateFromModules(const std::vector<const ModuleManife
 			info->parentModule = mod;
 			info->manifest = proj;
 			info->rootPath = proj->rootPath;
-			info->name = MakeProjectName(proj->localRoot);
+			info->name = proj->name;
+			info->groupName = proj->groupName;
 
 			// HACK!
 			if (proj->type == ProjectType::AutoLibrary)
@@ -103,7 +104,13 @@ bool ProjectCollection::resolveDependency(const std::string_view name, std::vect
 			if (proj->manifest->type == ProjectType::SharedLibrary || proj->manifest->type == ProjectType::StaticLibrary)
 			{
 				if (BeginsWith(proj->name, pattern))
-					PushBackUnique(outProjects, proj);
+				{
+					const auto remainingName = proj->name.substr(pattern.length());
+					if (remainingName.find('/') == std::string_view::npos)
+					{
+						PushBackUnique(outProjects, proj);
+					}
+				}
 			}
 		}
 

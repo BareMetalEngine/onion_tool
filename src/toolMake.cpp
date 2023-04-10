@@ -70,7 +70,7 @@ int ToolMake::run(const Commandline& cmdline)
     ModuleRepository modules;
     if (!modules.installConfiguredModules(*moduleConfig, verifyVersions))
     {
-        std::cerr << KRED << "[BREAKING] Failed to verify configured module at \"" << config.modulePath << "\"\n" << RST;
+        std::cerr << KRED << "[BREAKING] Failed to verify configured module at \"" << config.moduleFilePath << "\"\n" << RST;
         return 1;
     }
 
@@ -138,9 +138,9 @@ int ToolMake::run(const Commandline& cmdline)
 
     //--
 
-    auto mainModuleName = config.modulePath.filename().u8string();
+    auto mainModuleName = moduleConfig->name;
     if (mainModuleName.empty())
-        mainModuleName = "onion";
+        mainModuleName = "moonshoot";
 
     auto codeGenerator = CreateSolutionGenerator(fileRepository, config, mainModuleName);
     if (!codeGenerator)

@@ -5,7 +5,7 @@
 // configured module
 struct ModuleConfigurationEntry
 {
-	fs::path path; // directory in cache holding this module
+	fs::path path; // path to module build.xml
     std::string hash; // needed module hash or version (if downloaded)
     bool local = false; // this is a local module
     bool root = false; // this is a root module
@@ -23,6 +23,7 @@ struct ModuleLibraryEntry
 struct ModuleConfigurationManifest
 {
     fs::path rootPath; // file path
+    std::string name;
     PlatformType platform; // platform we are configuring for
     std::vector<ModuleConfigurationEntry> modules; // configured modules
     std::vector<ModuleLibraryEntry> libraries; // configured libraries

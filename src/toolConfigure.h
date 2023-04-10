@@ -22,7 +22,9 @@ public:
     ModuleResolver(const fs::path& cachePath);
     ~ModuleResolver();
 
-    bool processModuleFile(const fs::path& moduleDirectory, bool localFile);
+    inline const std::vector<fs::path>& globalIncludePaths() const { return m_globalIncludePaths; }
+
+    bool processModuleFile(const fs::path& moduleFilePath, bool localFile);
     bool exportToManifest(ModuleConfigurationManifest& cfg) const;    
 
 private:
@@ -59,12 +61,14 @@ private:
 
     fs::path m_cachePath;
 
+    std::vector<fs::path> m_globalIncludePaths;
+
     std::unordered_map<std::string, ModuleInfo*> m_modulesByGuid;
     std::unordered_map<std::string, RemoteDependency*> m_remoteModules;
     std::unordered_map<std::string, LocalDependency*> m_localModules;
     std::unordered_map<std::string, DownloadedRepository*> m_downloadedRepositories;
 
-    bool processSingleModuleFile(const fs::path& moduleDirectory, bool localFile);
+    bool processSingleModuleFile(const fs::path& moduleManifestPath, bool localFile);
     bool processSingleModuleDependency(const fs::path& moduleDirectory, const ModuleDepdencencyInfo& dep);
 
     bool processUnresolvedLocalDepndencies(bool& hadUnresolvedDependnecies);

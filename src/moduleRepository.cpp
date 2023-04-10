@@ -16,14 +16,13 @@ ModuleRepository::~ModuleRepository()
 		delete modul;
 }
 
-bool ModuleRepository::installConfiguredModule(const fs::path& absoluteModulePath, std::string_view hash, bool local, bool verifyVersions)
+bool ModuleRepository::installConfiguredModule(const fs::path& absoluteModuleFilePath, std::string_view hash, bool local, bool verifyVersions)
 {
 	// load the manifest
-	const auto manifestPath = absoluteModulePath / MODULE_MANIFEST_NAME;
-	auto* manifest = ModuleManifest::Load(manifestPath);
+	auto* manifest = ModuleManifest::Load(absoluteModuleFilePath, local ? "" : "External");
 	if (!manifest)
 	{
-		std::cerr << "Failed to load module manifest from " << manifestPath << "\n";
+		std::cerr << "Failed to load module manifest from " << absoluteModuleFilePath << "\n";
 		return false;
 	}
 
@@ -31,7 +30,7 @@ bool ModuleRepository::installConfiguredModule(const fs::path& absoluteModulePat
 	manifest->local = local;
 
 	// install the loaded module
-	std::cout << "Installed local module at " << manifestPath << " with " << manifest->projects.size() << " project(s)\n";
+	std::cout << "Installed local module at " << absoluteModuleFilePath << " with " << manifest->projects.size() << " project(s)\n";
 	m_modules.push_back(manifest);
 	return true;
 }
@@ -39,10 +38,11 @@ bool ModuleRepository::installConfiguredModule(const fs::path& absoluteModulePat
 bool ModuleRepository::installConfiguredModules(const ModuleConfigurationManifest& config, bool verifyVersions)
 {
 	bool valid = true;
+
 	for (const auto& entry : config.modules)
 	{
-		const auto absoluteModulePath = fs::weakly_canonical((config.rootPath / entry.path).make_preferred());
-		valid &= installConfiguredModule(absoluteModulePath, entry.hash, entry.local, verifyVersions);
+		const auto absoluteModuleFilePath = fs::weakly_canonical((config.rootPath / entry.path).make_preferred());
+		valid &= installConfiguredModule(absoluteModuleFilePath, entry.hash, entry.local, verifyVersions);
 	}
 
 	return valid;

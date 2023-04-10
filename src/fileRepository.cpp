@@ -314,7 +314,7 @@ bool FileRepository::initialize(const fs::path& executablePath, const fs::path& 
 	}
 
 	// no files found
-	std::cerr << KRED << "[BREAKING] No third party files found for Onion Build Tool, files should either be glued to executable or in the '../files' directory WRT the binary\n";
+	std::cerr << KRED << "[BREAKING] No third party files found for the Build Tool, files should either be glued to executable or in the '../files' directory WRT the binary\n";
 	return false;
 }
 

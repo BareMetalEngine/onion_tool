@@ -201,8 +201,6 @@ bool Configuration::ParseOptions(const Commandline& cmd, Configuration& cfg)
     return true;
 }
 
-static const std::string MODULE_NAME = "module.onion";
-
 bool Configuration::ParsePaths(const Commandline& cmd, Configuration& cfg)
 {
     // module path
@@ -210,27 +208,29 @@ bool Configuration::ParsePaths(const Commandline& cmd, Configuration& cfg)
 		const auto& str = cmd.get("module");
 		if (str.empty())
 		{
-			auto testPath = fs::current_path() / MODULE_NAME;
+            auto testPath = fs::weakly_canonical(fs::absolute((fs::current_path() / "build.xml").make_preferred()));
 			if (!fs::is_regular_file(testPath))
 			{
-				std::cerr << KRED << "[BREAKING] Onion build tool run in a directory without \"" << MODULE_NAME << "\", did you run the configure command?\n" << RST;
+				std::cerr << KRED << "[BREAKING] Build tool run in a directory without \"build.xml\", did you run the configure command?\n" << RST;
 				return false;
 			}
 			else
 			{
-				cfg.modulePath = fs::weakly_canonical(fs::absolute(fs::current_path()));
+                cfg.moduleFilePath = testPath;
+                cfg.moduleDirPath = testPath.parent_path();
 			}
 		}
 		else
 		{
-            auto testPath = fs::path(str) / MODULE_NAME;
+            auto testPath = fs::weakly_canonical(fs::absolute(str).make_preferred());
 			if (!fs::is_regular_file(testPath))
 			{
-                std::cerr << KRED << "[BREAKING] Specified module path '" << str << "' does not contain \"" << MODULE_NAME << "\" that is required to recognize directory as Onion Module\n" << RST;
+                std::cerr << KRED << "[BREAKING] Specified module path '" << str << " does not exist\n" << RST;
 				return false;
 			}
 
-			cfg.modulePath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
+			cfg.moduleFilePath = testPath;
+            cfg.moduleDirPath = testPath.parent_path();
 		}
 	}
 
@@ -238,7 +238,7 @@ bool Configuration::ParsePaths(const Commandline& cmd, Configuration& cfg)
     {
 		const auto& str = cmd.get("tempPath");
 		if (str.empty())
-			cfg.tempPath = (cfg.modulePath / ".temp").make_preferred();
+			cfg.tempPath = (cfg.moduleDirPath / ".temp").make_preferred();
 		else
 			cfg.tempPath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
 
@@ -257,7 +257,7 @@ bool Configuration::ParsePaths(const Commandline& cmd, Configuration& cfg)
 	{
 		const auto& str = cmd.get("cachePath");
 		if (str.empty())
-			cfg.cachePath = (cfg.modulePath / ".cache").make_preferred();
+			cfg.cachePath = (cfg.moduleDirPath / ".cache").make_preferred();
 		else
 			cfg.cachePath = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
 

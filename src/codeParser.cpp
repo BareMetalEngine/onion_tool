@@ -444,21 +444,7 @@ bool CodeTokenizer::process()
         if (print)
             std::cout << "Token '" << token.text << "' at line " << token.line << "\n";
 
-        if (token.text == "BEGIN_INFERNO_NAMESPACE" || token.text == "BEGIN_INFERNO_NAMESPACE_EX")
-        {
-            std::stringstream txt;
-			txt << contextPath.u8string() << "(" << token.line << "): error: Outdated macro, switch to BEGIN_INFERNO_NAMESPACE\n";
-            std::cerr << txt.str();
-			return false;
-        }
-		else if (token.text == "END_INFERNO_NAMESPACE" || token.text == "END_INFERNO_NAMESPACE_EX")
-		{
-            std::stringstream txt;
-			txt << contextPath.u8string() << "(" << token.line << "): error: Outdated macro, switch to END_INFERNO_NAMESPACE\n";
-            std::cerr << txt.str();
-			return false;
-		}
-        else if (token.text == "BEGIN_ONION_NAMESPACE")
+        if (token.text == "BEGIN_NAMESPACE")
         {
             if (!activeNamespace.empty())
             {
@@ -476,9 +462,9 @@ bool CodeTokenizer::process()
                 return false;
             }
 
-            activeNamespace = "onion";
+            activeNamespace = "ms";
         }
-        else if (token.text == "BEGIN_ONION_NAMESPACE_EX")
+        else if (token.text == "BEGIN_NAMESPACE_EX")
         {
             if (!activeNamespace.empty())
             {
@@ -497,9 +483,9 @@ bool CodeTokenizer::process()
                 return false;
             }
 
-            activeNamespace = "onion::" + name;
+            activeNamespace = "ms::" + name;
         }
-        else if (token.text == "END_ONION_NAMESPACE")
+        else if (token.text == "END_NAMESPACE")
         {
             if (activeNamespace.empty())
             {
@@ -518,7 +504,7 @@ bool CodeTokenizer::process()
 
             activeNamespace.clear();
         }
-        else if (token.text == "END_ONION_NAMESPACE_EX")
+        else if (token.text == "END_NAMESPACE_EX")
         {
             if (activeNamespace.empty())
             {
@@ -535,7 +521,7 @@ bool CodeTokenizer::process()
                 return false;
             }
 
-            name = "onion::" + name;
+            name = "ms::" + name;
 
             if (name != activeNamespace)
             {
@@ -546,12 +532,12 @@ bool CodeTokenizer::process()
 
             activeNamespace.clear();
         }
-        else if (token.text == "BEGIN_ONION_TYPE_ENUM" || token.text == "RTTI_BEGIN_TYPE_ENUM")
+        else if (token.text == "RTTI_BEGIN_TYPE_ENUM")
         {
             if (activeNamespace.empty())
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
+                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"ms\" namespace BEGIN/END block\n";
                 return false;
             }
 
@@ -569,19 +555,19 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::ENUM;
 
-            decl.typeName = PartAfter(activeNamespace, "onion::");
+            decl.typeName = PartAfter(activeNamespace, "ms::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;
 
             declarations.push_back(decl);
         }
-        else if (token.text == "BEGIN_ONION_TYPE_BITFIELD" || token.text == "RTTI_BEGIN_TYPE_BITFIELD")
+        else if (token.text == "RTTI_BEGIN_TYPE_BITFIELD")
         {
             if (activeNamespace.empty())
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
+                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"ms\" namespace BEGIN/END block\n";
                 std::cerr << txt.str();
                 return false;
             }
@@ -600,30 +586,22 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::BITFIELD;
             
-            decl.typeName = PartAfter(activeNamespace, "onion::");
+            decl.typeName = PartAfter(activeNamespace, "ms::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;
 
             declarations.push_back(decl);
         }
-        else if (token.text == "RTTI_BEGIN_TYPE_NATIVE_CLASS"
+        else if (token.text == "RTTI_BEGIN_TYPE_RUNTIME_ONLY_CLASS"
             || token.text == "RTTI_BEGIN_TYPE_ABSTRACT_CLASS"
             || token.text == "RTTI_BEGIN_TYPE_CLASS"
-            || token.text == "RTTI_BEGIN_CUSTOM_TYPE"
-            || token.text == "RTTI_BEGIN_TYPE_BITFIELD"
-            || token.text == "RTTI_BEGIN_TYPE_ENUM"
-            || token.text == "RTTI_BEGIN_TYPE_STRUCT"
-            || token.text == "BEGIN_ONION_TYPE_RUNTIME_CLASS" 
-            || token.text == "BEGIN_ONION_TYPE_ABSTRACT_CLASS"
-            || token.text == "BEGIN_ONION_TYPE_CLASS"
-            || token.text == "BEGIN_ONION_TYPE_STRUCT")
-            
+            || token.text == "RTTI_BEGIN_TYPE_STRUCT")            
         {
             if (activeNamespace.empty())
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
+                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"ms\" namespace BEGIN/END block\n";
                 std::cerr << txt.str();
                 return false;
             }
@@ -642,19 +620,19 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::CLASS;
             
-            decl.typeName = PartAfter(activeNamespace, "onion::");
+            decl.typeName = PartAfter(activeNamespace, "ms::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;
 
             declarations.push_back(decl);
         }
-        else if (token.text == "BEGIN_ONION_CUSTOM_TYPE" || token.text == "RTTI_BEGIN_CUSTOM_TYPE")
+        else if (token.text == "RTTI_BEGIN_CUSTOM_TYPE")
         {
             if (activeNamespace.empty())
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
+                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"ms\" namespace BEGIN/END block\n";
                 std::cerr << txt.str();
                 return false;
             }
@@ -673,20 +651,19 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::CUSTOM_TYPE;
             
-            decl.typeName = PartAfter(activeNamespace, "onion::");
+            decl.typeName = PartAfter(activeNamespace, "ms::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;
 
             declarations.push_back(decl);
         }
-        else if (token.text == "RTTI_ONION_SCRIPT_GLOBAL_FUNCTION" || token.text == "RTTI_ONION_SCRIPT_GLOBAL_FUNCTION_EX"
-                || token.text == "RTTI_SCRIPT_GLOBAL_FUNCTION" || token.text == "RTTI_SCRIPT_GLOBAL_FUNCTION_EX")
+        else if (token.text == "RTTI_SCRIPT_GLOBAL_FUNCTION" || token.text == "RTTI_SCRIPT_GLOBAL_FUNCTION_EX")
         {
             if (activeNamespace.empty())
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Global function declaration can only happen inside the \"bm\" namespace BEGIN/END block\n";
+                txt << contextPath.u8string() << "(" << token.line << "): error: Global function declaration can only happen inside the \"ms\" namespace BEGIN/END block\n";
                 std::cerr << txt.str();
                 return false;
             }
@@ -707,6 +684,60 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::GLOBAL_FUNC;
             declarations.push_back(decl);
+        }
+		else if (token.text == "TRACE_DECLARE_LOG_CHANNEL")
+		{
+		    if (activeNamespace.empty())
+		    {
+			    std::stringstream txt;
+			    txt << contextPath.u8string() << "(" << token.line << "): error: Trace log channel can only happen inside the \"ms\" namespace BEGIN/END block\n";
+			    std::cerr << txt.str();
+			    return false;
+		    }
+
+		    std::string name;
+		    if (!ExtractIdentName(s, name))
+		    {
+			    std::stringstream txt;
+			    txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse channel name\n";
+			    std::cerr << txt.str();
+			    return false;
+		    }
+
+		    //std::cout << "Found function: '" << name << "'\n";
+
+		    Declaration decl;
+		    decl.name = name;
+		    decl.scope = activeNamespace;
+		    decl.type = DeclarationType::LOG_CHANNEL;
+		    declarations.push_back(decl);
+		}
+        else if (token.text == "DECLARE_STRING_ID")
+        {
+		    if (activeNamespace.empty())
+		    {
+			    std::stringstream txt;
+			    txt << contextPath.u8string() << "(" << token.line << "): error: Global StringID can only happen inside the \"ms\" namespace BEGIN/END block\n";
+			    std::cerr << txt.str();
+			    return false;
+		    }
+
+		    std::string name;
+		    if (!ExtractIdentName(s, name))
+		    {
+			    std::stringstream txt;
+			    txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse StringID text\n";
+			    std::cerr << txt.str();
+			    return false;
+		    }
+
+		    //std::cout << "Found function: '" << name << "'\n";
+
+		    Declaration decl;
+		    decl.name = name;
+		    decl.scope = activeNamespace;
+		    decl.type = DeclarationType::STRINGID;
+		    declarations.push_back(decl);
         }
     }
 

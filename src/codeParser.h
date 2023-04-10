@@ -37,6 +37,8 @@ struct CodeTokenizer
         ENUM,
         BITFIELD,
         GLOBAL_FUNC,
+        LOG_CHANNEL,
+        STRINGID,
     };
 
     struct Declaration
@@ -44,7 +46,7 @@ struct CodeTokenizer
         DeclarationType type;
         std::string name;
         std::string scope; // namespace
-        std::string typeName; // namespace without the "inferno::"
+        std::string typeName; // namespace without the parent namespace
     };
 
     //--

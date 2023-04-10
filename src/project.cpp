@@ -24,6 +24,8 @@ static ProjectFileType FileTypeForExtension(std::string_view ext)
 		return ProjectFileType::Bison;
 	if (ext == ".natvis")
 		return ProjectFileType::NatVis;
+	if (ext == ".lib")
+		return ProjectFileType::LocalStaticLibrary;
 	if (ext == ".rc")
 		return ProjectFileType::WindowsResources;
 
@@ -66,6 +68,16 @@ bool ProjectInfo::scanContent()
         valid &= scanFilesAtDir(mediaFilePath, mediaFilePath, ScanType::MediaFiles, true);
     }	
 
+	{
+		const auto mediaFilePath = manifest->rootPath / "res";
+		valid &= scanFilesAtDir(mediaFilePath, mediaFilePath, ScanType::ResourceFiles, true);
+	}
+
+    {
+        const auto mediaFilePath = manifest->rootPath;
+        valid &= scanFilesAtDir(mediaFilePath, mediaFilePath, ScanType::PrivateFiles, false);
+    }
+
     return valid;
 }
 
@@ -75,11 +87,14 @@ bool ProjectInfo::internalTryAddFileFromPath(const fs::path& scanRootPath, const
 
     auto type = (scanType == ProjectInfo::ScanType::MediaFiles) ? ProjectFileType::MediaFile : FileTypeForExtension(ext);
 
-    if (absolutePath.filename() == PROJECT_MANIFEST_NAME)
+    if (absolutePath.filename() == "build.xml")
         type = ProjectFileType::BuildScript;
 
     if (type == ProjectFileType::Unknown)
     {
+        if (scanType == ScanType::ResourceFiles)
+            return true; // just ignore it
+
         std::cerr << KRED << "[BREAKING] Unknown file type for " << absolutePath << "\n" << RST;
         return false;
     }
@@ -97,7 +112,6 @@ bool ProjectInfo::internalTryAddFileFromPath(const fs::path& scanRootPath, const
     file->absolutePath = absolutePath;
     file->name = shortName;
     file->projectRelativePath = MakeGenericPathEx(fs::relative(absolutePath, rootPath));
-    file->rootRelativePath = MakeGenericPathEx(fs::relative(absolutePath, parentModule->projectsRootPath));
     file->scanRelativePath = MakeGenericPathEx(fs::relative(absolutePath, scanRootPath));
     file->originalProject = this;
     files.push_back(file);
@@ -148,6 +162,9 @@ bool ProjectInfo::resolveDependencies(const ProjectCollection& projects)
         // resolve optional dependencies
         for (const auto& dep : manifest->optionalDependencies)
             projects.resolveDependency(dep, resolvedDependencies, true);
+
+        // remove self from dependency list
+        Remove(resolvedDependencies, this);
     }
 
     return valid;

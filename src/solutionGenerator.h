@@ -88,6 +88,7 @@ struct SolutionProject
 
 	std::string appHeaderName;
 	std::string appClassName;
+	bool appDisableLogOnStart = false;
 
 	std::vector<std::pair<std::string, std::string>> localDefines;
 	std::vector<std::pair<std::string, std::string>> globalDefines;

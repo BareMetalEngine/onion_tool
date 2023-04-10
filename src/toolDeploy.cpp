@@ -146,7 +146,7 @@ private:
 
         for (const auto& data : info->moduleData)
         {
-            if (data.published)
+            //if (data.published)
             {
                 if (BeginsWith(data.mountPath, "/"))
                 {
@@ -275,7 +275,7 @@ int ToolDeploy::run(const Commandline& cmdline)
     ModuleRepository modules;
     if (!modules.installConfiguredModules(*moduleConfig, verifyVersions))
     {
-        std::cerr << KRED << "[BREAKING] Failed to verify configured module at \"" << config.modulePath << "\"\n" << RST;
+        std::cerr << KRED << "[BREAKING] Failed to verify configured module at \"" << config.moduleFilePath << "\"\n" << RST;
         return 1;
     }
 

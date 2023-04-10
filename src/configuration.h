@@ -13,7 +13,8 @@ struct Configuration
 
     fs::path executablePath; // path to onion.exe
 
-    fs::path modulePath; // (-module) path to root configured module directory (Z:\projects\core\)
+    fs::path moduleDirPath;
+    fs::path moduleFilePath; // (-module) path to root configured module directory (Z:\projects\core\)
     fs::path tempPath; // (-tempPath) shared temp folder (Z:\projects\core\.temp) 
     fs::path cachePath; // (-cachePath) shared cache folder that could be retained between builds (Z:\projects\core\.cache) - UPDATED ONLT IN THE "configure" PHASE
 

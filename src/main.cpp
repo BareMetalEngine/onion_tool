@@ -77,14 +77,14 @@ int main(int argc, char** argv)
     Commandline cmdLine;
     if (!cmdLine.parse(MergeCommandline(argc, argv)) || cmdLine.commands.size() != 1)
     {
-		std::cout << "Onion Build Tool v1.0\n";
+		std::cout << "Build Tool v1.0\n";
         PrintUsage();
         return 1;
     }
 
     if (!cmdLine.has("nologo"))
     {
-        std::cout << "Onion Build Tool v1.0\n";
+        std::cout << "Build Tool v1.0\n";
     }
 
     const auto& tool = cmdLine.commands[0];

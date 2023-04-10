@@ -131,23 +131,17 @@ ProjectManifest* ProjectManifest::Load(const fs::path& manifestPath)
 }
 #endif
 
-ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& moduleCodeRootPath)
+ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modulePath)
 {
     auto ret = std::make_unique<ProjectManifest>();
+    ret->rootPath = modulePath;
 
 	bool valid = true;
 
     XMLNode* root = (XMLNode*)rootPtr;
     valid &= EvalProjectType(ret.get(), XMLNodeTag(root));
 
-    /*ret->name = XMLNodeAttrbiute(root, "name");
-    if (ret->name.empty())
-    {
-        std::cerr << KRED << "[BREAKING] All projects in module must have names\n" << RST;
-		return nullptr;
-    }*/
-
-	XMLNodeIterate(root, [&valid, &ret](const XMLNode* node, std::string_view option)
+	XMLNodeIterate(root, [&](const XMLNode* node, std::string_view option)
 		{
 			// TODO: filter
 
@@ -155,8 +149,12 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
                 valid &= EvalSubsystemType(ret.get(), node);
             else if (option == "AppClass")
                 ret->appClassName = XMLNodeValue(node);
+			else if (option == "AppNoLog")
+				ret->appDisableLogOnStart = XMLNodeValueBool(node, ret->appDisableLogOnStart);
+			else if (option == "Name")
+				ret->name = XMLNodeValue(node);
             else if (option == "SourceRoot")
-                ret->localRoot = XMLNodeValue(node);
+                ret->rootPath = fs::weakly_canonical((modulePath / XMLNodeValue(node)).make_preferred());
 			else if (option == "AppHeader")
 				ret->appHeaderName = XMLNodeValue(node);
 			else if (option == "Guid")
@@ -194,25 +192,29 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
 			}
 		});
 
-    if (ret->localRoot.empty())
+	if (ret->name.empty())
 	{
-        std::cerr << KRED << "[BREAKING] There's no root directory specified for a project\n" << RST;
+		std::cerr << KRED << "[BREAKING] Project without a name at " << modulePath << "\n" << RST;
 		return nullptr;
 	}
 
-    ret->rootPath = (moduleCodeRootPath / ret->localRoot).make_preferred();
-    if (!fs::is_directory(ret->rootPath))
-    {
-		std::cerr << KRED << "[BREAKING] Directory " << ret->rootPath << " is not a valid project directory\n" << RST;
+    if (ret->rootPath.empty())
+	{
+        std::cerr << KRED << "[BREAKING] There's no root directory specified for a project '" << ret->name << "' at " << modulePath << "\n" << RST;
 		return nullptr;
-    }
+	}
+	if (!fs::is_directory(ret->rootPath))
+	{
+		std::cerr << KRED << "[BREAKING] Directory " << ret->rootPath << " is not a valid directory for project '" << ret->name << " at " << modulePath << "\n" << RST;
+		return nullptr;
+	}
 
 	if (ret->guid.empty())
 		ret->guid = GuidFromText(ret->rootPath.u8string().c_str());
 
 	if (!valid)
 	{
-		std::cerr << KRED << "[BREAKING] There were errors parsing project '" << ret->localRoot << "\n" << RST;
+		std::cerr << KRED << "[BREAKING] There were errors parsing project '" << ret->name << "' at " << modulePath << "\n" << RST;
 		return nullptr;
 	}
 

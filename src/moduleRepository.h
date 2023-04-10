@@ -17,7 +17,7 @@ public:
 
 	inline const std::vector<const ModuleManifest*>& modules() const { return (const std::vector<const ModuleManifest*>&) m_modules; }
 
-	bool installConfiguredModule(const fs::path& path, std::string_view hash, bool local, bool verifyVersions);
+	bool installConfiguredModule(const fs::path& absoluteModuleFilePath, std::string_view hash, bool local, bool verifyVersions);
 	bool installConfiguredModules(const ModuleConfigurationManifest& config, bool verifyVersions);
 
 private:

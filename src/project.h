@@ -13,6 +13,7 @@ enum class ProjectFileType : uint8_t
 	MediaFile,
 	TextFile,
 	NatVis,
+	LocalStaticLibrary,
 };
 
 struct ModuleManifest;
@@ -27,8 +28,7 @@ struct ProjectFileInfo
 {
 	std::string name; // "test.cpp"
 
-	fs::path absolutePath; // full path to file on disk "Z:\\InfernoEngine\\src\\base\\math\\src\\vector3.cpp"
-	std::string rootRelativePath; // path relative to the source root, ie. "base/math/src/vector3.cpp"
+	fs::path absolutePath; // full path to file on disk "Z:\\sth\\src\\base\\math\\src\\vector3.cpp"
 	std::string projectRelativePath; // path in project "src/vector3.cpp"
 	std::string scanRelativePath; // path in the scan folder (ie. src/) "vector3.cpp"
 
@@ -47,6 +47,7 @@ struct ProjectFileInfo
 struct ProjectInfo
 {
 	std::string name; // bm/core/math
+	std::string groupName;
 	fs::path rootPath; // directory with "build.xml"
 
     const ProjectManifest* manifest = nullptr; // original manifest
@@ -76,6 +77,7 @@ private:
 		PrivateFiles,
 		PublicFiles,
 		MediaFiles,
+		ResourceFiles,
 	};
 
 	bool internalTryAddFileFromPath(const fs::path& scanRootPath, const fs::path& absolutePath, ScanType type);

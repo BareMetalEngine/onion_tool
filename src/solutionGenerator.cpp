@@ -155,6 +155,14 @@ static bool HasDependency(const SolutionProject* project, std::string_view name)
 
 bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
 {
+    // cache folder
+    {
+        SolutionDataFolder data;
+        data.mountPath = "/Cache/";
+        data.dataPath = (m_config.cachePath / "internal").make_preferred();
+        m_dataFolders.push_back(data);
+    }
+
     // create projects
     std::unordered_set<const ModuleManifest*> usedModules;
     std::unordered_map<SolutionProject*, const ProjectInfo*> projectMap;
@@ -165,7 +173,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         auto* generatorProject = new SolutionProject;
         generatorProject->type = proj->manifest->type;
         generatorProject->name = ReplaceAll(proj->name, "/", "_");
-
+        
         // paths
 		generatorProject->rootPath = proj->rootPath;
         generatorProject->generatedPath = m_config.derivedSolutionPath / "generated" / proj->name;
@@ -184,6 +192,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         generatorProject->optionUseEmbeddedFiles = false;
         generatorProject->appHeaderName = proj->manifest->appHeaderName;
         generatorProject->appClassName = proj->manifest->appClassName;
+        generatorProject->appDisableLogOnStart = proj->manifest->appDisableLogOnStart;
         generatorProject->assignedVSGuid = proj->manifest->guid;
         generatorProject->libraryDependencies = proj->resolvedLibraryDependencies;
         generatorProject->localDefines = proj->manifest->localDefines;
@@ -243,7 +252,9 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         // determine root group
         {
             const bool isLocalProject = proj->parentModule ? proj->parentModule->local : true;
-            const auto parentGroup = isLocalProject ? m_rootGroup : createGroup("external");
+            const auto parentGroup = isLocalProject 
+                ? (proj->groupName.empty() ? m_rootGroup : createGroup(proj->groupName))
+                : createGroup("external");
             const auto groupName = PartBeforeLast(generatorProject->name, "_");
 
             generatorProject->group = createGroup(groupName, parentGroup);
@@ -294,7 +305,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
 
     // create the _rtti_generator project and make everybody a dependency
     {
-        if (auto* coreObjectsProject = findProject("core/object"))
+        if (auto* coreObjectsProject = findProject("core_object"))
         {
 			// create wrapper
 			auto* generatorProject = new SolutionProject;
@@ -348,8 +359,8 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
 
     // extract base include directories (source code roots)
     for (const auto* mod : usedModules)
-        if (!mod->projectsRootPath.empty())
-            m_sourceRoots.push_back(mod->projectsRootPath);
+        for (const auto& path : mod->globalIncludePaths)
+            PushBackUnique(m_sourceRoots, path);
 
     // extract data folders from used modules
     std::unordered_set<std::string> mountPaths;
@@ -365,12 +376,12 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
                 continue;
             }
 
-            if (m_config.flagShipmentBuild && !entry.published)
+            /*if (m_config.flagShipmentBuild && !entry.published)
             {
 				std::cout << KYEL << "[WARNING] Non-publishable data at '" << entry.mountPath << "' will not be mounted\n" << RST;
 				validDeps = false;
 				continue;
-            }
+            }*/
 
             SolutionDataFolder data;
             data.mountPath = entry.mountPath;
@@ -699,7 +710,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
 bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* project, std::stringstream& f)
 {
     writeln(f, "/***");
-    writeln(f, "* Inferno Engine Static Lib Initialization Code");
+    writeln(f, "* Engine Static Lib Initialization Code");
     writeln(f, "* Auto generated, do not modify");
     writeln(f, "* Build system source code licensed under MIP license");
     writeln(f, "***/");
@@ -717,7 +728,7 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 
     if (project->appHeaderName.empty())
     {
-        writeln(f, "extern int onion_main(const onion::CommandLine& cmdLine);");
+        writeln(f, "extern int ms_main(const onion::CommandLine& cmdLine);");
         writeln(f, "");
     }
 
@@ -742,6 +753,12 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
         writeln(f, "int main(int argc, char** argv) {");
     }
 
+    if (!project->appDisableLogOnStart)
+    {
+        writeln(f, "    ms::Log::EnableOutput(true);\n");
+        writeln(f, "    ms::Log::EnableDetails(true);\n");
+    }
+
     {
         writelnf(f, "    extern void InitModule_%hs(void*);", project->name.c_str());
         if (m_config.platform == PlatformType::Windows)
@@ -757,7 +774,7 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
         }
         writeln(f, "");
 
-        writeln(f, "    if (!onion::modules::HasAllModulesInitialize()) {");
+        writeln(f, "    if (!ms::modules::HasAllModulesInitialize()) {");
         writeln(f, "      TRACE_ERROR(\"No all required modules were initialized, application cannot start\");");        
 		if (project->optionUseWindowSubsystem)
             writeln(f, "      MessageBoxA(NULL, \"No all required modules (DLLs) were initialized, application cannot start.\", \"BareMetalEngine startup\", MB_ICONERROR | MB_TASKMODAL);");
@@ -772,7 +789,7 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 	writeln(f, "");
 
     // commandline
-    writeln(f, "  onion::CommandLine commandLine;");
+    writeln(f, "  ms::CommandLine commandLine;");
     if (windowsCommandLine)
         writeln(f, "  if (!commandLine.parse(pCmdLine, false))");
     else
@@ -783,15 +800,15 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
     // profiling init
     {
 		writeln(f, "  if (commandLine.hasParam(\"profile\"))");
-		writeln(f, "    onion::InitProfiling();");
+		writeln(f, "    ms::InitProfiling();");
 		writeln(f, "");
     }
 
     // task init
     if (hasTasks)
     {
-        writeln(f, "  if (!onion::InitTaskThreads(commandLine)) {");
-        writeln(f, "    onion::CloseProfiling();");
+        writeln(f, "  if (!ms::InitTaskThreads(commandLine)) {");
+        writeln(f, "    ms::CloseProfiling();");
         writeln(f, "    return 1;");
         writeln(f, "  }");
         writeln(f, "");
@@ -800,29 +817,31 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
     // app init
     if (!project->appClassName.empty())
     {
-        writelnf(f, "  %hs app;", project->appClassName.c_str());
-        writelnf(f, "  if (app.init(commandLine)) {");
-        writelnf(f, "    while (app.update()) {};");
-        writeln (f, "  } else {" );
-        writelnf(f, "    ret = 1;");
-        writeln (f, "  }");
+        writeln(f, "  {");
+        writelnf(f, "    %hs app;", project->appClassName.c_str());
+        writelnf(f, "    if (app.init(commandLine)) {");
+        writelnf(f, "      while (app.update()) {};");
+        writeln (f, "    } else {" );
+        writelnf(f, "      ret = 1;");
+        writeln (f, "    }");
+        writeln(f, "  }");
         writeln(f, "");
     }
     else
     {
-        writelnf(f, "    ret = onion_main(commandLine);");
+        writelnf(f, "    ret = ms_main(commandLine);");
     }
 
     // close task system
 	if (hasTasks)
 	{
-		writeln(f, "  onion::CloseTaskThreads();");
+		writeln(f, "  ms::CloseTaskThreads();");
 		writeln(f, "");
 	}
 
     // close profiling
     {
-        writeln(f, "  onion::CloseProfiling();");
+        writeln(f, "  ms::CloseProfiling();");
         writeln(f, "");
     }
 
@@ -835,7 +854,7 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject* project, std::stringstream& f)
 {
     writeln(f, "/***");
-    writeln(f, "* Inferno Engine Static Lib Initialization Code");
+    writeln(f, "* MoonShot Static Lib Initialization Code");
     writeln(f, "* Auto generated, do not modify");
     writeln(f, "* Build system source code licensed under MIP license");
     writeln(f, "***/");
@@ -866,18 +885,18 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
 
     if (hasContainers)
     {
-        writeln(f, "  onion::CommandLine commandLine;");
+        writeln(f, "  ms::CommandLine commandLine;");
         writeln(f, "  commandLine.parse(argc, argv);");
         writeln(f, "");
 
 		writeln(f, "  if (commandLine.hasParam(\"profile\"))");
-		writeln(f, "    onion::InitProfiling();");
+		writeln(f, "    ms::InitProfiling();");
 		writeln(f, "");
 
         if (hasTasks)
         {
-            writeln(f, "  if (!onion::InitTaskThreads(commandLine)) {");
-            writeln(f, "    onion::CloseProfiling();");
+            writeln(f, "  if (!ms::InitTaskThreads(commandLine)) {");
+            writeln(f, "    ms::CloseProfiling();");
             writeln(f, "    return -1;");
             writeln(f, "  }");
             writeln(f, "");
@@ -897,11 +916,11 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
 
         if (hasTasks)
         {
-            writeln(f, "  onion::CloseTaskThreads();");
+            writeln(f, "  ms::CloseTaskThreads();");
             writeln(f, "");
         }
 
-		writeln(f, "  onion::CloseProfiling();");
+		writeln(f, "  ms::CloseProfiling();");
 		writeln(f, "");
     }
     else
@@ -945,7 +964,7 @@ static void CollectDirectlyLinkedProjects(const SolutionProject* project, std::u
 bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* project, std::stringstream& f)
 {
     writeln(f, "/***");
-    writeln(f, "* Onion Precompiled Header");
+    writeln(f, "* Precompiled Header");
     writeln(f, "* Auto generated, do not modify");
     writeln(f, "***/");
     writeln(f, "");
@@ -1004,12 +1023,32 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
             {
                 for (const auto& linkPath : dep->libraryFiles)
                 {
-                    std::stringstream ss;
-                    ss << linkPath;
-                    writelnf(f, "#pragma comment( lib, %s )", ss.str().c_str());
+					std::stringstream ss;
+					ss << linkPath;
+					writelnf(f, "#pragma comment( lib, %s )", ss.str().c_str());
                 }
             }
             writeln(f, "");
+        }
+
+        bool hasLocalLibraries = false;
+        for (const auto* file : project->files)
+        {
+            if (file->type == ProjectFileType::LocalStaticLibrary)
+            {
+                if (!hasLocalLibraries)
+                {
+                    writeln(f, "// Local Libraries");
+                    hasLocalLibraries = true;
+                }
+
+				std::stringstream ss;
+				ss << file->absolutePath;
+				writelnf(f, "#pragma comment( lib, %s )", ss.str().c_str());
+            }
+
+            if (!hasLocalLibraries)
+                writeln(f, "");
         }
     }
 
@@ -1058,7 +1097,7 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
                 const auto symbolCoreName = symbolPrefix + std::string(PartAfter(MakeSymbolName(file->projectRelativePath), "media_"));
 
 				// virtual void registerFile(const char* path, const void* data, uint32_t size, uint64_t crc, const char* sourcePath, TimeStamp sourceTimeStamp) = 0;
-				writelnf(f, "onion::EmbeddedFiles().registerFile(%hs_PATH, %hs_DATA, %hs_SIZE, %hs_CRC, %hs_SPATH, onion::TimeStamp(%hs_TS));",
+				writelnf(f, "ms::EmbeddedFiles().registerFile(%hs_PATH, %hs_DATA, %hs_SIZE, %hs_CRC, %hs_SPATH, ms::TimeStamp(%hs_TS));",
 					symbolCoreName.c_str(), symbolCoreName.c_str(), symbolCoreName.c_str(),
 					symbolCoreName.c_str(), symbolCoreName.c_str(), symbolCoreName.c_str());
 			}
@@ -1106,7 +1145,7 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
                 }
                 else
                 {
-                    writelnf(f, "    onion::modules::LoadDynamicModule(\"%s\");", dep.project->name.c_str());
+                    writelnf(f, "    ms::modules::LoadDynamicModule(\"%s\");", dep.project->name.c_str());
                 }
 			}
 		}
@@ -1132,9 +1171,9 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
 
             writelnf(f, "    const char* deps = \"%s\";", dependenciesString.str().c_str());
 
-            writelnf(f, "    onion::modules::TModuleInitializationFunc initFunc = []() { InitializeReflection_%hs(); InitializeEmbeddedFiles_%hs(); };", project->name.c_str(), project->name.c_str(), project->name.c_str());
-            writelnf(f, "    onion::modules::RegisterModule(\"%hs\", __DATE__, __TIME__, _MSC_FULL_VER, initFunc, deps);", project->name.c_str());
-            writelnf(f, "    onion::modules::InitializePendingModules();");
+            writelnf(f, "    ms::modules::TModuleInitializationFunc initFunc = []() { InitializeReflection_%hs(); InitializeEmbeddedFiles_%hs(); };", project->name.c_str(), project->name.c_str(), project->name.c_str());
+            writelnf(f, "    ms::modules::RegisterModule(\"%hs\", __DATE__, __TIME__, _MSC_FULL_VER, initFunc, deps);", project->name.c_str());
+            writelnf(f, "    ms::modules::InitializePendingModules();");
         }
         writeln(f, "}");
         writeln(f, "");
@@ -1161,7 +1200,7 @@ bool SolutionGenerator::generateProjectGlueHeaderFile(const SolutionProject* pro
     const auto exportsMacroName = upperName + "_EXPORTS";
 
     writeln(f, "/***");
-    writeln(f, "* Onion Precompiled Header");
+    writeln(f, "* Precompiled Header");
     writeln(f, "* Auto generated, do not modify - add stuff to public.h instead");
     writeln(f, "***/");
     writeln(f, "");
@@ -1262,7 +1301,7 @@ bool SolutionGenerator::generateProjectBuildHeaderFile(const SolutionProject* pr
 	const auto exportsMacroName = upperName + "_EXPORTS";
 
     writeln(f, "/***");
-    writeln(f, "* Onion Precompiled Header");
+    writeln(f, "* Precompiled Header");
     writeln(f, "* Auto generated, do not modify - add stuff to public.h instead");
     writeln(f, "***/");
     writeln(f, "");

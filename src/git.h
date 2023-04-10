@@ -36,7 +36,7 @@ struct GitHubConfig
 	static std::string GetPublicToken(const fs::path& path); // rexdex:gpg_...
 	static std::string GetBranchName(const fs::path& path); // main
 	static std::string GetHeadRef(const fs::path& path); // 0232352525235235352
-	static std::string GetRemote(const fs::path& path); // https://github.com/BareMetalEngine/onion.git
+	static std::string GetRemote(const fs::path& path); // https://github.com/Repo/project.git
 	static std::string GetRemoteUser(const fs::path& path); // BareMetalEngine
 	static std::string GetRemoteRepo(const fs::path& path); // onion
 
