@@ -241,6 +241,8 @@ std::unique_ptr<LibraryManifest> LibraryManifest::Load(const fs::path& manifestP
 				valid &= EvalLibrarySourceType(ret.get(), node);
 			else if (option == "SourceURL")
 				ret->sourceURL = XMLNodeValue(node);
+			else if (option == "SourceBranch")
+				ret->sourceBranch = XMLNodeValue(node);
             else if (option == "SourceRelativePath")
                 ret->sourceRelativePath = XMLNodeValue(node);
 			else if (option == "ConfigCommand")

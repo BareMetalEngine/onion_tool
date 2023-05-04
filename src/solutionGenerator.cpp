@@ -738,6 +738,12 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 		writeln(f, "#include <Windows.h>");
 		writeln(f, "");
 
+        writeln(f, "#ifdef PLATFORM_WINDOWS");
+        writeln(f, "    extern \"C\" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 608; }");
+        writeln(f, "    extern \"C\" { __declspec(dllexport) extern const char* D3D12SDKPath = u8\".\\\\\"; }");
+        writeln(f, "#endif");
+        writeln(f, "");
+
         if (project->optionUseWindowSubsystem)
         {
 			writeln(f, "int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {");
