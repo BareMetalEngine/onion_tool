@@ -111,7 +111,7 @@ bool Configuration::ParseOptions(const Commandline& cmd, Configuration& cfg)
     bool hasGeneratorType = false;
 
     const auto& buildString = cmd.get("build");
-    if (buildString.empty())
+    if (!buildString.empty())
     {
         std::vector<std::string_view> buildParts;
         SplitString(buildString, ".", buildParts);

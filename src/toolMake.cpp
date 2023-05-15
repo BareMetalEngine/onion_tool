@@ -178,7 +178,7 @@ int ToolMake::run(const Commandline& cmdline)
 
     //--
 
-    if (!files.saveFiles())
+    if (!files.saveFiles(false))
     {
         std::cerr << KRED << "[BREAKING] Failed to save files\n" << RST;
         return 1;

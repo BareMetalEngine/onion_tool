@@ -175,6 +175,10 @@
       "Command": "-module=\"Z:\\BareMetalEngine\\MoonShot\\build.xml\""
     },
     {
+      "Id": "46f6c533-f1fc-469c-88b1-89c932210ae3",
+      "Command": "-build=windows.debug"
+    },
+    {
       "Id": "981d2835-43fd-47f2-94c8-5a0ff6b48617",
       "Command": "-static"
     },
