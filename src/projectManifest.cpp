@@ -171,6 +171,8 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
 				ret->optionUseExceptions = XMLNodeValueBool(node, ret->optionUseExceptions);
 			else if (option == "GenerateMain")
 				ret->optionGenerateMain = XMLNodeValueBool(node, ret->optionGenerateMain);
+			else if (option == "HasPreMain")
+				ret->optionHasPreMain = XMLNodeValueBool(node, ret->optionHasPreMain);
 			else if (option == "GenerateSymbols")
 				ret->optionGenerateSymbols = XMLNodeValueBool(node, ret->optionGenerateSymbols);
 			else if (option == "SelfTest")

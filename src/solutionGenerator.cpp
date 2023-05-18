@@ -183,6 +183,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         // options
         generatorProject->optionUsePrecompiledHeaders = proj->manifest->optionUsePrecompiledHeaders;
         generatorProject->optionGenerateMain = proj->manifest->optionGenerateMain;
+		generatorProject->optionUsePreMain = proj->manifest->optionHasPreMain;
         generatorProject->optionUseStaticInit = proj->manifest->optionUseStaticInit;
         generatorProject->optionUseWindowSubsystem = (proj->manifest->optionSubstem == ProjectAppSubsystem::Windows);
         generatorProject->optionWarningLevel = proj->manifest->optionWarningLevel;
@@ -321,6 +322,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
 			// options
 			generatorProject->optionUsePrecompiledHeaders = false;
 			generatorProject->optionGenerateMain = false;
+            generatorProject->optionUsePreMain = false;
 			generatorProject->optionUseStaticInit = false;
 			generatorProject->optionUseWindowSubsystem = false;
 			generatorProject->optionWarningLevel = false;
@@ -720,6 +722,7 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 
     const auto hasSystem = HasDependency(project, "core_system");
     const auto hasTasks = HasDependency(project, "core_task");
+	const auto hasPreMain = project->optionUsePreMain;
 
     if (!project->appHeaderName.empty())
         writelnf(f, "#include \"%hs\"", project->appHeaderName.c_str());
@@ -728,7 +731,7 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 
     if (project->appHeaderName.empty())
     {
-        writeln(f, "extern int ms_main(const onion::CommandLine& cmdLine);");
+        writeln(f, "extern int ms_main(const ms::CommandLine& cmdLine);");
         writeln(f, "");
     }
 
@@ -871,6 +874,7 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
     const auto hasTasks = HasDependency(project, "core_task");
     const auto hasSystem = HasDependency(project, "core_system");
     const auto hasContainers = HasDependency(project, "core_containers");
+    const auto hasPreMain = project->optionUsePreMain;
 
     if (hasContainers)
         writelnf(f, "#include \"core/containers/include/commandLine.h\"");
@@ -878,6 +882,12 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
 
     writeln(f, "#include \"gtest/gtest.h\"");
     writeln(f, "");
+
+    if (hasPreMain)
+    {
+        writeln(f, "extern bool pre_main(int argc, char** argv, int* exitCode);");
+        writeln(f, "");
+    }
 
     writeln(f, "int main(int argc, char** argv) {");        
 
@@ -914,8 +924,16 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
             writeln(f, "      signal(SIGPIPE, SIG_IGN);");
             writeln(f, "    #endif");
             writeln(f, "");
+
+            if (hasPreMain)
+                writeln(f, "  if (!pre_main(argc, argv, &ret)) {");
+
             writeln(f, "    testing::InitGoogleTest(&argc, argv);");
             writeln(f, "    ret = RUN_ALL_TESTS();");
+
+            if (hasPreMain)
+				writeln(f, "  }");
+
             writeln(f, "  }");
             writeln(f, "");
         }
@@ -931,8 +949,15 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
     }
     else
     {
+		if (hasPreMain)
+			writeln(f, "  if (!pre_main(argc, argv, &ret)) {");
+
         writeln(f, "  testing::InitGoogleTest(&argc, argv);");
         writeln(f, "  ret = RUN_ALL_TESTS();");
+
+		if (hasPreMain)
+			writeln(f, "  }");
+
         writeln(f, "");
     }
 

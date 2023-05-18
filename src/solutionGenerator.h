@@ -60,6 +60,7 @@ struct SolutionProject
 	bool optionDetached = false;
 	bool optionExportApplicataion = false;
 	bool optionGenerateMain = false;
+	bool optionUsePreMain = false;
 	int optionWarningLevel = 4;
 
     SolutionGroup* group = nullptr;

@@ -58,6 +58,7 @@ struct ProjectManifest
 	bool optionGenerateSymbols = true; // generate debug symbols for the project
     bool optionExportApplicataion = true; // application should be exported to other modules
     bool optionSelfTest = false; // project is a self-test project (without gtest)
+    bool optionHasPreMain = false; // project has additional pre_main than can override default behavior
 
     std::vector<std::string> dependencies; // dependencies on another projects
     std::vector<std::string> optionalDependencies; // soft dependencies on another projects (we may continue if projects is NOT available)
