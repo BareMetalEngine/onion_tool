@@ -95,8 +95,8 @@ bool ProjectInfo::internalTryAddFileFromPath(const fs::path& scanRootPath, const
         if (scanType == ScanType::ResourceFiles)
             return true; // just ignore it
 
-        std::cerr << KRED << "[BREAKING] Unknown file type for " << absolutePath << "\n" << RST;
-        return false;
+        std::cout << KYEL << "[WARNING] Unknown file type for " << absolutePath << "\n" << RST;
+        return true;
     }
 
     if (scanType == ScanType::PublicFiles && type != ProjectFileType::CppHeader)
