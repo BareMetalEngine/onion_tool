@@ -191,6 +191,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         generatorProject->optionDetached = proj->manifest->optionDetached;
         generatorProject->optionExportApplicataion = proj->manifest->optionExportApplicataion;
         generatorProject->optionUseEmbeddedFiles = false;
+        generatorProject->optionLegacy = proj->manifest->optionLegacy;
         generatorProject->appHeaderName = proj->manifest->appHeaderName;
         generatorProject->appClassName = proj->manifest->appClassName;
         generatorProject->appDisableLogOnStart = proj->manifest->appDisableLogOnStart;
@@ -1396,7 +1397,7 @@ bool SolutionGenerator::generateSolutionReflectionFileProcessingList(std::string
 {
     for (const auto* proj : m_projects)
     {
-        if (!proj->localReflectionFile.empty() && !proj->rootPath.empty())
+        if (!proj->localReflectionFile.empty() && !proj->rootPath.empty() && !proj->optionLegacy)
         {
             auto projectFilePath = (proj->projectPath / proj->name);
             projectFilePath += ".vcxproj";

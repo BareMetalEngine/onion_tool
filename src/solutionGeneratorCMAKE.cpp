@@ -117,8 +117,15 @@ void SolutionGeneratorCMAKE::extractSourceRoots(const SolutionProject* project, 
 
     if (!project->rootPath.empty())
     {
-        outPaths.push_back(project->rootPath / "src");
-        outPaths.push_back(project->rootPath / "include");
+        if (project->optionLegacy)
+        {
+            outPaths.push_back(project->rootPath);
+        }
+        else
+        {
+            outPaths.push_back(project->rootPath / "src");
+            outPaths.push_back(project->rootPath / "include");
+        }
     }
 
     outPaths.push_back(m_config.derivedSolutionPath / "generated/_shared");

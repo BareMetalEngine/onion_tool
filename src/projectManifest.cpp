@@ -149,12 +149,14 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
                 valid &= EvalSubsystemType(ret.get(), node);
             else if (option == "AppClass")
                 ret->appClassName = XMLNodeValue(node);
-			else if (option == "AppNoLog")
-				ret->appDisableLogOnStart = XMLNodeValueBool(node, ret->appDisableLogOnStart);
-			else if (option == "Name")
-				ret->name = XMLNodeValue(node);
+            else if (option == "AppNoLog")
+                ret->appDisableLogOnStart = XMLNodeValueBool(node, ret->appDisableLogOnStart);
+            else if (option == "Name")
+                ret->name = XMLNodeValue(node);
             else if (option == "SourceRoot")
                 ret->rootPath = fs::weakly_canonical((modulePath / XMLNodeValue(node)).make_preferred());
+            else if (option == "Legacy")
+                ret->optionLegacy = XMLNodeValueBool(node, ret->optionLegacy);
 			else if (option == "AppHeader")
 				ret->appHeaderName = XMLNodeValue(node);
 			else if (option == "Guid")

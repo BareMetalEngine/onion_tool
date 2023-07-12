@@ -271,8 +271,15 @@ void SolutionGeneratorVS::extractSourceRoots(const SolutionProject* project, std
     // TODO: remove
     if (!project->rootPath.empty())
     {
-        outPaths.push_back(project->rootPath / "src");
-        outPaths.push_back(project->rootPath / "include");
+        if (project->optionLegacy)
+        {
+            outPaths.push_back(project->rootPath);
+        }
+        else
+        {
+            outPaths.push_back(project->rootPath / "src");
+            outPaths.push_back(project->rootPath / "include");
+        }
     }
 
     outPaths.push_back(m_config.derivedSolutionPath / "generated/_shared");
@@ -623,19 +630,30 @@ bool SolutionGeneratorVS::generateSourcesProjectFileEntry(const SolutionProject*
             if (!file->projectRelativePath.empty())
             {
                 const auto relativePath = fs::path(file->projectRelativePath).parent_path().u8string();
-                const auto fullPath = (project->outputPath / "obj" / relativePath).make_preferred();
+
+                auto fullPath = project->outputPath / "obj";
+                if (!relativePath.empty())
+                    fullPath = (fullPath / relativePath);
+
+                fullPath.make_preferred();
 
 				std::error_code ec;
 				if (!fs::is_directory(fullPath, ec))
 				{
 					if (!fs::create_directories(fullPath, ec))
 					{
-						std::cout << "Failed to create solution directory " << fullPath << "\n";
-						return false;
+                        if (ec)
+                        {
+                            std::cout << "Failed to create solution directory " << fullPath << ": " << ec << "\n";
+                            return false;
+                        }
 					}
 				}
 
-                writelnf(f, "      <ObjectFileName>$(IntDir)\\%s\\</ObjectFileName>", relativePath.c_str());
+                if (relativePath.empty())
+                    writelnf(f, "      <ObjectFileName>$(IntDir)\\</ObjectFileName>");
+                else
+                    writelnf(f, "      <ObjectFileName>$(IntDir)\\%s\\</ObjectFileName>", relativePath.c_str());
             }
 
             writeln(f, "   </ClCompile>");

@@ -48,34 +48,42 @@ bool ProjectInfo::scanContent()
 {
     bool valid = true;
 
+    if (manifest->optionLegacy)
     {
-        const auto publicFilePath = manifest->rootPath / "include";
-        valid &= scanFilesAtDir(publicFilePath, publicFilePath, ScanType::PublicFiles, true);
+		const auto publicFilePath = manifest->rootPath;
+		valid &= scanFilesAtDir(publicFilePath, publicFilePath, ScanType::PublicFiles, true);
     }
-
+    else
     {
-        const auto privateFilePath = manifest->rootPath / "src";
-        valid &= scanFilesAtDir(privateFilePath, privateFilePath, ScanType::PrivateFiles, true);
-    }
+        {
+            const auto publicFilePath = manifest->rootPath / "include";
+            valid &= scanFilesAtDir(publicFilePath, publicFilePath, ScanType::PublicFiles, true);
+        }
 
-    {
-        const auto privateFilePath = manifest->rootPath / "natvis";
-        valid &= scanFilesAtDir(privateFilePath, privateFilePath, ScanType::PrivateFiles, true);
-    }
+        {
+            const auto privateFilePath = manifest->rootPath / "src";
+            valid &= scanFilesAtDir(privateFilePath, privateFilePath, ScanType::PrivateFiles, true);
+        }
 
-    {
-        const auto mediaFilePath = manifest->rootPath / "media";
-        valid &= scanFilesAtDir(mediaFilePath, mediaFilePath, ScanType::MediaFiles, true);
-    }	
+        {
+            const auto privateFilePath = manifest->rootPath / "natvis";
+            valid &= scanFilesAtDir(privateFilePath, privateFilePath, ScanType::PrivateFiles, true);
+        }
 
-	{
-		const auto mediaFilePath = manifest->rootPath / "res";
-		valid &= scanFilesAtDir(mediaFilePath, mediaFilePath, ScanType::ResourceFiles, true);
-	}
+        {
+            const auto mediaFilePath = manifest->rootPath / "media";
+            valid &= scanFilesAtDir(mediaFilePath, mediaFilePath, ScanType::MediaFiles, true);
+        }
 
-    {
-        const auto mediaFilePath = manifest->rootPath;
-        valid &= scanFilesAtDir(mediaFilePath, mediaFilePath, ScanType::PrivateFiles, false);
+        {
+            const auto mediaFilePath = manifest->rootPath / "res";
+            valid &= scanFilesAtDir(mediaFilePath, mediaFilePath, ScanType::ResourceFiles, true);
+        }
+
+        {
+            const auto mediaFilePath = manifest->rootPath;
+            valid &= scanFilesAtDir(mediaFilePath, mediaFilePath, ScanType::PrivateFiles, false);
+        }
     }
 
     return valid;
@@ -99,7 +107,7 @@ bool ProjectInfo::internalTryAddFileFromPath(const fs::path& scanRootPath, const
         return true;
     }
 
-    if (scanType == ScanType::PublicFiles && type != ProjectFileType::CppHeader)
+    if (scanType == ScanType::PublicFiles && type != ProjectFileType::CppHeader && !manifest->optionLegacy)
     {
         std::cerr << KRED << "[BREAKING] Public files directory (include/) can only host header files, file " << absolutePath << " is not a header\n" << RST;
         return false;

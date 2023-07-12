@@ -61,6 +61,7 @@ struct SolutionProject
 	bool optionExportApplicataion = false;
 	bool optionGenerateMain = false;
 	bool optionUsePreMain = false;
+	bool optionLegacy = false;
 	int optionWarningLevel = 4;
 
     SolutionGroup* group = nullptr;
