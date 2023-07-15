@@ -107,6 +107,28 @@ extern void PrintURL(std::stringstream& f, std::string_view txt);
 
 //--
 
+struct LogPrinter
+{
+    LogPrinter(int type);
+    LogPrinter(const LogPrinter& other);
+    LogPrinter& operator=(const LogPrinter& other);
+    ~LogPrinter();
+
+    LogPrinter& operator<<(const char* str);
+    LogPrinter& operator<<(const std::string& str);
+    LogPrinter& operator<<(const std::string_view& str);
+    LogPrinter& operator<<(const std::filesystem::path& str);
+    LogPrinter& operator<<(int val);
+    LogPrinter& operator<<(uint32_t val);
+    LogPrinter& operator<<(size_t val);
+    LogPrinter& operator<<(std::error_code val);    
+
+private:
+    int m_type = 0;
+};
+
+//--
+
 extern std::string GetExecutablePath();
 
 //--
@@ -207,6 +229,14 @@ extern std::string EscapeArgument(std::string_view txt);
 
 extern std::string GetCurrentWeeklyTimestamp(); // 2205 - 5th week of 2022
 
+extern LogPrinter LogInfo();
+
+extern LogPrinter LogWarning();
+
+extern LogPrinter LogError();
+
+extern LogPrinter LogSuccess();
+
 //--
 
 extern std::string_view NameEnumOption(ConfigurationType type);
@@ -214,7 +244,7 @@ extern std::string_view NameEnumOption(LibraryType type);
 extern std::string_view NameEnumOption(PlatformType type);
 extern std::string_view NameEnumOption(GeneratorType type);
 
-extern bool ParseConfigurationType(std::string_view txt, ConfigurationType& outType);
+//extern bool ParseConfigurationType(std::string_view txt, ConfigurationType& outType);
 extern bool ParseLibraryType(std::string_view txt, LibraryType& outType);
 extern bool ParsePlatformType(std::string_view txt, PlatformType& outType);
 extern bool ParseGeneratorType(std::string_view txt, GeneratorType& outType);
@@ -249,7 +279,7 @@ struct PrintEnumOptions
 #ifdef _WIN32
                     f << "*" << valueName;
 #else
-                    f << KBOLD << KGRN << valueName << RST;
+                    f << KGRN << valueName << RST;
 #endif
                 }
                 else

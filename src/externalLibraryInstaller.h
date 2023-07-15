@@ -6,57 +6,41 @@
 
 struct AWSConfig;
 struct Configuration;
+class LibraryInstaller;
 
-class ILibraryInstaller
+class ILibrarySource
 {
 public:
-	ILibraryInstaller(PlatformType platform, const fs::path& cacheDirectory);
-	virtual ~ILibraryInstaller() {};
-
-	virtual bool collect(const Commandline& cmdLine) = 0;
-	virtual bool install(std::string_view name, fs::path& outInstalledPath, std::string& outInstalledVersion, std::unordered_set<std::string>& outRequiredSystemPacakges) const = 0;
-
-	static std::shared_ptr<ILibraryInstaller> MakeLibraryInstaller(PlatformType platform, const fs::path& cacheDirectory);
-
-protected:
-	PlatformType m_platform;
-	fs::path m_cachePath;
-
-	void buildCoreLibraryPath(std::string_view name, std::string_view version, std::stringstream& str) const;
-
-	fs::path buildLibraryDownloadPath(std::string_view name, std::string_view version) const;
-	fs::path buildLibraryUnpackPath(std::string_view name, std::string_view version) const;
-	fs::path buildLibraryManifestPath(std::string_view name, std::string_view version) const;
+	virtual ~ILibrarySource();
+	virtual bool install(const LibraryInstaller& installer, std::string_view name, fs::path* outInstalledPath, std::string* outInstalledVersion, std::unordered_set<std::string>* outRequiredSystemPacakges) const = 0;
 };
 
-class ExternalLibraryInstaller : public ILibraryInstaller
+class LibrarySourceAWSEndpoint : public ILibrarySource
 {
 public:
-	ExternalLibraryInstaller(PlatformType platform, const fs::path& cacheDirectory);
+	LibrarySourceAWSEndpoint();
+	virtual ~LibrarySourceAWSEndpoint();
 
-	virtual bool collect(const Commandline& cmdLine) override final;
-	virtual bool install(std::string_view name, fs::path& outInstalledPath, std::string& outInstalledVersion, std::unordered_set<std::string>& outRequiredSystemPacakges) const override final;
+	bool init(PlatformType platform, const std::string& endpoint);
+
+	virtual bool install(const LibraryInstaller& installer, std::string_view name, fs::path* outInstalledPath, std::string* outInstalledVersion, std::unordered_set<std::string>* outRequiredSystemPacakges) const override;
 
 private:
 	AWSConfig m_aws;
-	
-
 	std::unordered_map<std::string, AWSLibraryInfo> m_libs;
-
-	//--
 };
 
-class OfflineLibraryInstaller : public ILibraryInstaller
+class LibrarySourcePhysicalPackedDirectory : public ILibrarySource
 {
 public:
-	OfflineLibraryInstaller(PlatformType platform, const fs::path& cacheDirectory, const fs::path& offlinePath);
+	LibrarySourcePhysicalPackedDirectory();
+	virtual ~LibrarySourcePhysicalPackedDirectory();
 
-	virtual bool collect(const Commandline& cmdLine) override final;
-	virtual bool install(std::string_view name, fs::path& outInstalledPath, std::string& outInstalledVersion, std::unordered_set<std::string>& outRequiredSystemPacakges) const override final;
+	bool init(PlatformType platform, const fs::path& path);
+
+	virtual bool install(const LibraryInstaller& installer, std::string_view name, fs::path* outInstalledPath, std::string* outInstalledVersion, std::unordered_set<std::string>* outRequiredSystemPacakges) const override;
 
 private:
-	fs::path m_offlinePath;
-
 	struct OfflineLibrary
 	{
 		std::string name;
@@ -65,6 +49,55 @@ private:
 	};
 
 	std::unordered_map<std::string, OfflineLibrary> m_libs;
+};
+
+class LibrarySourcePhysicalLooseDirectory : public ILibrarySource
+{
+public:
+	LibrarySourcePhysicalLooseDirectory();
+	virtual ~LibrarySourcePhysicalLooseDirectory();
+
+	bool init(PlatformType platform, const fs::path& path);
+
+	virtual bool install(const LibraryInstaller& installer, std::string_view name, fs::path* outInstalledPath, std::string* outInstalledVersion, std::unordered_set<std::string>* outRequiredSystemPacakges) const override;
+
+private:
+	struct OfflineLibrary
+	{
+		std::string name;
+		std::string version;
+		fs::path manifestPath;
+	};
+
+	std::unordered_map<std::string, OfflineLibrary> m_libs;
+};
+
+//--
+
+class LibraryInstaller
+{
+public:
+	LibraryInstaller(PlatformType platform, const fs::path& cacheDirectory);
+
+	inline PlatformType platformType() const { return m_platform; }
+
+	bool installOnlineAWSEndpointSource(const std::string& endpointAddress);
+	bool installOfflinePackedDirectory(const fs::path& localLibraryDirectory);
+	bool installOfflineLooseDirectory(const fs::path& localLibraryDirectory);
+
+	fs::path buildLibraryDownloadPath(std::string_view name, std::string_view version) const;
+	fs::path buildLibraryUnpackPath(std::string_view name, std::string_view version) const;
+	fs::path buildLibraryManifestPath(std::string_view name, std::string_view version) const;
+
+	bool install(std::string_view name, fs::path* outInstalledPath, std::string* outInstalledVersion, std::unordered_set<std::string>* outRequiredSystemPacakges) const;
+
+protected:
+	PlatformType m_platform;
+	fs::path m_cachePath;
+
+	std::vector<std::unique_ptr<ILibrarySource>> m_sources;
+
+	void buildCoreLibraryPath(std::string_view name, std::string_view version, std::stringstream& str) const;
 };
 
 //--

@@ -10,21 +10,21 @@ static bool BuildConfigurationCmake(const Configuration& cfg, const Commandline&
 	// test if cmake exists
 	if (0 != std::system("cmake --version"))
 	{
-		std::cerr << KRED << "[BREAKING] Could not detect CMAKE\n" << RST;
+		LogError() << "Could not detect CMAKE";
 		return false;
 	}
 
 	// generate cmake file
 	if (0 != std::system("cmake ."))
 	{
-		std::cerr << KRED << "[BREAKING] Could not run CMAKE config\n" << RST;
+		LogError() << "Could not run CMAKE config";
 		return false;
 	}
 
 	// build cmake file
 	if (0 != std::system("cmake --build . -- -j`nproc`"))
 	{
-		std::cerr << KRED << "[BREAKING] Could not run CMAKE config\n" << RST;
+		LogError() << "Could not run CMAKE config";
 		return false;
 	}
 
@@ -54,7 +54,7 @@ static bool FindSolution(const fs::path& solutionDir, fs::path& outSolutionDir)
 	}
 	catch (fs::filesystem_error& e)
 	{
-		std::cout << KRED << "[EXCEPTION] File system Error: " << e.what() << "\n" << RST;
+		LogError() << "[EXCEPTION] File system Error: " << e.what();
 		valid = false;
 	}
 
@@ -67,7 +67,7 @@ static bool BuildConfigurationVS(const Configuration& cfg, const Commandline& cm
 	std::stringstream msBuildPathStr;
 	if (!RunWithArgsAndCaptureOutput("\"\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\"\" -latest -prerelease -products * -requires Microsoft.Component.MSBuild -find MSBuild\\**\\Bin\\MSBuild.exe", msBuildPathStr))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to determine path to MSBuild.exe, is the Visual Studio installed?\n" << RST;
+		LogError() << "Failed to determine path to MSBuild.exe, is the Visual Studio installed?";
 		return false;
 	}
 
@@ -75,24 +75,24 @@ static bool BuildConfigurationVS(const Configuration& cfg, const Commandline& cm
 	const auto msBuildPath = fs::path(Trim(msBuildPathStr.str()));
 	if (!fs::is_regular_file(msBuildPath))
 	{
-		std::cerr << KRED << "[BREAKING] MSBuild not found at " << msBuildPath << "\n" << RST;
+		LogError() << "MSBuild not found at " << msBuildPath;
 		return false;
 	}
 	else
 	{
-		std::cerr << KGRN << "MSBuild found at " << msBuildPath << "\n" << RST;
+		LogSuccess() << "MSBuild found at " << msBuildPath;
 	}
 
 	// find solution file
 	fs::path solutionFilePath;
-	if (!FindSolution(cfg.derivedSolutionPath, solutionFilePath))
+	if (!FindSolution(cfg.derivedSolutionPathBase, solutionFilePath))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to find solution file at " << cfg.derivedSolutionPath << "\n" << RST;
+		LogError() << "Failed to find solution file at " << cfg.derivedSolutionPathBase;
 		return false;
 	}
 	else
 	{
-		std::cerr << KGRN << "Solution found at " << solutionFilePath << "\n" << RST;
+		LogSuccess() << "Solution found at " << solutionFilePath;
 	}
 
 	// compile the solution
@@ -102,10 +102,10 @@ static bool BuildConfigurationVS(const Configuration& cfg, const Commandline& cm
 	args << " ";
 	args << EscapeArgument(solutionFilePath.u8string());
 	const auto cmd = args.str();
-	std::cout << "Running: '" << cmd << "'\n";
+	LogInfo() << "Running: '" << cmd << "'";
 	if (0 != std::system(cmd.c_str()))
 	{
-		std::cerr << KRED << "[BREAKING] Building failed\n" << RST;
+		LogError() << "Building failed";
 		return false;
 	}
 
@@ -117,22 +117,22 @@ static bool BuildConfigurationVS(const Configuration& cfg, const Commandline& cm
 static bool BuildConfiguration(const Configuration& cfg, const Commandline& cmdLine)
 {
 	// info
-	std::cout << "Building '" << cfg.mergedName() << "'\n";
+	LogInfo() << "Building '" << cfg.mergedName() << "'";
 	
 	// no solution directory
-	if (!fs::is_directory(cfg.derivedSolutionPath))
+	if (!fs::is_directory(cfg.derivedSolutionPathBase))
 	{
-		std::cerr << "[BREAKING] Make file/solution directory " << cfg.derivedSolutionPath << " does not exist\n";
+		LogError() << "Make file/solution directory " << cfg.derivedSolutionPathBase << " does not exist";
 		return false;
 	}
 
 	// change to solution path
 	std::error_code er;
 	const auto rootPath = fs::current_path();
-	fs::current_path(cfg.derivedSolutionPath, er);
+	fs::current_path(cfg.derivedSolutionPathBase, er);
 	if (er)
 	{
-		std::cerr << "[BREAKING] Failed to change directory to " << cfg.derivedSolutionPath << ", error: " << er << "\n";
+		LogError() << "Failed to change directory to " << cfg.derivedSolutionPathBase << ", error: " << er;
 		return false;
 	}
 
@@ -150,18 +150,18 @@ static bool BuildConfiguration(const Configuration& cfg, const Commandline& cmdL
 		}
 		else
 		{
-			std::cerr << KRED << "[BREAKING] Building from generator '" << NameEnumOption(cfg.generator) << "' is not supported\n" << RST;
+			LogError() << "Building from generator '" << NameEnumOption(cfg.generator) << "' is not supported";
 			valid = false;
 		}
 	}
 	catch (fs::filesystem_error& e)
 	{
-		std::cerr << KRED << "[EXCEPTION] File system Error: " << e.what() << "\n" << RST;
+		LogError() << "[EXCEPTION] File system Error: " << e.what();
 		valid = false;
 	}
 	catch (std::exception& e)
 	{
-		std::cerr << KRED << "[EXCEPTION] General Error: " << e.what() << "\n" << RST;
+		LogError() << "[EXCEPTION] General Error: " << e.what();
 		valid = false;
 	}
 
@@ -179,12 +179,15 @@ void ToolBuild::printUsage()
 {
 	auto platform = DefaultPlatform();
 
-	std::cout << KBOLD << "onion build [options]\n" << RST;
-	std::cout << "\n";
-	std::cout << "General options:\n";
-	std::cout << "  -module=<module to build>\n";
-	std::cout << "  -platform=" << PrintEnumOptions(platform) << "\n";
-	std::cout << "\n";
+	std::stringstream str;
+	str << PrintEnumOptions(platform);
+
+	LogInfo() << "onion build [options]";
+	LogInfo() << "";
+	LogInfo() << "General options:";
+	LogInfo() << "  -module=<module to build>";
+	LogInfo() << "  -platform=" << str.str() << "";
+	LogInfo() << "";
 }
 
 int ToolBuild::run(const Commandline& cmdline)

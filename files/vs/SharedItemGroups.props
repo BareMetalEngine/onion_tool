@@ -19,6 +19,7 @@
     <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     <DebugInformationFormat Condition="'$(Configuration)' == 'Checked'">ProgramDatabase</DebugInformationFormat>
     <DebugInformationFormat Condition="'$(Configuration)' == 'Release'">ProgramDatabase</DebugInformationFormat>
+	<DebugInformationFormat Condition="'$(Configuration)' == 'Profile'">ProgramDatabase</DebugInformationFormat>
     <DebugInformationFormat Condition="'$(Configuration)' == 'Final'">ProgramDatabase</DebugInformationFormat>
 
     <!-- Link time code generation is enabled only for the Final build -->
@@ -27,6 +28,7 @@
     <!-- Incremental linking is used in the debug configurations -->
     <LinkIncremental>true</LinkIncremental>
 	<LinkIncremental Condition="'$(Configuration)'=='Final'">false</LinkIncremental>
+	<LinkIncremental Condition="'$(Configuration)'=='Profile'">false</LinkIncremental>
 
     <!-- Unicode is used in all configurations -->
     <CharacterSet>Unicode</CharacterSet>
@@ -55,6 +57,7 @@
   <PropertyGroup>
     <SharedPreprocessorDefines>NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING;_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING;_UNICODE;UNICODE;PROJECT_CONFIGURATION=$(Configuration);PROJECT_PLATFORM=$(Platform);</SharedPreprocessorDefines>
     <SharedPreprocessorDefines Condition="'$(Configuration)'=='Final'">$(SharedPreprocessorDefines);BUILD_FINAL;NDEBUG;RELEASE;</SharedPreprocessorDefines>
+	<SharedPreprocessorDefines Condition="'$(Configuration)'=='Profile'">$(SharedPreprocessorDefines);BUILD_PROFILE;NDEBUG;RELEASE;</SharedPreprocessorDefines>
     <SharedPreprocessorDefines Condition="'$(Configuration)'=='Release'">$(SharedPreprocessorDefines);BUILD_RELEASE;NDEBUG;RELEASE;</SharedPreprocessorDefines>
     <SharedPreprocessorDefines Condition="'$(Configuration)'=='Checked'">$(SharedPreprocessorDefines);BUILD_CHECKED;NDEBUG;RELEASE</SharedPreprocessorDefines>
     <SharedPreprocessorDefines Condition="'$(Configuration)'=='Debug'">$(SharedPreprocessorDefines);BUILD_DEBUG;NDEBUG</SharedPreprocessorDefines>
@@ -124,6 +127,7 @@
       <DebugInformationFormat Condition="'$(Configuration)' == 'Checked'">ProgramDatabase</DebugInformationFormat>
       <DebugInformationFormat Condition="'$(Configuration)' == 'Release'">ProgramDatabase</DebugInformationFormat>
       <DebugInformationFormat Condition="'$(Configuration)' == 'Final'">ProgramDatabase</DebugInformationFormat>
+      <DebugInformationFormat Condition="'$(Configuration)' == 'Profile'">ProgramDatabase</DebugInformationFormat>
 
       <!-- Runtime CRT library selection -->
 	  <!-- RuntimeLibrary Condition="'$(Configuration)' == 'Debug'">MultiThreadedDebugDLL</RuntimeLibrary-->

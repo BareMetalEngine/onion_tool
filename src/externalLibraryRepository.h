@@ -18,7 +18,7 @@ public:
 
 	const ExternalLibraryManifest* findLibrary(std::string_view name) const;
 
-	bool deployFiles(const fs::path& targetPath) const;
+	bool deployFiles(ConfigurationType configuration, const fs::path& targetPath) const;
 
 private:
 	PlatformType m_platform;

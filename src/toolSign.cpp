@@ -13,7 +13,7 @@ int ToolSign::run(const Commandline& cmdline)
 	const auto filePath = fs::weakly_canonical(cmdline.get("file"));
 	if (!fs::is_regular_file(filePath))
 	{
-		std::cerr << KRED << "[BREAKING] Target executable path does not exist: " << filePath << "\n" << RST;
+		LogError() << "Target executable path does not exist: " << filePath;
 		return 1;
 	}
 

@@ -40,12 +40,12 @@ static std::string MakeLibraryPath(PlatformType platform, std::string_view name)
 	return libraryFile;
 }
 
-bool ExternalLibraryReposistory::deployFiles(const fs::path& targetPath) const
+bool ExternalLibraryReposistory::deployFiles(ConfigurationType configuration, const fs::path& targetPath) const
 {
 	bool valid = true;
 
 	for (const auto* dep : m_libraries)
-		valid &= dep->deployFilesToTarget(targetPath);
+		valid &= dep->deployFilesToTarget(m_platform, configuration, targetPath);
 
 	return valid;
 }
@@ -79,7 +79,7 @@ bool ExternalLibraryReposistory::installLibrary(std::string_view name, const fs:
 			if (it->second->rootPath == path)
 				return true;
 
-			std::cout << KRED << "[BREAKING] Library '" << name << "' is already installed at " << it->second->rootPath << ", second location at " << path << " ignored\n" << RST;
+			LogError() << "Library '" << name << "' is already installed at " << it->second->rootPath << ", second location at " << path << " ignored";
 			return false;
 		}
 	}
@@ -88,7 +88,7 @@ bool ExternalLibraryReposistory::installLibrary(std::string_view name, const fs:
 	auto manifest = ExternalLibraryManifest::Load(path);
 	if (!manifest)
 	{
-		std::cerr << KRED << "[BREAKING] Library '" << name << " at " << path << " has INVALID manifest file\n" << RST;
+		LogError() << "Library '" << name << " at " << path << " has INVALID manifest file";
 		return false;
 	}
 
@@ -96,7 +96,7 @@ bool ExternalLibraryReposistory::installLibrary(std::string_view name, const fs:
 	auto* libPtr = manifest.release();
 	m_librariesMap[std::string(name)] = libPtr;
 	m_libraries.push_back(libPtr);
-	std::cout << "Registered library '" << libPtr->name << "' at " << path << "\n";
+	LogInfo() << "Registered library '" << libPtr->name << "' at " << path;
 	return libPtr;
 }
 

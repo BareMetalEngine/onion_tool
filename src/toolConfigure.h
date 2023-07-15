@@ -7,6 +7,7 @@ struct GeneratedFile;
 struct ModuleConfigurationManifest;
 struct ModuleDepdencencyInfo;
 struct ModuleManifest;
+struct ModuleLibrarySource;
 
 struct ModuleReferencedLibrary
 {
@@ -26,6 +27,8 @@ public:
 
     bool processModuleFile(const fs::path& moduleFilePath, bool localFile);
     bool exportToManifest(ModuleConfigurationManifest& cfg) const;    
+
+    void collectLibrarySources(std::vector<ModuleLibrarySource>* outSources) const;
 
 private:
     struct ModuleInfo

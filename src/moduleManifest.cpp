@@ -38,14 +38,14 @@ static bool ParseData(const XMLNode* node, const fs::path& moduleRootPath, Modul
 				data.localSourcePath = XMLNodeValue(node);
 			else
 			{
-				std::cerr << "Unknown module's manifest option '" << option << "' in Data block\n";
+				LogError() << "Unknown module's manifest option '" << option << "' in Data block";
 				valid = false;
 			}
 		});
 
 	if (data.localSourcePath.empty())
 	{
-		std::cerr << KRED << "[BREAKING] There's no root directory specified for data\n" << RST;
+		LogError() << "There's no root directory specified for data";
 		valid = false;
 	}
 	else
@@ -54,19 +54,19 @@ static bool ParseData(const XMLNode* node, const fs::path& moduleRootPath, Modul
 
 		if (!fs::is_directory(data.sourcePath))
 		{
-			std::cerr << KRED << "[BREAKING] Data root directory " << data.sourcePath << " does not exist\n" << RST;
+			LogError() << "Data root directory " << data.sourcePath << " does not exist";
 			valid = false;
 		}
 	}
 
 	if (data.mountPath.empty())
 	{
-		std::cerr << KRED << "[BREAKING] There's no mount directory specified for data\n" << RST;
+		LogError() << "There's no mount directory specified for data";
 		valid = false;
 	}
 	else if (!BeginsWith(data.mountPath, "/") || !BeginsWith(data.mountPath, "/"))
 	{
-		std::cerr << KRED << "[BREAKING] Mount path should start and end with /\n" << RST;
+		LogError() << "Mount path should start and end with /";
 		valid = false;
 	}
 
@@ -119,14 +119,14 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 	}
 	catch (std::exception& e)
 	{
-		std::cerr << KRED << "[BREAKING] Error parsing XML '" << manifestPath << "': " << e.what() << "\n" << RST;
+		LogError() << "Error parsing XML '" << manifestPath << "': " << e.what();
 		return nullptr;
 	}
 
 	const auto* root = doc.first_node("Module");
 	if (!root)
 	{
-		std::cerr << KRED << "[BREAKING] Manifest XML at '" << manifestPath << "' is not a module manifest\n" << RST;
+		LogError() << "Manifest XML at '" << manifestPath << "' is not a module manifest";
 		return nullptr;
 	}
 
@@ -134,6 +134,7 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 	ret->guid = GuidFromText(manifestPath.u8string());
 
 	bool valid = true;
+	bool recursiveError = false;
 
 	// TODO: author string
 	// TODO: license string
@@ -150,13 +151,13 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 				const std::string relativePath = std::string(XMLNodeValue(node));
 				if (relativePath.empty())
 				{
-					std::cerr << KRED << "[BREAKING] Include expects a path to build.xml to include\n" << RST;
+					LogError() << "Include expects a path to build.xml to include";
 					valid = false;
 				}
 				else
 				{
 					const fs::path includeManifestPath = fs::weakly_canonical((manifestPath.parent_path() / relativePath).make_preferred());
-					std::cout << "Including module manifest at " << includeManifestPath << "\n";
+					//LogInfo() << "Including module manifest at " << includeManifestPath;
 
 					if (fs::is_regular_file(includeManifestPath))
 					{
@@ -166,16 +167,18 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 							ret->moduleDependencies.insert(ret->moduleDependencies.end(), included->moduleDependencies.begin(), included->moduleDependencies.end());
 							ret->projects.insert(ret->projects.end(), included->projects.begin(), included->projects.end());
 							ret->globalIncludePaths.insert(ret->globalIncludePaths.end(), included->globalIncludePaths.begin(), included->globalIncludePaths.end());
+							ret->librarySources.insert(ret->librarySources.end(), included->librarySources.begin(), included->librarySources.end());
 						}
 						else
 						{
-							std::cerr << KRED << "[BREAKING] Specified include module " << includeManifestPath << " failed to load\n" << RST;
+							//LogError() << "Specified include module " << includeManifestPath << " failed to load";
+							recursiveError = true;
 							valid = false;
 						}
 					}
 					else
 					{
-						std::cerr << KRED << "[BREAKING] Specified include module " << includeManifestPath << " does not exist\n" << RST;
+						LogError() << "Specified include module " << includeManifestPath << " does not exist";
 						valid = false;
 					}
 				}
@@ -191,7 +194,7 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 				}
 				else
 				{
-					std::cerr << KRED << "[BREAKING] Module manifest XML at '" << manifestPath << "' has invalid dependency definition\n" << RST;
+					LogError() << "Module manifest XML at '" << manifestPath << "' has invalid dependency definition";
 					valid = false;
 				}
 			}
@@ -206,7 +209,7 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 				}
 				else
 				{
-					std::cerr << KRED << "[BREAKING] Module manifest XML at '" << manifestPath << "' has invalid data definition\n" << RST;
+					LogError() << "Module manifest XML at '" << manifestPath << "' has invalid data definition";
 					valid = false;
 				}
 			}
@@ -217,19 +220,82 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 				localProjectGroup = std::string(XMLNodeValue(node));
 			}
 
+			// Online (AWS) library endpoint
+			else if (name == "LibraryOnlineEndpoint")
+			{
+				ModuleLibrarySource source;
+				source.type = "aws";
+				source.data = std::string(XMLNodeValue(node));
+				ret->librarySources.push_back(source);
+			}
+
+			// Offline packed library folder
+			else if (name == "LibraryLocalPackedPath")
+			{
+				const std::string relativePath = std::string(XMLNodeValue(node));
+				if (relativePath.empty())
+				{
+					LogError() << "MainOfflineLibraryPath expects a valid path, use './' to indicate current directory";
+					valid = false;
+				}
+				else
+				{
+					const fs::path path = fs::weakly_canonical((manifestPath.parent_path() / relativePath).make_preferred());
+					if (fs::is_directory(path))
+					{
+						ModuleLibrarySource source;
+						source.type = "packed";
+						source.data = path.u8string();
+						ret->librarySources.push_back(source);
+					}
+					else
+					{
+						LogError() << "Specified local library path " << path << " does not point to a valid directory";
+						valid = false;
+					}
+				}
+			}
+
+			// Offline loose library folder
+			else if (name == "LibraryLocalPath")
+			{
+				const std::string relativePath = std::string(XMLNodeValue(node));
+				if (relativePath.empty())
+				{
+					LogError() << "MainOfflineLibraryPath expects a valid path, use './' to indicate current directory";
+					valid = false;
+				}
+				else
+				{
+					const fs::path path = fs::weakly_canonical((manifestPath.parent_path() / relativePath).make_preferred());
+					if (fs::is_directory(path))
+					{
+						ModuleLibrarySource source;
+						source.type = "loose";
+						source.data = path.u8string();
+						ret->librarySources.push_back(source);
+					}
+					else
+					{
+						LogError() << "Specified local library path " << path << " does not point to a valid directory";
+						valid = false;
+					}
+				}
+			}
+			
 			// Global include directory
 			else if (name == "GlobalIncludePath")
 			{
 				const std::string relativePath = std::string(XMLNodeValue(node));
 				if (relativePath.empty())
 				{
-					std::cerr << KRED << "[BREAKING] GlobalIncludePath expects a valid path, use './' to indicate current directory\n" << RST;
+					LogError() << "GlobalIncludePath expects a valid path, use './' to indicate current directory";
 					valid = false;
 				}
 				else
 				{
 					const fs::path globalIncludePath = fs::weakly_canonical((manifestPath.parent_path() / relativePath).make_preferred());
-					std::cout << "Found global include path " << globalIncludePath << "\n";
+					LogInfo() << "Found global include path " << globalIncludePath;
 
 					if (fs::is_directory(globalIncludePath))
 					{
@@ -237,7 +303,7 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 					}
 					else
 					{
-						std::cerr << KRED << "[BREAKING] Specified global include path " << globalIncludePath << " does not point to a valid directory\n" << RST;
+						LogError() << "Specified global include path " << globalIncludePath << " does not point to a valid directory";
 						valid = false;
 					}
 				}
@@ -253,7 +319,7 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 				}
 				else
 				{
-					std::cerr << KRED << "[BREAKING] Module manifest XML at '" << manifestPath << "' has invalid project definition\n" << RST;
+					LogError() << "Module manifest XML at '" << manifestPath << "' has invalid project definition";
 					valid = false;
 				}
 			}
@@ -261,14 +327,15 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 			// Unknown tag
 			else
 			{
-				std::cerr << KRED << "[BREAKING] Module manifest XML at '" << manifestPath << "' has invalid project tag\n" << RST;
+				LogError() << "Module manifest XML at '" << manifestPath << "' has invalid tag '" << name << "'";
 				valid = false;
 			}
 		});
 
 	if (!valid)
 	{
-		std::cerr << KRED << "[BREAKING] Module manifest XML at '" << manifestPath << "' is invalid\n" << RST;
+		if (!recursiveError)
+			LogError() << "Module manifest XML at '" << manifestPath << "' is invalid and could not be loaded";
 		return nullptr;
 	}
 

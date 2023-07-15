@@ -3,6 +3,7 @@
 #include <cwctype>
 #include <fstream>
 #include <sstream>
+#include <mutex>
 #include <string.h>
 #include <stdarg.h>
 #include "lz4/lz4.h"
@@ -10,6 +11,12 @@
 
 #ifndef _WIN32
 #define localtime_s(res, timep) localtime_r(timep, res)
+#endif
+
+#ifdef _MSC_VER
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
 #endif
 
 //--
@@ -1065,7 +1072,7 @@ bool Commandline::parse(std::string_view text)
         std::string_view commandName;
         if (!parser.parseIdentifier(commandName))
         {
-            std::cout << "Commandline parsing error: expecting command name. Application may not work as expected.\n";
+            LogError() << "Commandline parsing error: expecting command name. Application may not work as expected.";
             return false;
         }
 
@@ -1081,7 +1088,7 @@ bool Commandline::parse(std::string_view text)
         std::string_view paramName;
         if (!parser.parseIdentifier(paramName))
         {
-            std::cout << "Commandline parsing error: expecting param name after '-'. Application may not work as expected.\n";
+            LogError() << "Commandline parsing error: expecting param name after '-'. Application may not work as expected.";
             return false;
         }
 
@@ -1091,7 +1098,7 @@ bool Commandline::parse(std::string_view text)
             // Read value
             if (!parser.parseString(paramValue))
             {
-                std::cout << "Commandline parsing error: expecting param value after '=' for param '" << paramName << "'. Application may not work as expected.\n";
+                LogError() << "Commandline parsing error: expecting param value after '=' for param '" << paramName << "'. Application may not work as expected.";
                 return false;
             }
         }
@@ -1147,7 +1154,7 @@ bool LoadFileToString(const fs::path& path, std::string& outText)
     }
     catch (std::exception& e)
     {
-        std::cout << "Error reading file " << path << ": " << e.what() << "\n";
+        LogError() << "Error reading file " << path << ": " << e.what();
         return false;
     }
 }
@@ -1170,7 +1177,7 @@ bool LoadFileToBuffer(const fs::path& path, std::vector<uint8_t>& outBuffer)
 	}
 	catch (std::exception& e)
 	{
-		std::cout << "Error reading file " << path << ": " << e.what() << "\n";
+		LogError() << "Error reading file " << path << ": " << e.what();
 		return false;
 	}
 }
@@ -1193,7 +1200,7 @@ bool SaveFileFromString(const fs::path& path, std::string_view txt, bool force /
                         if (print)
                         {
                             const auto currentTimeStamp = fs::last_write_time(path);
-                            std::cout << "File " << path << " is the same, updating timestamp only to " << (uint64_t)customTime.time_since_epoch().count() << ", current: " << (uint64_t)currentTimeStamp.time_since_epoch().count() << "\n";
+                            LogInfo() << "File " << path << " is the same, updating timestamp only to " << (uint64_t)customTime.time_since_epoch().count() << ", current: " << (uint64_t)currentTimeStamp.time_since_epoch().count();
                         }
 
                         fs::last_write_time(path, customTime);
@@ -1201,7 +1208,7 @@ bool SaveFileFromString(const fs::path& path, std::string_view txt, bool force /
                         auto newTime = fs::last_write_time(path);
                         if (newTime != customTime)
                         {
-                            std::cout << "Failed to update timestamp on " << path << "\n";
+                            LogInfo() << "Failed to update timestamp on " << path;
                         }
                     }
 
@@ -1210,12 +1217,12 @@ bool SaveFileFromString(const fs::path& path, std::string_view txt, bool force /
             }
 
             if (print)
-                std::cout << "File " << path << " has changed and has to be saved\n";
+                LogInfo() << "File " << path << " has changed and has to be saved";
         }
         else
         {
             if (print)
-                std::cout << "File " << path << " does not exist and has to be saved\n";
+                LogInfo() << "File " << path << " does not exist and has to be saved";
         }
     }
 
@@ -1231,12 +1238,12 @@ bool SaveFileFromString(const fs::path& path, std::string_view txt, bool force /
     }
     catch (std::exception& e)
     {
-        std::cout << "Error writing file " << path << ": " << e.what() << "\n";
+        LogError() << "Error writing file " << path << ": " << e.what();
         return false;
     }
 
     if (print)
-        std::cout << "File " << path << " saved!\n";
+        LogInfo() << "File " << path << " saved!";
 
     if (outCounter)
         (*outCounter) += 1;
@@ -1260,7 +1267,7 @@ bool SaveFileFromBuffer(const fs::path& path, const std::vector<uint8_t>& buffer
                         if (print)
                         {
                             const auto currentTimeStamp = fs::last_write_time(path);
-                            std::cout << "File " << path << " is the same, updating timestamp only to " << (uint64_t)customTime.time_since_epoch().count() << ", current: " << (uint64_t)currentTimeStamp.time_since_epoch().count() << "\n";
+                            LogInfo() << "File " << path << " is the same, updating timestamp only to " << (uint64_t)customTime.time_since_epoch().count() << ", current: " << (uint64_t)currentTimeStamp.time_since_epoch().count();
                         }
 
                         fs::last_write_time(path, customTime);
@@ -1271,7 +1278,7 @@ bool SaveFileFromBuffer(const fs::path& path, const std::vector<uint8_t>& buffer
             }
 
             if (print)
-                std::cout << "File " << path << " has changed and has to be saved\n";
+                LogInfo() << "File " << path << " has changed and has to be saved";
         }
 	}
 
@@ -1287,7 +1294,7 @@ bool SaveFileFromBuffer(const fs::path& path, const std::vector<uint8_t>& buffer
 	}
 	catch (std::exception& e)
 	{
-		std::cerr << KRED << "[BREAKING] Error writing file " << path << ": " << e.what() << "\n" << RST;
+		LogError() << "Error writing file " << path << ": " << e.what();
 		return false;
 	}
 
@@ -1662,11 +1669,6 @@ PlatformType DefaultPlatform()
 #endif
 }
 
-bool ParseConfigurationType(std::string_view txt, ConfigurationType& outType)
-{
-    return ParseEnumValue(txt, outType);
-}
-
 bool ParseLibraryType(std::string_view txt, LibraryType& outType)
 {
     return ParseEnumValue(txt, outType);
@@ -1684,19 +1686,6 @@ bool ParseGeneratorType(std::string_view txt, GeneratorType& outType)
 
 
 //--
-
-std::string_view NameEnumOption(ConfigurationType type)
-{
-    switch (type)
-    {
-    case ConfigurationType::Checked: return "checked";
-    case ConfigurationType::Debug: return "debug";
-    case ConfigurationType::Release: return "release";
-    case ConfigurationType::Final: return "final";
-    default: break;
-    }
-    return "";
-}
 
 std::string_view NameEnumOption(LibraryType type)
 {
@@ -1739,6 +1728,21 @@ std::string_view NameEnumOption(GeneratorType type)
     return "";
 }
 
+std::string_view NameEnumOption(ConfigurationType type)
+{
+	switch (type)
+	{
+	case ConfigurationType::Checked: return "Checked";
+	case ConfigurationType::Release: return "Release";
+	case ConfigurationType::Debug: return "Debug";
+	case ConfigurationType::Profile: return "Profile";
+	case ConfigurationType::Final: return "Final";
+	default: break;
+	}
+
+	return "Release";
+}
+
 //--
 
 bool IsFileSourceNewer(const fs::path& source, const fs::path& target)
@@ -1757,7 +1761,7 @@ bool IsFileSourceNewer(const fs::path& source, const fs::path& target)
     }
     catch (std::exception & e)
     {
-        std::cout << "Failed to check file write time: " << e.what() << "\n";
+        LogError() << "Failed to check file write time: " << e.what();
         return false;
     }    
 }
@@ -1772,7 +1776,7 @@ bool CreateDirectories(const fs::path& path)
 		}
 		catch (std::exception& e)
 		{
-			std::cout << "Failed to create directories: " << e.what() << "\n";
+			LogError() << "Failed to create directories: " << e.what();
 			return false;
 		}
     }
@@ -1799,7 +1803,7 @@ bool CopyNewerFile(const fs::path& source, const fs::path& target, bool* outActu
             }
         }
 
-        std::cout << "Copying " << target << "\n";
+        LogInfo() << "Copying " << target;
         fs::remove(target);
         fs::create_directories(target.parent_path());
         fs::copy(source, target);
@@ -1811,7 +1815,7 @@ bool CopyNewerFile(const fs::path& source, const fs::path& target, bool* outActu
     }
     catch (std::exception & e)
     {
-        std::cerr << KRED << "[BREAKING] Failed to copy file: " << e.what() << "\n" << RST;
+        LogError() << "Failed to copy file: " << e.what();
         return false;
     }
 }
@@ -1823,7 +1827,7 @@ bool CopyFile(const fs::path& source, const fs::path& target)
 		if (!fs::is_regular_file(source))
 			return false;
 
-		std::cout << "Copying " << target << "\n";
+		LogInfo() << "Copying " << target;
 		fs::remove(target);
 		fs::create_directories(target.parent_path());
 		fs::copy(source, target);
@@ -1832,7 +1836,7 @@ bool CopyFile(const fs::path& source, const fs::path& target)
 	}
 	catch (std::exception& e)
 	{
-		std::cerr << KRED << "[BREAKING] Failed to copy file: " << e.what() << "\n" << RST;
+		LogError() << "Failed to copy file: " << e.what();
 		return false;
 	}
 }
@@ -1849,7 +1853,7 @@ bool CopyNewerFilesRecursive(const fs::path& sourceDir, const fs::path& targetDi
             std::error_code ec;
             if (!fs::create_directories(targetDir, ec))
             {
-                std::cerr << KRED << "[BREAKING] Failed to create directory: " << targetDir << ": " << ec << "\n" << RST;
+                LogError() << "Failed to create directory: " << targetDir << ": " << ec;
                 return false;
             }
         }
@@ -1879,7 +1883,7 @@ bool CopyNewerFilesRecursive(const fs::path& sourceDir, const fs::path& targetDi
 	}
 	catch (std::exception& e)
 	{
-		std::cerr << KRED << "[BREAKING] Failed to copy directories: " << e.what() << "\n" << RST;
+		LogError() << "Failed to copy directories: " << e.what();
 		return false;
 	}
 }
@@ -1896,7 +1900,7 @@ bool CopyFilesRecursive(const fs::path& sourceDir, const fs::path& targetDir, ui
 			std::error_code ec;
 			if (!fs::create_directories(targetDir, ec))
 			{
-				std::cerr << KRED << "[BREAKING] Failed to create directory: " << targetDir << ": " << ec << "\n" << RST;
+				LogError() << "Failed to create directory: " << targetDir << ": " << ec;
 				return false;
 			}
 		}
@@ -1925,7 +1929,7 @@ bool CopyFilesRecursive(const fs::path& sourceDir, const fs::path& targetDir, ui
 	}
 	catch (std::exception& e)
 	{
-		std::cerr << KRED << "[BREAKING] Failed to copy directories: " << e.what() << "\n" << RST;
+		LogError() << "Failed to copy directories: " << e.what();
 		return false;
 	}
 }
@@ -2207,7 +2211,7 @@ bool CompressLZ4(const void* data, uint32_t size, std::vector<uint8_t>& outBuffe
     int compressedSize = LZ4_compress_HC((const char*)data, (char*)outBuffer.data(), size, maxSize, LZ4HC_CLEVEL_MAX);
     if (!compressedSize)
     {
-        std::cerr << KRED << "[BREAKING] Compression failed for buffer of size " << size << "\n" << RST;
+        LogError() << "Compression failed for buffer of size " << size;
         return false;
     }
 
@@ -2232,7 +2236,7 @@ bool DecompressLZ4(const void* data, uint32_t size, std::vector<uint8_t>& outBuf
     int decompressedSize = LZ4_decompress_safe((const char*)data, (char*)outBuffer.data(), size, (int)outBuffer.size());
 	if (!decompressedSize)
 	{
-		std::cerr << KRED << "[BREAKING] Decompression failed for buffer of size " << size << "\n" << RST;
+		LogError() << "Decompression failed for buffer of size " << size;
 		return false;
 	}
 
@@ -2252,7 +2256,7 @@ static bool DecomposeVersionString(std::string_view ver, std::vector<int>& outVe
         int versionNumber = 0;
         if (1 != sscanf(std::string(part).c_str(), "%d", &versionNumber))
         {
-            std::cerr << KRED << "[BREAKING] Unable to breakup version string '" << ver << "' at '" << part << "'\n" << RST;
+            LogError() << "Unable to breakup version string '" << ver << "' at '" << part << "'";
             return false;
         }
 
@@ -2290,7 +2294,7 @@ static bool CompareVersionNumber(std::string_view current, std::string_view requ
 
     if (!CompareVersionNumber(currentVersionNumber, requiredVersionNumber))
     {
-        std::cerr << KRED << "[BREAKING] Current version '" << current << "' is older than required '" << required << "'\n" << RST;
+        LogError() << "Current version '" << current << "' is older than required '" << required << "'";
         return false;
     }
 
@@ -2304,7 +2308,7 @@ bool CheckVersion(std::string_view app, std::string_view prefix, std::string_vie
     std::vector<std::string> lines;
     if (!RunWithArgsAndCaptureOutputIntoLines(command, lines) || lines.size() < 1)
     {
-        std::cerr << KRED << "[BREAKING] Version check on '" << app << "' failed, please (re)install the necessary packages\n" << RST;
+        LogError() << "Version check on '" << app << "' failed, please (re)install the necessary packages";
         return false;
     }
 
@@ -2316,11 +2320,11 @@ bool CheckVersion(std::string_view app, std::string_view prefix, std::string_vie
      if (!postfix.empty())
          version = Trim(PartBefore(version, postfix));
 
-     std::cout << "Version string for '" << app << "': '" << version << "'\n";
+     LogInfo() << "Version string for '" << app << "': '" << version << "'";
 
      if (!CompareVersionNumber(version, minVersion))
      {
-         std::cerr << KRED << "[BREAKING] Version check on '" << app << "' failed because of wrong version, please install updated packages\n" << RST;
+         LogError() << "Version check on '" << app << "' failed because of wrong version, please install updated packages";
          return false;
      }
 
@@ -2690,6 +2694,193 @@ std::string hmac_sha256_binstr(std::string_view key, std::string_view payload)
 	);
 
     return out;
+}
+
+//--
+
+static std::recursive_mutex LogLock;
+static uint32_t LogLevel = 0;
+static uint32_t LogType = 0;
+
+#ifdef _WIN32
+HANDLE GStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+HANDLE GStdErr = GetStdHandle(STD_ERROR_HANDLE);
+
+static void EnterLog(uint32_t type)
+{
+    LogLock.lock();
+
+    if (0 == LogLevel++)
+    {
+        LogType = type;
+
+        switch (type)
+        {
+        case 1:
+            SetConsoleTextAttribute(GStdOut, FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+            break;
+        case 2:
+            SetConsoleTextAttribute(GStdErr, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+            break;
+        case 3:
+            SetConsoleTextAttribute(GStdErr, FOREGROUND_RED | FOREGROUND_INTENSITY);
+            break;
+        default:
+            break;
+        }
+    }
+}
+
+static void LeaveLog()
+{
+    assert(LogLevel >= 1);
+
+    if (0 == --LogLevel)
+    {
+		switch (LogType)
+		{
+		case 1:
+			SetConsoleTextAttribute(GStdOut, 7);
+            [[fallthrough]];
+
+        default:
+            std::cout << "\n";
+            break;
+
+		case 2:
+        case 3:
+            SetConsoleTextAttribute(GStdErr, 7);
+			std::cerr << "\n";
+            break;
+        }
+
+        LogType = 0;
+    }
+
+    LogLock.unlock();
+}
+
+#endif
+
+LogPrinter::LogPrinter(int type)
+	: m_type(type)
+{
+    EnterLog(m_type);
+}
+
+LogPrinter::LogPrinter(const LogPrinter& other)
+    : m_type(other.m_type)
+{
+    EnterLog(m_type);
+}
+
+LogPrinter& LogPrinter::operator=(const LogPrinter& other)
+{
+    if (this != &other)
+    {
+        LeaveLog();
+        m_type = other.m_type;
+        EnterLog(m_type);
+    }
+
+    return *this;
+}
+
+LogPrinter::~LogPrinter()
+{
+    LeaveLog();
+}
+
+LogPrinter& LogPrinter::operator<<(const char* str)
+{
+    if (m_type == 0 || m_type == 1)
+        std::cout << str;
+    else
+        std::cerr << str;
+    return *this;
+}
+
+LogPrinter& LogPrinter::operator<<(const std::string& str)
+{
+	if (m_type == 0 || m_type == 1)
+		std::cout << str;
+	else
+		std::cerr << str;
+	return *this;
+}
+
+LogPrinter& LogPrinter::operator<<(const std::string_view& str)
+{
+	if (m_type == 0 || m_type == 1)
+		std::cout << str;
+	else
+		std::cerr << str;
+	return *this;
+}
+
+LogPrinter& LogPrinter::operator<<(const std::filesystem::path& str)
+{
+	if (m_type == 0 || m_type == 1)
+		std::cout << str;
+	else
+		std::cerr<< str;
+	return *this;
+}
+
+LogPrinter& LogPrinter::operator<<(int val)
+{
+	if (m_type == 0 || m_type == 1)
+        std::cout << val;
+	else
+		std::cerr << val;
+	return *this;
+}
+
+LogPrinter& LogPrinter::operator<<(uint32_t val)
+{
+	if (m_type == 0 || m_type == 1)
+		std::cout << val;
+	else
+		std::cerr << val;
+	return *this;
+}
+
+LogPrinter& LogPrinter::operator<<(size_t val)
+{
+	if (m_type == 0 || m_type == 1)
+		std::cout << val;
+	else
+		std::cerr << val;
+	return *this;
+}
+
+LogPrinter& LogPrinter::operator<<(std::error_code val)
+{
+	if (m_type == 0 || m_type == 1)
+        std::cout << val.message();
+	else
+		std::cerr << val.message();
+	return *this;
+}
+
+LogPrinter LogInfo()
+{
+    return LogPrinter(0);
+}
+
+LogPrinter LogSuccess()
+{
+	return LogPrinter(1);
+}
+
+LogPrinter LogWarning()
+{
+    return LogPrinter(2);
+}
+
+LogPrinter LogError()
+{
+    return LogPrinter(3);
 }
 
 //--

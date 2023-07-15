@@ -50,8 +50,19 @@ bool ProjectInfo::scanContent()
 
     if (manifest->optionLegacy)
     {
-		const auto publicFilePath = manifest->rootPath;
-		valid &= scanFilesAtDir(publicFilePath, publicFilePath, ScanType::PublicFiles, true);
+        if (manifest->legacySourceDirectories.empty())
+        {
+			const auto publicFilePath = manifest->rootPath;
+			valid &= scanFilesAtDir(publicFilePath, publicFilePath, ScanType::PublicFiles, true);
+        }
+        else
+        {
+            for (const auto& localPath : manifest->legacySourceDirectories)
+            {
+				const auto publicFilePath = manifest->rootPath / localPath;
+				valid &= scanFilesAtDir(publicFilePath, publicFilePath, ScanType::PublicFiles, false);
+            }
+        }
     }
     else
     {
@@ -103,13 +114,13 @@ bool ProjectInfo::internalTryAddFileFromPath(const fs::path& scanRootPath, const
         if (scanType == ScanType::ResourceFiles)
             return true; // just ignore it
 
-        std::cout << KYEL << "[WARNING] Unknown file type for " << absolutePath << "\n" << RST;
+        LogWarning() << "Unknown file type for " << absolutePath;
         return true;
     }
 
     if (scanType == ScanType::PublicFiles && type != ProjectFileType::CppHeader && !manifest->optionLegacy)
     {
-        std::cerr << KRED << "[BREAKING] Public files directory (include/) can only host header files, file " << absolutePath << " is not a header\n" << RST;
+        LogError() << "Public files directory (include/) can only host header files, file " << absolutePath << " is not a header";
         return false;
     }
 
@@ -148,7 +159,7 @@ bool ProjectInfo::scanFilesAtDir(const fs::path& scanRootPath, const fs::path& d
     }
     catch (fs::filesystem_error& e)
     {
-        std::cout << "Filesystem Error: " << e.what() << "\n";
+        LogError() << "Filesystem Error: " << e.what();
         valid = false;
     }
 
@@ -190,7 +201,7 @@ bool ProjectInfo::resolveLibraries(ExternalLibraryReposistory& libs)
 		}
 		else
 		{
-			std::cerr << KRED << "[BREAKING] Missing library '" << dep << "' referenced in project '" << name << "'\n" << RST;
+			LogError() << "Missing library '" << dep << "' referenced in project '" << name << "'";
 			valid = false;
 		}
 	}

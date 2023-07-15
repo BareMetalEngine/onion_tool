@@ -127,7 +127,7 @@ bool ProjectCollection::resolveDependency(const std::string_view name, std::vect
 			}
 			else
 			{
-				std::cerr << KRED << "[BREAKING] Project '" << proj->name << "' is not a library and can't be a dependency\n" << RST;
+				LogError() << "Project '" << proj->name << "' is not a library and can't be a dependency";
 				return false;
 			}
 
@@ -137,7 +137,7 @@ bool ProjectCollection::resolveDependency(const std::string_view name, std::vect
 		{
 			if (!soft)
 			{
-				std::cerr << KRED << "[BREAKING] No project named '" << name << "' found in all loaded modules\n" << RST;
+				LogError() << "No project named '" << name << "' found in all loaded modules";
 				return false;
 			}
 		}
@@ -157,7 +157,7 @@ bool ProjectCollection::filterProjects(const Configuration& config)
 	for (auto* proj : oldProjects)
 	{
 		// in the shipment config we don't emit tests and dev only projects
-		if (config.flagShipmentBuild)
+		if (!config.flagDevBuild)
 		{
 			if (proj->manifest->optionDevOnly || proj->manifest->type == ProjectType::TestApplication)
 				continue;
@@ -175,7 +175,7 @@ bool ProjectCollection::filterProjects(const Configuration& config)
 	if (oldProjects.size() != m_projects.size())
 	{
 		const auto numRemoved = oldProjects.size() - m_projects.size();
-		std::cout << "Filtered " << numRemoved << " project(s) from the solution due to development flag\n";
+		LogInfo() << "Filtered " << numRemoved << " project(s) from the solution due to development flag";
 	}
 
 	return true;

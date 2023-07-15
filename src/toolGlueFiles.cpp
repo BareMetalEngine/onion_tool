@@ -42,7 +42,7 @@ static bool CollectFilesForPacking(const fs::path& sourcePath, const std::string
 	}
 	catch (fs::filesystem_error& e)
 	{
-		std::cout << "File system Error: " << e.what() << "\n";
+		LogError() << "File system Error: " << e.what();
 		valid = false;
 	}
 
@@ -57,11 +57,11 @@ static bool GlueFile_List(const fs::path& path)
 
 	if (!archive.loadFromFile(path))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to load glued files from " << path << "\n" << RST;
+		LogError() << "Failed to load glued files from " << path;
 		return false;
 	}
 
-	std::cout << "There are " << KGRN << archive.files().size() << RST << " file(s) in the archive\n";
+	LogInfo() << "There are " << archive.files().size() << "file(s) in the archive";
 
 	uint32_t index = 0;
 	for (const auto& it : archive.files())
@@ -69,7 +69,7 @@ static bool GlueFile_List(const fs::path& path)
 		const auto& file = it.second;
 
 		const auto ratio = (file.uncompressedSize / (float)file.compressedData.size()) * 100.0f;
-		std::cout << "[" << index << "]: " << file.name << " (size: " << file.uncompressedSize << ", compression ration: " << ratio << "%" << ")\n";
+		LogInfo() << "[" << index << "]: " << file.name << " (size: " << file.uncompressedSize << ", compression ration: " << (int)ratio << "%" << ")";
 		index += 1;
 	}
 
@@ -82,7 +82,7 @@ static bool GlueFile_Clear(const fs::path& path)
 
 	if (!archive.saveToFile(path))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to update glued archive\n";
+		LogError() << "Failed to update glued archive";
 		return false;
 	}
 
@@ -106,14 +106,14 @@ static bool GlueFile_Pack(const fs::path& path, const Commandline& cmdline)
 		const auto str = cmdline.get("source");
 		if (str.empty())
 		{
-			std::cerr << KRED << "[BREAKING] Missing source directory (-source)\n" << RST;
+			LogError() << "Missing source directory (-source)";
 			return false;
 		}
 
 		sourceDirectory = fs::absolute(str).make_preferred();
 		if (!fs::is_directory(sourceDirectory))
 		{
-			std::cerr << KRED << "[BREAKING] Source directory at " << sourceDirectory << " does not exist\n" << RST;
+			LogError() << "Source directory at " << sourceDirectory << " does not exist";
 			return false;
 		}
 	}
@@ -125,7 +125,7 @@ static bool GlueFile_Pack(const fs::path& path, const Commandline& cmdline)
 	std::vector<FileForPacking> filesForPacking;
 	if (!CollectFilesForPacking(sourceDirectory, prefix, filesForPacking))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to collect content for packing from directory " << sourceDirectory << "\n" << RST;
+		LogError() << "Failed to collect content for packing from directory " << sourceDirectory;
 		return false;
 	}
 
@@ -137,13 +137,13 @@ static bool GlueFile_Pack(const fs::path& path, const Commandline& cmdline)
 
 	if (!valid)
 	{
-		std::cerr << KRED << "[BREAKING] Failed to load all files for gluing\n";
+		LogError() << "Failed to load all files for gluing";
 		return false;
 	}
 
 	if (!archive.saveToFile(path))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to update glued archive\n";
+		LogError() << "Failed to update glued archive";
 		return false;
 	}
 
@@ -156,7 +156,7 @@ static bool GlueFile_Unpack(const fs::path& path, const Commandline& cmdline)
 
 	if (!archive.loadFromFile(path))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to load glued files from " << path << "\n" << RST;
+		LogError() << "Failed to load glued files from " << path;
 		return false;
 	}
 
@@ -167,14 +167,14 @@ static bool GlueFile_Unpack(const fs::path& path, const Commandline& cmdline)
 		const auto str = cmdline.get("target");
 		if (str.empty())
 		{
-			std::cerr << KRED << "[BREAKING] Missing target directory (-target)\n" << RST;
+			LogError() << "Missing target directory (-target)";
 			return false;
 		}
 
 		targetDirectory = fs::absolute(str).make_preferred();
 		if (!CreateDirectories(targetDirectory))
 		{
-			std::cerr << KRED << "[BREAKING] Could not create target directory at " << targetDirectory << "\n" << RST;
+			LogError() << "Could not create target directory at " << targetDirectory;
 			return false;
 		}
 	}
@@ -203,7 +203,7 @@ static bool GlueFile_Unpack(const fs::path& path, const Commandline& cmdline)
 
 	if (!valid)
 	{
-		std::cerr << KRED << "[BREAKING] Failed to extract all files\n";
+		LogError() << "Failed to extract all files";
 		return false;
 	}
 
@@ -224,14 +224,14 @@ int ToolGlueFiles::run(const Commandline& cmdline)
 		const auto str = cmdline.get("file");
 		if (str.empty())
 		{
-			std::cerr << KRED << "[BREAKING] Missing target file path (-file)\n" << RST;
+			LogError() << "Missing target file path (-file)";
 			return 1;
 		}
 
 		targetFilePath = fs::absolute(str).make_preferred();
 		if (!fs::is_regular_file(targetFilePath))
 		{
-			std::cerr << KRED << "[BREAKING] File at " << targetFilePath << " does not exist\n" << RST;
+			LogError() << "File at " << targetFilePath << " does not exist";
 			return 1;
 		}
 	}
@@ -261,7 +261,7 @@ int ToolGlueFiles::run(const Commandline& cmdline)
 	}
 	else
 	{
-		std::cerr << KRED << "[BREAKING] Unknown glue action '" << action << "'\n" << RST;
+		LogError() << "Unknown glue action '" << action << "'";
 		return 1;
 	}
 

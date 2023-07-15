@@ -15,26 +15,20 @@ class Commandline;
 
 //--
 
-enum class AWSEndpoint : uint8_t
-{
-	LIBS,
-};
-
 struct AWSConfig
 {
 	std::string secret;
 	std::string key;
+	std::string endpoint;
 	bool needsSecrets = false;
 
 	AWSConfig(bool needsSecrets);
 
 	bool init(const Commandline& cmdLine);
 
-	std::string_view endpoint(AWSEndpoint type) const;
-
 	//--
 
-	bool get(AWSEndpoint type, std::string path, const RequestArgs& args, std::string& outResult) const; // NO AUTHORIZATION
+	bool get(std::string path, const RequestArgs& args, std::string& outResult) const; // NO AUTHORIZATION
 
 	//--
 

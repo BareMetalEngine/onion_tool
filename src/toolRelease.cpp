@@ -20,14 +20,14 @@ std::unique_ptr<VersionInfo> VersionInfo::LoadConfig(const fs::path& manifestPat
 	}
 	catch (std::exception& e)
 	{
-		std::cerr << KRED << "[BREAKING] Error parsing XML '" << manifestPath << "': " << e.what() << "\n" << RST;
+		LogError() << "Error parsing XML '" << manifestPath << "': " << e.what();
 		return nullptr;
 	}
 
 	const auto* root = doc.first_node("Version");
 	if (!root)
 	{
-		std::cerr << KRED << "[BREAKING] Manifest XML at '" << manifestPath << "' is not a version manifest\n" << RST;
+		LogError() << "Manifest XML at '" << manifestPath << "' is not a version manifest";
 		return nullptr;
 	}
 
@@ -46,14 +46,14 @@ std::unique_ptr<VersionInfo> VersionInfo::LoadConfig(const fs::path& manifestPat
 				valid &= XMLNodeValueIntSafe(node, &ret->minorVersion);
 			else
 			{
-				std::cerr << "Unknown version manifest option '" << option << "'\n";
+				LogError() << "Unknown version manifest option '" << option << "'";
 				valid = false;
 			}
 		});
 
 	if (!valid)
 	{
-		std::cerr << KRED << "[BREAKING] There were errors parsing project manifest from '" << manifestPath << "\n" << RST;
+		LogError() << "There were errors parsing project manifest from '" << manifestPath;
 		return nullptr;
 	}
 
@@ -68,12 +68,12 @@ ToolRelease::ToolRelease()
 
 void ToolRelease::printUsage()
 {
-	std::cout << KBOLD << "onion release [options]\n" << RST;
-	std::cout << "\n";
-	std::cout << "General options:";
-	std::cout << "  -action=[create|discard|publish|list]\n";
-	std::cout << "  -versionFile=<path to file with major version numbers, defaults to .version>\n";
-	std::cout << "\n";
+	LogInfo() << "onion release [options]";
+	LogInfo() << "";
+	LogInfo() << "General options:";
+	LogInfo() << "  -action=[create|discard|publish|list]";
+	LogInfo() << "  -versionFile=<path to file with major version numbers, defaults to .version>";
+	LogInfo() << "";
 }
 
 bool Release_GetNextVersion(GitHubConfig& git, const Commandline& cmdline, std::string& outVersion)
@@ -89,7 +89,7 @@ bool Release_GetNextVersion(GitHubConfig& git, const Commandline& cmdline, std::
 		versionInfo = VersionInfo::LoadConfig(versionFilePath);
 		if (!versionInfo)
 		{
-			std::cerr << KRED << "[BREAKING] Failed to load version information from " << versionFilePath << "\n" << RST;
+			LogError() << "Failed to load version information from " << versionFilePath;
 			return false;
 		}
 	}
@@ -98,7 +98,7 @@ bool Release_GetNextVersion(GitHubConfig& git, const Commandline& cmdline, std::
 		versionInfo = VersionInfo::LoadConfig(defaultVersionFile);
 		if (!versionInfo)
 		{
-			std::cerr << KRED << "[BREAKING] Failed to load default version information from " << defaultVersionFile << "\n" << RST;
+			LogError() << "Failed to load default version information from " << defaultVersionFile;
 			return false;
 		}
 	}
@@ -106,7 +106,7 @@ bool Release_GetNextVersion(GitHubConfig& git, const Commandline& cmdline, std::
 	// get current release number
 	uint32_t releaseNumber = 0;
 	GitApi_GetHighestReleaseNumber(git, versionInfo->prefix.c_str(), 3, releaseNumber);
-	std::cerr << "Current incremental release number is: " << releaseNumber << "\n";
+	LogInfo() << "Current incremental release number is: " << releaseNumber << "";
 
 	// assemble final version
 	std::stringstream txt;
@@ -138,29 +138,29 @@ static bool Release_List(GitHubConfig& git, const Commandline& cmdline)
 	std::vector<GitReleaseInfo> infos;
 	if (!GitApi_GetAllReleaseInfos(git, infos))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to list releases\n" << RST;
+		LogError() << "Failed to list releases";
 		return false;
 	}
 
 	std::string activeReleaseId;
 	Release_GetCurrentReleaseId(git, cmdline, activeReleaseId);
 
-	std::cout << "Found " << infos.size() << " release(s) in branch '" << git.branch << "'\n";
+	LogInfo() << "Found " << infos.size() << " release(s) in branch '" << git.branch << "'";
 
 	for (const auto& info : infos)
 	{
-		std::cout << info.id << ": " << info.name << " (" << info.tag << ")";
+		LogInfo() << info.id << ": " << info.name << " (" << info.tag << ")";
 
 		if (info.draft)
-			std::cout << " (DRAFT)";
+			LogInfo() << " (DRAFT)";
 
 		if (info.id == activeReleaseId)
-			std::cout << " (ACTIVE)";
+			LogInfo() << " (ACTIVE)";
 
 		if (!info.comitish.empty())
-			std::cout << " @" << info.comitish;
+			LogInfo() << " @" << info.comitish;
 
-		std::cout << "\n";
+		LogInfo() << "";
 	}
 
 	return true;
@@ -172,7 +172,7 @@ static bool Release_Create(GitHubConfig& git, const Commandline& cmdline)
 	std::string releaseId;
 	if (Release_GetCurrentReleaseId(git, cmdline, releaseId))
 	{
-		std::cerr << KRED << "[BREAKING] There's active release with ID '" << releaseId << "', can't start a new one. Use -discard or -publish to finish the release.\n" << RST;
+		LogError() << "There's active release with ID '" << releaseId << "', can't start a new one. Use -discard or -publish to finish the release.";
 		return false;
 	}
 
@@ -180,14 +180,14 @@ static bool Release_Create(GitHubConfig& git, const Commandline& cmdline)
 	std::string releaseName;
 	if (!Release_GetNextVersion(git, cmdline, releaseName))
 	{
-		std::cerr << KRED << "[BREAKING] Unable to determine next release tag\n" << RST;
+		LogError() << "Unable to determine next release tag";
 		return false;
 	}
 
 	// create DRAFT release
 	if (!GitApi_CreateRelease(git, releaseName, releaseName, "Automatic release", true, false, releaseId))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to create GitHub release '" << releaseName << "'\n" << RST;
+		LogError() << "Failed to create GitHub release '" << releaseName << "'";
 		return false;
 	}
 
@@ -195,12 +195,12 @@ static bool Release_Create(GitHubConfig& git, const Commandline& cmdline)
 	const auto releaseTokenFilePath = Release_ReleaseTokenFilePath(git);
 	if (!SaveFileFromString(releaseTokenFilePath, releaseId, true, false))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to save release token to " << releaseTokenFilePath << "\n" << RST;
+		LogError() << "Failed to save release token to " << releaseTokenFilePath;
 		return false;
 	}
 
 	// started a release
-	std::cout << KGRN << "Started release process for '" << releaseName << "' at id '" << releaseId << "'\n" << RST;
+	LogSuccess() << "Started release process for '" << releaseName << "' at id '" << releaseId << "'";
 	return true;
 }
 
@@ -210,7 +210,7 @@ static bool Release_Discard(GitHubConfig& git, const Commandline& cmdline)
 	std::string releaseId;
 	if (!Release_GetCurrentReleaseId(git, cmdline, releaseId))
 	{
-		std::cerr << KRED << "[BREAKING] There's no active release in progress\n" << RST;
+		LogError() << "There's no active release in progress";
 		return false;
 	}
 
@@ -218,25 +218,25 @@ static bool Release_Discard(GitHubConfig& git, const Commandline& cmdline)
 	GitReleaseInfo info;
 	if (!GitApi_GetReleaseInfoById(git, releaseId, info))
 	{
-		std::cerr << KRED << "[BREAKING] ReleaseID '" << releaseId << "' stored in .release token is not a valid release\n" << RST;
+		LogError() << "ReleaseID '" << releaseId << "' stored in .release token is not a valid release";
 		return false;
 	}
 
 	// release is no longer a draft
 	if (!info.draft)
 	{
-		std::cerr << KRED << "[BREAKING] Release '" << releaseId << "' is no longer a draf release and cannot be discarded from this tool\n" << RST;
+		LogError() << "Release '" << releaseId << "' is no longer a draf release and cannot be discarded from this tool";
 		return false;
 	}
 
 	// delete that release
 	if (!GitApi_DeleteRelease(git, releaseId))
 	{
-		std::cerr << KYEL << "[WARNING] Release '" << releaseId << "' could not be deleted\n" << RST;
+		LogWarning() << "Release '" << releaseId << "' could not be deleted";
 	}
 	else
 	{
-		std::cout << KGRN << "Draft release " << releaseId << " was deleted\n" << RST;
+		LogSuccess() << "Draft release " << releaseId << " was deleted";
 	}
 
 	// delete file on disk
@@ -245,11 +245,11 @@ static bool Release_Discard(GitHubConfig& git, const Commandline& cmdline)
 		const auto releaseTokenFilePath = Release_ReleaseTokenFilePath(git);
 		if (fs::remove(releaseTokenFilePath, ec))
 		{
-			std::cout << KGRN << "Release token " << releaseTokenFilePath << " deleted\n" << RST;
+			LogSuccess() << "Release token " << releaseTokenFilePath << " deleted";
 		}
 		else
 		{
-			std::cerr << KYEL << "[WARNING] Failed to delete release token " << releaseTokenFilePath << "\n" << RST;
+			LogWarning() << "Failed to delete release token " << releaseTokenFilePath;
 		}
 	}
 
@@ -263,7 +263,7 @@ static bool Release_Publish(GitHubConfig& git, const Commandline& cmdline)
 	std::string releaseId;
 	if (!Release_GetCurrentReleaseId(git, cmdline, releaseId))
 	{
-		std::cerr << KRED << "[BREAKING] There's no active release in progress\n" << RST;
+		LogError() << "There's no active release in progress";
 		return false;
 	}
 
@@ -271,25 +271,25 @@ static bool Release_Publish(GitHubConfig& git, const Commandline& cmdline)
 	GitReleaseInfo info;
 	if (!GitApi_GetReleaseInfoById(git, releaseId, info))
 	{
-		std::cerr << KRED << "[BREAKING] ReleaseID '" << releaseId << "' stored in .release token is not a valid release\n" << RST;
+		LogError() << "ReleaseID '" << releaseId << "' stored in .release token is not a valid release";
 		return false;
 	}
 
 	// release is no longer a draft
 	if (!info.draft)
 	{
-		std::cerr << KRED << "[BREAKING] Release '" << releaseId << "' is no longer a draf release and cannot be discarded from this tool\n" << RST;
+		LogError() << "Release '" << releaseId << "' is no longer a draf release and cannot be discarded from this tool";
 		return false;
 	}
 
 	// delete that release
 	if (!GitApi_PublishRelease(git, releaseId))
 	{
-		std::cerr << KYEL << "[WARNING] Release '" << releaseId << "' could not be published\n" << RST;
+		LogWarning() << "Release '" << releaseId << "' could not be published";
 	}
 	else
 	{
-		std::cout << KGRN << "Draft release " << releaseId << " was published!\n" << RST;
+		LogSuccess() << "Draft release " << releaseId << " was published!";
 	}
 
 	// delete file on disk
@@ -298,11 +298,11 @@ static bool Release_Publish(GitHubConfig& git, const Commandline& cmdline)
 		const auto releaseTokenFilePath = Release_ReleaseTokenFilePath(git);
 		if (fs::remove(releaseTokenFilePath, ec))
 		{
-			std::cout << KGRN << "Release token " << releaseTokenFilePath << " deleted\n" << RST;
+			LogSuccess() << "Release token " << releaseTokenFilePath << " deleted";
 		}
 		else
 		{
-			std::cerr << KYEL << "[WARNING] Failed to delete release token " << releaseTokenFilePath << "\n" << RST;
+			LogWarning() << "Failed to delete release token " << releaseTokenFilePath;
 		}
 	}
 
@@ -316,7 +316,7 @@ static bool Release_AddArtifact(GitHubConfig& git, const Commandline& cmdline)
 	std::string releaseId;
 	if (!Release_GetCurrentReleaseId(git, cmdline, releaseId))
 	{
-		std::cerr << KRED << "[BREAKING] There's no active release in progress\n" << RST;
+		LogError() << "There's no active release in progress";
 		return false;
 	}
 
@@ -324,7 +324,7 @@ static bool Release_AddArtifact(GitHubConfig& git, const Commandline& cmdline)
 	const auto filePath = fs::weakly_canonical(cmdline.get("file"));
 	if (!fs::is_regular_file(filePath))
 	{
-		std::cerr << KRED << "[BREAKING] File " << filePath << " does not exist, there's nothing to publish" << RST;
+		LogError() << "File " << filePath << " does not exist, there's nothing to publish" << RST;
 		return false;
 	}
 
@@ -335,7 +335,7 @@ static bool Release_AddArtifact(GitHubConfig& git, const Commandline& cmdline)
 	std::vector<GitArtifactInfo> artifacts;
 	if (!GitApi_ListReleaseArtifacts(git, releaseId, artifacts))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to list git artifacts for release '" << releaseId << "\n" << RST;
+		LogError() << "Failed to list git artifacts for release '" << releaseId;
 		return false;
 	}
 
@@ -353,7 +353,7 @@ static bool Release_AddArtifact(GitHubConfig& git, const Commandline& cmdline)
 
 		if (!matchingAssetID.empty())
 		{
-			std::cout << "Github Release Asset for '" << assetFileName << "' in release '" << releaseId << "' already found at ID " << matchingAssetID << "\n";
+			LogWarning() << "Github Release Asset for '" << assetFileName << "' in release '" << releaseId << "' already found at ID " << matchingAssetID;
 			return false;
 		}
 	}
@@ -362,7 +362,7 @@ static bool Release_AddArtifact(GitHubConfig& git, const Commandline& cmdline)
 	{
 		if (!GitApi_UploadReleaseArtifact(git, releaseId, assetFileName, filePath))
 		{
-			std::cerr << KRED << "[BREAKING] Upload failed" << RST;
+			LogError() << "Upload failed" << RST;
 			return false;
 		}
 	}
@@ -378,7 +378,7 @@ int ToolRelease::run(const Commandline& cmdline)
 	GitHubConfig git;
 	if (!git.init(cmdline))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to initialize GitHub helper\n" << RST;
+		LogError() << "Failed to initialize GitHub helper";
 		return 1;
 	}
 
@@ -410,7 +410,7 @@ int ToolRelease::run(const Commandline& cmdline)
 	}
 	else
 	{
-		std::cerr << KRED << "[BREAKING] Unknown release action '" << action << "'\n" << RST;
+		LogError() << "Unknown release action '" << action << "'";
 		return 1;
 	}
 

@@ -37,11 +37,11 @@ bool FileGenerator::saveFiles(bool print)
     }
 
     if (print)
-        std::cout << "Saved " << numSavedFiles << " files (" << files.size() << " total)\n";
+        LogInfo() << "Saved " << numSavedFiles << " files (" << files.size() << " total)";
 
     if (!valid)
     {
-        std::cout << "Failed to save some output files, generated solution may not be valid\n";
+        LogWarning() << "Failed to save some output files, generated solution may not be valid";
         return false;
     }
 

@@ -14,20 +14,6 @@ SolutionGeneratorCMAKE::SolutionGeneratorCMAKE(FileRepository& files, const Conf
     m_files.resolveDirectoryPath("cmake", m_cmakeScriptsPath);
 }
 
-static const char* NameCMakeConfiguration(ConfigurationType config)
-{    
-    switch (config)
-    {
-        case ConfigurationType::Checked: return "Checked";
-        case ConfigurationType::Release: return "Release";
-        case ConfigurationType::Debug: return "Debug";
-        case ConfigurationType::Final: return "Final";
-        default: break;
-    }
-
-    return "Release";
-}
-
 static std::string EscapePath(fs::path path)
 {
     path.make_preferred();
@@ -45,7 +31,7 @@ bool SolutionGeneratorCMAKE::generateSolution(FileGenerator& gen)
     if (!CheckVersion("cmake", "cmake version", "", "3.22.0"))
         return false;
 
-    auto* file = gen.createFile(m_config.derivedSolutionPath / "CMakeLists.txt");
+    auto* file = gen.createFile(m_config.derivedSolutionPathBase / "CMakeLists.txt");
     auto& f = file->content;
 
     writeln(f, "# Onion Build");
@@ -66,12 +52,12 @@ bool SolutionGeneratorCMAKE::generateSolution(FileGenerator& gen)
 
     writeln(f, "set(CMAKE_VERBOSE_MAKEFILE ON)");
     writeln(f, "set(CMAKE_COLOR_MAKEFILE ON)");
-    writelnf(f, "set(CMAKE_CONFIGURATION_TYPES \"%s\")", NameCMakeConfiguration(m_config.configuration));
+    writelnf(f, "set(CMAKE_CONFIGURATION_TYPES \"Debug;Checked;Release;Profile;Final\")");
     writeln(f, "set(OpenGL_GL_PREFERENCE \"GLVND\")");
     writelnf(f, "set(CMAKE_MODULE_PATH %s)", EscapePath(m_cmakeScriptsPath).c_str());
-    writelnf(f, "set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPath / "lib").c_str());
-    writelnf(f, "set(CMAKE_LIBRARY_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPath / "lib").c_str());
-    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedBinaryPath).c_str());
+    writelnf(f, "set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPathBase / "lib").c_str());
+    writelnf(f, "set(CMAKE_LIBRARY_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPathBase / "lib").c_str());
+    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedBinaryPathBase).c_str());
 
     //if (solution.platformType == PlatformType.WINDOWS)
     writeln(f, "set_property(GLOBAL PROPERTY USE_FOLDERS ON)");
@@ -128,7 +114,7 @@ void SolutionGeneratorCMAKE::extractSourceRoots(const SolutionProject* project, 
         }
     }
 
-    outPaths.push_back(m_config.derivedSolutionPath / "generated/_shared");
+    outPaths.push_back(m_config.derivedSolutionPathBase / "generated/_shared");
     outPaths.push_back(project->generatedPath);
 
 	for (const auto& path : project->additionalIncludePaths)
@@ -151,7 +137,7 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
 
     writelnf(f, "add_definitions(-DPROJECT_NAME=%s)", p->name.c_str());
     writeln(f, "string(TOUPPER \"${CMAKE_BUILD_TYPE}\" uppercase_CMAKE_BUILD_TYPE)");
-    writelnf(f, "set(CMAKE_CONFIGURATION_TYPES \"%s\")", NameCMakeConfiguration(m_config.configuration));
+    writelnf(f, "set(CMAKE_CONFIGURATION_TYPES \"Debug;Checked;Release;Profile;Final\")");
 
     const bool staticLink = (p->type == ProjectType::StaticLibrary);
     if (staticLink)
@@ -182,6 +168,7 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
       
     }
 
+#if 0
     if (m_config.configuration == ConfigurationType::Debug)
         writeln(f, "set( CMAKE_CXX_FLAGS  \"${CMAKE_CXX_FLAGS} -DBUILD_DEBUG -D_DEBUG -DDEBUG\")");
     else if (m_config.configuration == ConfigurationType::Checked)
@@ -190,6 +177,7 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
         writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -DBUILD_RELEASE -DNDEBUG\")");
     else if (m_config.configuration == ConfigurationType::Final)
         writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -DBUILD_RELEASE -DBUILD_FINAL -DNDEBUG\")");
+#endif
 
     if (windowsPlatform)
     {
@@ -213,12 +201,14 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
 
         writeln(f, "set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -g\")");
 
+#if 0
         if (m_config.configuration == ConfigurationType::Debug)
             writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -O0 -m64 -fstack-protector-all\")");
         else if (m_config.configuration == ConfigurationType::Checked)
             writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -O2 -m64 -fstack-protector-all\")");
         else
             writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -O3 -m64 -fno-stack-protector\")");
+#endif
     }
 
     /*if (solutionSetup.solutionType == SolutionType.FINAL)
@@ -237,10 +227,14 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
     writeln(f, "# Project library includes");
     for (const auto* lib : p->libraryDependencies)
     {
-		if (!lib->includePath.empty())
-			writelnf(f, "include_directories(%s)", EscapePath(lib->includePath).c_str());
+		std::vector<fs::path> includePaths, libraryPaths;
+		lib->collectIncludeDirectories(m_config.platform, &includePaths);
+        lib->collectLibraries(m_config.platform, &libraryPaths);
 
-		for (const auto& path : lib->libraryFiles)
+        for (const auto& path : includePaths)
+			writelnf(f, "include_directories(%s)", EscapePath(path).c_str());
+
+		for (const auto& path : libraryPaths)
 			writelnf(f, "link_libraries(%s)", EscapePath(path).c_str());
     }
 
@@ -267,7 +261,7 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
         }
         /*else
         {
-            std::cerr << "Missing file " << pf->absolutePath << " that is referenced in sources, was the file generated ?\n";
+            LogError() << "Missing file " << pf->absolutePath << " that is referenced in sources, was the file generated ?";
             return false;
         }*/
     }
@@ -335,17 +329,21 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
         else if (m_config.platform == PlatformType::DarwinArm || m_config.platform == PlatformType::Darwin)
             extraLibs.push_back("stdc++");
 
+		std::unordered_set<std::string> additionalSystemLibraries, additionalSystemFrameworks;
+
         for (const auto* lib : p->libraryDependencies)
         {
-            for (const auto &name: lib->additionalSystemLibraries)
-                if (!Contains(extraLibs, name))
-                    extraLibs.push_back(name);
-
-            for (const auto &name: lib->additionalSystemFrameworks)
-                if (!Contains(extraFrameworks, name))
-                    extraFrameworks.push_back(name);
-
+            lib->collectAdditionalSystemPackages(m_config.platform, &additionalSystemLibraries);
+            lib->collectAdditionalSystemFrameworks(m_config.platform, &additionalSystemFrameworks);
         }
+
+        for (const auto &name: additionalSystemLibraries)
+            if (!Contains(extraLibs, name))
+                extraLibs.push_back(name);
+
+		for (const auto& name : additionalSystemFrameworks)
+			if (!Contains(extraFrameworks, name))
+				extraFrameworks.push_back(name);
 
         bool first = true;
         std::stringstream libStr;

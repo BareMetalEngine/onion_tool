@@ -20,6 +20,13 @@ struct ModuleDataInfo
     fs::path sourcePath; // physical path on disk to the data
 };
 
+// module library reference
+struct ModuleLibrarySource
+{
+    std::string type;
+    std::string data;
+};
+
 // manifest of the module
 struct ModuleManifest
 {
@@ -29,6 +36,7 @@ struct ModuleManifest
 
     std::vector<ModuleDepdencencyInfo> moduleDependencies; // other modules we depend on
     std::vector<ModuleDataInfo> moduleData; // exposed data folders
+	std::vector<ModuleLibrarySource> librarySources; // source of third party libraries
     std::vector<fs::path> globalIncludePaths; // global include paths for source code (root source)
 
     mutable bool local = true;

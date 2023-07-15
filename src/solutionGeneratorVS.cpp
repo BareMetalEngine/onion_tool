@@ -99,20 +99,6 @@ void SolutionGeneratorVS::printSolutionParentLinks(std::stringstream& f, const S
     }
 }
 
-static const char* NameVisualStudioConfiguration(ConfigurationType config)
-{    
-    switch (config)
-    {
-        case ConfigurationType::Checked: return "Checked";
-        case ConfigurationType::Release: return "Release";
-        case ConfigurationType::Debug: return "Debug";
-        case ConfigurationType::Final: return "Final";
-        default: break;
-    }
-
-    return "Release";
-}
-
 static const char* NameVisualStudioPlatform(PlatformType config)
 {
     switch (config)
@@ -132,12 +118,12 @@ bool SolutionGeneratorVS::generateSolution(FileGenerator& gen)
     const auto solutionCoreName = ToLower(m_rootGroup->name);
     const auto solutionFileName = solutionCoreName + "." + m_config.mergedName() + ".sln";
 
-    auto* file = gen.createFile(m_config.derivedSolutionPath / solutionFileName);
+    auto* file = gen.createFile(m_config.derivedSolutionPathBase / solutionFileName);
     auto& f = file->content;
 
-    std::cout << "-------------------------------------------------------------------------------------------\n";
-    std::cout << "-- SOLUTION FILE: " << file->absolutePath << "\n";
-    std::cout << "-------------------------------------------------------------------------------------------\n";
+    LogInfo() << "-------------------------------------------------------------------------------------------\n";
+    LogInfo() << "-- SOLUTION FILE: " << file->absolutePath << "\n";
+    LogInfo() << "-------------------------------------------------------------------------------------------\n";
 
     writeln(f, "Microsoft Visual Studio Solution File, Format Version 12.00");
     /*if (toolset.equals("v140")) {
@@ -159,20 +145,31 @@ bool SolutionGeneratorVS::generateSolution(FileGenerator& gen)
 	writeln(f, "Global");
 
     {
-        const auto c = NameVisualStudioConfiguration(m_config.configuration);
-        const auto p = NameVisualStudioPlatform(m_config.platform);
+		writeln(f, "\tGlobalSection(SolutionConfigurationPlatforms) = preSolution");
 
-        writeln(f, "\tGlobalSection(SolutionConfigurationPlatforms) = preSolution");
-        writelnf(f, "\t\t%s|%s = %s|%s", c, p, c, p);
-        writeln(f, "\tEndGlobalSection");
+        for (const auto configType : CONFIGURATIONS)
+        {
+            const auto configName = std::string(NameEnumOption(configType));
+            const auto p = NameVisualStudioPlatform(m_config.platform);
+            writelnf(f, "\t\t%s|%s = %s|%s", configName.c_str(), p, configName.c_str(), p);
+        }
 
-        // project configs
+		writeln(f, "\tEndGlobalSection");
+    }
+
+    {
         writeln(f, "\tGlobalSection(ProjectConfigurationPlatforms) = postSolution");
 
         for (const auto* px : m_projects)
         {
-            writelnf(f, "\t\t%s.%s|%s.ActiveCfg = %s|%s", px->assignedVSGuid.c_str(), c, p, c, p);
-            writelnf(f, "\t%s.%s|%s.Build.0 = %s|%s", px->assignedVSGuid.c_str(), c, p, c, p);
+            for (const auto configType : CONFIGURATIONS)
+            {
+                const auto configName = std::string(NameEnumOption(configType));
+                const auto p = NameVisualStudioPlatform(m_config.platform);
+
+                writelnf(f, "\t\t%s.%s|%s.ActiveCfg = %s|%s", px->assignedVSGuid.c_str(), configName.c_str(), p, configName.c_str(), p);
+                writelnf(f, "\t\t%s.%s|%s.Build.0 = %s|%s", px->assignedVSGuid.c_str(), configName.c_str(), p, configName.c_str(), p);
+            }
         }
 
         writeln(f, "\tEndGlobalSection");
@@ -282,7 +279,7 @@ void SolutionGeneratorVS::extractSourceRoots(const SolutionProject* project, std
         }
     }
 
-    outPaths.push_back(m_config.derivedSolutionPath / "generated/_shared");
+    outPaths.push_back(m_config.derivedSolutionPathBase / "generated/_shared");
     outPaths.push_back(project->generatedPath);
 
     for (const auto& path : project->additionalIncludePaths)
@@ -361,7 +358,6 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
     }
 
     {
-        f << "  <LibraryIncludePath>";
         /*for (const auto* lib : project->originalProject->resolvedDependencies)
             if (lib->type == ProjectType::LocalLibrary && lib->optionGlobalInclude)
                     f << (lib->rootPath / "include").u8string() << "\\;";*/
@@ -370,15 +366,22 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
             if (source->type == ProjectType::LocalLibrary)
                 f << (source->rootPath / "include").u8string() << "\\;";*/
 
+        std::vector<fs::path> includePaths;
         for (const auto* lib : project->libraryDependencies)
-            if (!lib->includePath.empty())
-                f << lib->includePath.u8string() << "\\;";
-        f << "</LibraryIncludePath>\n";
+            lib->collectIncludeDirectories(m_config.platform, &includePaths);
+
+        if (!includePaths.empty())
+        {
+            f << "  <LibraryIncludePath>";
+            for (const auto& path : includePaths)
+                f << path.u8string() << "\\;";
+            f << "</LibraryIncludePath>\n";
+        }
     }
 
-    writelnf(f, " 	<ProjectOutputPath>%s\\</ProjectOutputPath>", project->outputPath.u8string().c_str());
-    writelnf(f, " 	<ProjectGeneratedPath>%s\\</ProjectGeneratedPath>", project->generatedPath.u8string().c_str());
-    writelnf(f, " 	<ProjectPublishPath>%s\\</ProjectPublishPath>", m_config.derivedBinaryPath.u8string().c_str());
+    writelnf(f, " 	<ProjectOutputPath>%s\\$(Configuration)\\</ProjectOutputPath>", project->outputPath.u8string().c_str());
+    writelnf(f, " 	<ProjectPublishPath>%s\\$(Configuration)\\</ProjectPublishPath>", m_config.derivedBinaryPathBase.u8string().c_str());
+	writelnf(f, " 	<ProjectGeneratedPath>%s\\</ProjectGeneratedPath>", project->generatedPath.u8string().c_str());
     writelnf(f, " 	<ProjectSourceRoot>%s\\</ProjectSourceRoot>", project->rootPath.u8string().c_str());
     writelnf(f, " 	<ProjectMediaRoot>%s\\</ProjectMediaRoot>", (project->rootPath / "media").u8string().c_str());
 
@@ -449,7 +452,7 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
     if (!project->optionUseWindowSubsystem)
         f  << "CONSOLE;";
 
-    if (!m_config.flagShipmentBuild)
+    if (!m_config.flagDevBuild)
         f << "DEVELOPMENT;";
 
     if (m_config.platform == PlatformType::UWP)
@@ -486,7 +489,6 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
 
         for (const auto& def : defs)
         {
-            //std::cout << "Adding define '" << def.first << "' = '" << def.second << "'\n";
             if (def.second.empty())
                 f << def.first << ";";
             else
@@ -629,31 +631,39 @@ bool SolutionGeneratorVS::generateSourcesProjectFileEntry(const SolutionProject*
 
             if (!file->projectRelativePath.empty())
             {
-                const auto relativePath = fs::path(file->projectRelativePath).parent_path().u8string();
+                for (const auto& configType : CONFIGURATIONS)
+                {
+                    const auto configurationName = NameEnumOption(configType);
 
-                auto fullPath = project->outputPath / "obj";
-                if (!relativePath.empty())
-                    fullPath = (fullPath / relativePath);
+                    const auto relativePath = fs::path(file->projectRelativePath).parent_path().u8string();
 
-                fullPath.make_preferred();
+                    auto fullPath = project->outputPath / configurationName / "obj";
+                    if (!relativePath.empty())
+                        fullPath = (fullPath / relativePath);
 
-				std::error_code ec;
-				if (!fs::is_directory(fullPath, ec))
-				{
-					if (!fs::create_directories(fullPath, ec))
-					{
-                        if (ec)
+                    fullPath.make_preferred();
+
+                    std::error_code ec;
+                    if (!fs::is_directory(fullPath, ec))
+                    {
+                        if (!fs::create_directories(fullPath, ec))
                         {
-                            std::cout << "Failed to create solution directory " << fullPath << ": " << ec << "\n";
-                            return false;
+                            if (ec)
+                            {
+                                LogError() << "Failed to create solution directory " << fullPath << ": " << ec;
+                                return false;
+                            }
                         }
-					}
-				}
+                    }
 
-                if (relativePath.empty())
-                    writelnf(f, "      <ObjectFileName>$(IntDir)\\</ObjectFileName>");
-                else
-                    writelnf(f, "      <ObjectFileName>$(IntDir)\\%s\\</ObjectFileName>", relativePath.c_str());
+                    if (configType == ConfigurationType::Debug)
+                    {
+                        if (relativePath.empty())
+                            writelnf(f, "      <ObjectFileName>$(IntDir)\\</ObjectFileName>");
+                        else
+                            writelnf(f, "      <ObjectFileName>$(IntDir)\\%s\\</ObjectFileName>", relativePath.c_str());
+                    }
+                }
             }
 
             writeln(f, "   </ClCompile>");
@@ -915,7 +925,7 @@ bool SolutionGeneratorVS::generateRTTIGenProjectFile(const SolutionProject* proj
     writelnf(f, "  <ProjectGuid>%s</ProjectGuid>", project->assignedVSGuid.c_str());
     writeln(f,  "  <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>");
     writelnf(f, " 	<ProjectOutputPath>%s\\</ProjectOutputPath>", project->outputPath.u8string().c_str());
-    writelnf(f, " 	<ProjectPublishPath>%s\\</ProjectPublishPath>", m_config.derivedBinaryPath.u8string().c_str());
+    writelnf(f, " 	<ProjectPublishRootPath>%s\\</ProjectPublishRootPath>", m_config.derivedBinaryPathBase.u8string().c_str());
     writeln(f,  "</PropertyGroup>");
     writeln(f,  "  <PropertyGroup>");
     writeln(f,  "    <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>");

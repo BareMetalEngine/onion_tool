@@ -9,8 +9,7 @@
 
 AWSConfig::AWSConfig(bool withSecrets)
 	: needsSecrets(withSecrets)
-{
-}
+{}
 
 bool AWSConfig::init(const Commandline& cmdLine)
 {
@@ -23,7 +22,7 @@ bool AWSConfig::init(const Commandline& cmdLine)
 				secret = GetSecret();
 				if (secret.empty())
 				{
-					std::cerr << KRED << "[BREAKING] Unable to retrieve AWS secret\n" << RST;
+					LogError() << "Unable to retrieve AWS secret";
 					return false;
 				}
 			}
@@ -36,7 +35,7 @@ bool AWSConfig::init(const Commandline& cmdLine)
 				key = GetKey();
 				if (key.empty())
 				{
-					std::cerr << KRED << "[BREAKING] Unable to retrieve AWS key\n" << RST;
+					LogError() << "Unable to retrieve AWS key";
 					return false;
 				}
 			}
@@ -46,24 +45,13 @@ bool AWSConfig::init(const Commandline& cmdLine)
 	return true;
 }
 
-std::string_view AWSConfig::endpoint(AWSEndpoint type) const
-{
-	switch (type)
-	{
-		case AWSEndpoint::LIBS: return "https://bare-metal-libs.s3.eu-central-1.amazonaws.com/";
-		default: break;
-	}
-
-	return "";
-}
-
 std::string AWSConfig::GetSecret()
 {
 	const char* str = std::getenv("ONION_AWS_SECRET");
 	if (str && *str)
 		return str;
 
-	std::cerr << KRED << "[BREAKING] Failed to retrieve AWS secret\n" << RST;
+	LogError() << "Failed to retrieve AWS secret";
 	return "";
 }
 
@@ -73,7 +61,7 @@ std::string AWSConfig::GetKey()
 	if (str && *str)
 		return str;
 
-	std::cerr << KRED << "[BREAKING] Failed to retrieve AWS key\n" << RST;
+	LogError() << "Failed to retrieve AWS key";
 	return "";
 }
 
@@ -87,7 +75,7 @@ std::string AWSConfig::GetKey()
 	auto ret = SimpleJsonToken(SimpleJson::Parse(result));
 	if (!ret)
 	{
-		std::cerr << KRED << "[BREAKING] GitHub API request returned invalid JSON: " << url << "\n" << RST;
+		LogError() << "GitHub API request returned invalid JSON: " << url;
 		return nullptr;
 	}
 
@@ -97,29 +85,29 @@ std::string AWSConfig::GetKey()
 		{
 			if (const auto code = err["code"])
 			{
-				std::cout << KRED << "GitHub API error: " << code.str() << "\n" << RST;
+				LogError() << "GitHub API error: " << code.str();
 				return nullptr;
 			}
 		}
 	}
 	else if (const auto message = ret["message"])
 	{
-		std::cout << KRED << "GitHub API error message: " << message.str() << "\n" << RST;
+		LogError() << "GitHub API error message: " << message.str();
 		return nullptr;
 	}
 
-	std::cout << KGRN << "GitHub API request " << url << " returned valid JSON\n" << RST;
+	LogSuccess() << "GitHub API request " << url << " returned valid JSON";
 	return ret;
 }*/
 
-bool AWSConfig::get(AWSEndpoint type, std::string path, const RequestArgs& args, std::string& outResult) const
+bool AWSConfig::get(std::string path, const RequestArgs& args, std::string& outResult) const
 {
 	std::stringstream txt;
 	txt << "curl --silent ";
 	//txt << "-H \"Accept: application/vnd.github.v3+json\" ";
 	//txt << "-u \"" << token << "\"
 	txt << "\"";
-	txt << endpoint(type);
+	txt << endpoint;
 	txt << path;
 	args.print(txt);
 	txt << "\"";
@@ -127,7 +115,7 @@ bool AWSConfig::get(AWSEndpoint type, std::string path, const RequestArgs& args,
 	std::stringstream result;
 	if (!RunWithArgsAndCaptureOutput(txt.str(), result))
 	{
-		std::cerr << KRED << "[BREAKING] AWS request failed: " << path << ": " << result.str() << "\n" << RST;
+		LogError() << "AWS request failed: " << path << ": " << result.str();
 		return false;
 	}
 
@@ -150,7 +138,7 @@ static std::string BuildLibraryPrefixForPlatform(PlatformType platform)
 static std::string BuildLibraryDownloadURL(const AWSConfig& aws, std::string_view key)
 {
 	std::stringstream str;
-	str << aws.endpoint(AWSEndpoint::LIBS);
+	str << aws.endpoint;
 	str << key;
 	return str.str();
 }
@@ -160,9 +148,9 @@ bool AWS_S3_ListLibraries(const AWSConfig& aws, PlatformType platform, std::vect
 	RequestArgs args;
 
 	std::string text;
-	if (!aws.get(AWSEndpoint::LIBS, "", args, text))
+	if (!aws.get("", args, text))
 	{
-		std::cerr << KRED << "[BREAKING] AWS failed to get list of objects in bucket\n" << RST;
+		LogError() << "AWS failed to get list of objects in bucket";
 		return false;
 	}
 
@@ -173,20 +161,20 @@ bool AWS_S3_ListLibraries(const AWSConfig& aws, PlatformType platform, std::vect
 	}
 	catch (std::exception& e)
 	{
-		std::cout << KRED << "[BREAKING] Error parsing returned XML from AWS: " << e.what() << "\n" << RST;
+		LogError() << "Error parsing returned XML from AWS: " << e.what();
 		return false;
 	}
 
 	const auto* root = doc.first_node("ListBucketResult");
 	if (!root)
 	{
-		std::cout << "AWS returned XML at is not a valid result for ListBucketResult \n";
+		LogInfo() << "AWS returned XML at is not a valid result for ListBucketResult";
 		return false;
 	}
 
 	if (!root->first_node("Contents"))
 	{
-		std::cout << "AWS returned XML does not contain any files\n";
+		LogInfo() << "AWS returned XML does not contain any files";
 		return false;
 	}
 
@@ -478,7 +466,7 @@ std::string AWS_MakeAuthoridzationString(std::string_view region, const AWSCanno
 		const auto awsKey = std::string("AWS4") + std::string("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY");		
 
 		int cmd = strcmp(stringToSign.c_str(), stringToSignLocal);
-		std::cout << cmd << "\n";
+		LogInfo() << cmd << "\n";
 
 		const auto t0 = hmac_sha256_binstr(awsKey, "20130524");
 		const auto t1 = hmac_sha256_binstr(t0, "us-east-1");
@@ -520,7 +508,7 @@ bool AWS_HandleResult(std::string_view url, const std::string& result)
 	}
 	catch (std::exception& e)
 	{
-		std::cout << KRED << "[BREAKING] Error parsing result XML from " << url << ": " << e.what() << "\n" << RST;
+		LogError() << "Error parsing result XML from " << url << ": " << e.what();
 		return false;
 	}
 
@@ -528,7 +516,7 @@ bool AWS_HandleResult(std::string_view url, const std::string& result)
 	{
 		const auto code = XMLChildNodeValue(root, "Code");
 
-		std::cout << KRED << "[BREAKING] AWS error at " << url << ": " << code << "\n" << RST;
+		LogError() << "AWS error at " << url << ": " << code;
 		return false;
 	}
 
@@ -597,14 +585,14 @@ bool AWS_S3_UploadFile(const AWSConfig& aws, const fs::path& filePath, std::stri
 
 	if (!aws.needsSecrets)
 	{
-		std::cerr << KRED << "[BREAKING] AWS handler initialized without secrets, upload impossible\n" << RST;
+		LogError() << "AWS handler initialized without secrets, upload impossible";
 		return false;
 	}
 
 	std::string contentHash;
 	if (!Sha256OfFile(filePath, contentHash))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to calculate SHA256 of " << filePath << "\n" << RST;
+		LogError() << "Failed to calculate SHA256 of " << filePath;
 		return false;
 	}
 
@@ -626,7 +614,7 @@ bool AWS_S3_UploadFile(const AWSConfig& aws, const fs::path& filePath, std::stri
 	std::stringstream result;
 	if (!RunWithArgsAndCaptureOutput(txt.str(), result))
 	{
-		std::cerr << KRED << "[BREAKING] AWS request failed: " << url << ": " << result.str() << "\n" << RST;
+		LogError() << "AWS request failed: " << url << ": " << result.str();
 		return false;
 	}
 

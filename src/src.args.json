@@ -172,11 +172,11 @@
     },
     {
       "Id": "37eb9373-e3cc-448c-a8bf-e3f079bb6f2f",
-      "Command": "-module=\"Z:\\BareMetalEngine\\MoonShot\\build.xml\""
+      "Command": "-module=\"Z:\\BareMetalEngine\\MoonShotDrop\\build.xml\""
     },
     {
       "Id": "46f6c533-f1fc-469c-88b1-89c932210ae3",
-      "Command": "-build=windows.debug"
+      "Command": "-build=windows"
     },
     {
       "Id": "981d2835-43fd-47f2-94c8-5a0ff6b48617",

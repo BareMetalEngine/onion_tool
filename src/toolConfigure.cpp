@@ -51,7 +51,7 @@ static bool ExploreProjectDependencies(const ProjectManifest* proj, const std::u
 		const auto it = projectMap.find(dep);
 		if (it == projectMap.end())
 		{
-			std::cerr << KRED << "[BREAKING] Project '" << proj->rootPath << "' has dependency on '" << dep << "' that could not be find in any loaded modules\n" << RST;
+			LogError() << "Project '" << proj->rootPath << "' has dependency on '" << dep << "' that could not be find in any loaded modules";
 			valid = false;
 		}
 		else
@@ -66,7 +66,7 @@ static bool ExploreProjectDependencies(const ProjectManifest* proj, const std::u
 		const auto it = projectMap.find(dep);
 		if (it == projectMap.end())
 		{
-			std::cerr << KYEL << "[BREAKING] Project '" << proj->rootPath << "' has OPTIONAL dependency on '" << dep << "' that could not be find in any loaded modules\n" << RST;
+			LogWarning() << "Project '" << proj->rootPath << "' has OPTIONAL dependency on '" << dep << "' that could not be find in any loaded modules";
 		}
 		else
 		{
@@ -77,13 +77,24 @@ static bool ExploreProjectDependencies(const ProjectManifest* proj, const std::u
 			}
 			else
 			{
-				std::cerr << KYEL << "[BREAKING] Project '" << dep << "' that was OPTIONAL dependency of '" << proj->rootPath << "' has missing it's dependencies and will not be remembered as a dependency\n" << RST;
+				LogWarning() << "Project '" << dep << "' that was OPTIONAL dependency of '" << proj->rootPath << "' has missing it's dependencies and will not be remembered as a dependency";
 			}
 		}
 	}
 
 	return valid;
 
+}
+
+void ModuleResolver::collectLibrarySources(std::vector<ModuleLibrarySource>* outSources) const
+{
+	for (const auto& dep : m_modulesByGuid)
+	{
+		const auto* moduleInfo = dep.second;
+
+		for (const auto& source : moduleInfo->manifest->librarySources)
+			outSources->push_back(source);
+	}
 }
 
 bool ModuleResolver::exportToManifest(ModuleConfigurationManifest& cfg) const
@@ -113,7 +124,7 @@ bool ModuleResolver::exportToManifest(ModuleConfigurationManifest& cfg) const
 				const auto it = projectsByName.find(proj->name);
 				if (it != projectsByName.end())
 				{
-					std::cerr << KRED << "[BREAKING] Project '" << proj->name << "' is defined in more than one module, configuration is invalid\n" << RST;
+					LogError() << "Project '" << proj->name << "' is defined in more than one module, configuration is invalid";
 					return false;
 				}
 
@@ -123,7 +134,7 @@ bool ModuleResolver::exportToManifest(ModuleConfigurationManifest& cfg) const
 			}
 		}
 
-		std::cout << "Configured " << m_modulesByGuid.size() << " module(s) containing " << projectsByName.size() << " project(s)\n";
+		LogInfo() << "Configured " << m_modulesByGuid.size() << " module(s) containing " << projectsByName.size() << " project(s)";
 	}
 
 	//--
@@ -137,11 +148,11 @@ bool ModuleResolver::exportToManifest(ModuleConfigurationManifest& cfg) const
 
 		if (!valid)
 		{
-			std::cerr << KRED << "[BREAKING] Project configuration failed, there are some dependencies missing\n" << RST;
+			LogError() << "Project configuration failed, there are some dependencies missing";
 			return false;
 		}
 
-		std::cout << "Discovered " << usedProjects.size()  << " used project out of " << projectsByName.size() << " total projects(s)\n";
+		LogInfo() << "Discovered " << usedProjects.size()  << " used project out of " << projectsByName.size() << " total projects(s)";
 	}
 
 	//--
@@ -155,11 +166,11 @@ bool ModuleResolver::exportToManifest(ModuleConfigurationManifest& cfg) const
 			for (const auto& lib : proj->libraryDependencies)
 			{
 				if (libraryNames.insert(lib).second)
-					std::cout << "Discovered third party library '" << lib << "' as being used by the projects\n";				
+					LogInfo() << "Discovered third party library '" << lib << "' as being used by the projects";				
 			}
 		}
 
-		std::cout << "Discovered " << libraryNames.size() << " used third party libraries\n";
+		LogInfo() << "Discovered " << libraryNames.size() << " used third party libraries";
 	}
 
 	//--
@@ -195,7 +206,7 @@ bool ModuleResolver::processModuleFile(const fs::path& moduleFilePath, bool loca
 	// final error
 	if (!valid)
 	{
-		std::cerr << KRED << "[BREAKING] Failed to resolve local dependencies of modules, configuration failed\n" << RST;
+		LogError() << "Failed to resolve local dependencies of modules, configuration failed";
 		return false;
 	}
 
@@ -206,14 +217,14 @@ bool ModuleResolver::processSingleModuleFile(const fs::path& moduleManifestPath,
 {
 	if (!fs::is_regular_file(moduleManifestPath))
 	{
-		std::cerr << KRED << "[BREAKING] File " << moduleManifestPath << " doest not exist\n" << RST;
+		LogError() << "File " << moduleManifestPath << " doest not exist";
 		return false;
 	}
 
 	auto* manifest = ModuleManifest::Load(moduleManifestPath, localFile ? "" : "Extenral");
 	if (!manifest)
 	{
-		std::cerr << KRED << "[BREAKING] File " << moduleManifestPath << " cannot be loaded\n" << RST;
+		LogError() << "File " << moduleManifestPath << " or one of the included files cannot be loaded";
 		return false;
 	}
 
@@ -226,12 +237,12 @@ bool ModuleResolver::processSingleModuleFile(const fs::path& moduleManifestPath,
 
 			if (mod->local || !localFile)
 			{
-				std::cerr << KRED << "[BREAKING] Duplicated module " << manifest->guid << " found in configuration - same module is loaded from different sources, this is not supported\n" << RST;
+				LogError() << "Duplicated module " << manifest->guid << " found in configuration - same module is loaded from different sources, this is not supported";
 				return false;
 			}
 			else
 			{
-				std::cout << KYEL << "Discarded remote module " << manifest->guid << " at " << mod->path << " as local version at " << moduleManifestPath << " was found!\n" << RST;
+				LogWarning() << "Discarded remote module " << manifest->guid << " at " << mod->path << " as local version at " << moduleManifestPath << " was found!";
 				m_modulesByGuid.erase(it);
 				delete mod;
 			}
@@ -246,7 +257,7 @@ bool ModuleResolver::processSingleModuleFile(const fs::path& moduleManifestPath,
 		info->manifest = manifest;
 		m_modulesByGuid[info->guid] = info;
 
-		std::cout << KGRN << "Registered module '" << manifest->guid << "'\n" << RST;
+		LogSuccess() << "Registered module '" << manifest->guid << "'";
 	}
 
 	bool valid = true;
@@ -256,7 +267,7 @@ bool ModuleResolver::processSingleModuleFile(const fs::path& moduleManifestPath,
 
 	if (!valid)
 	{
-		std::cerr << KRED << "[BREAKING] Failed to process dependencies of module " << manifest->guid << " loaded form " << moduleManifestPath << "\n" << RST;
+		LogError() << "Failed to process dependencies of module " << manifest->guid << " loaded form " << moduleManifestPath;
 		return false;
 	}
 
@@ -271,14 +282,14 @@ bool ModuleResolver::processSingleModuleDependency(const fs::path& moduleDirecto
 		const auto fullLocalPath = fs::weakly_canonical((moduleDirectory / dep.localRelativePath / "build.xml").make_preferred());
 		if (!fs::is_regular_file(fullLocalPath))
 		{
-			std::cerr << KRED << "[BREAKING] Local relative path " << dep.localRelativePath << " resolved as " << fullLocalPath << " does not point to a valid module directory\n" << RST;
+			LogError() << "Local relative path " << dep.localRelativePath << " resolved as " << fullLocalPath << " does not point to a valid module directory";
 			return false;
 		}
 
 		const auto fullLocalPathKey = fullLocalPath.u8string();
 		if (m_localModules.find(fullLocalPathKey) == m_localModules.end())
 		{
-			std::cout << "Discovered local module dependency at " << fullLocalPath << "\n";
+			LogInfo() << "Discovered local module dependency at " << fullLocalPath;
 
 			auto* info = new LocalDependency();
 			info->fullPath = fullLocalPath;
@@ -294,7 +305,7 @@ bool ModuleResolver::processSingleModuleDependency(const fs::path& moduleDirecto
 	// already known ?
 	if (m_remoteModules.find(key) == m_remoteModules.end())
 	{
-		std::cout << "Discovered remote module dependency on '" << dep.gitRepoPath << "'\n";
+		LogInfo() << "Discovered remote module dependency on '" << dep.gitRepoPath << "'";
 
 		auto* info = new RemoteDependency();
 		info->gitRepository = dep.gitRepoPath;
@@ -430,7 +441,7 @@ bool ModuleResolver::listRepositoryBranches(std::string_view repoPath, std::unor
 		if (branchName.empty())
 			continue;
 
-		std::cout << "Found branch '" << branchName << "' as ref " << hash << " in repository " << repoPath << "\n";
+		LogInfo() << "Found branch '" << branchName << "' as ref " << hash << " in repository " << repoPath;
 		outBranchNamesWithHashes[std::string(branchName)] = std::string(branchName);
 	}
 
@@ -486,7 +497,7 @@ bool ModuleResolver::getRepositoryBranchName(std::string_view repoPath, std::str
 		return true;
 	}
 
-	std::cerr << KRED << "[BREAKING] Failed to determine usable branch for repository " << repoPath << ", available branches: " << MakeNameList(branches) << "\n" << RST;	
+	LogError() << "Failed to determine usable branch for repository " << repoPath << ", available branches: " << MakeNameList(branches);	
 	return false;
 }
 
@@ -507,13 +518,13 @@ bool ModuleResolver::ensureRepositoryDownloaded(const std::string_view repoPath,
 		return false;
 
 	// info
-	std::cout << KGRN << "Repository " << repoPath << " will use branch '" << branchName << "'\n" << RST;
+	LogSuccess() << "Repository " << repoPath << " will use branch '" << branchName << "'";
 
 	// assemble folder name
 	fs::path downloadPath;
 	if (!getRepositoryDownloadPath(repoPath, branchName, downloadPath))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to determine download directory for repository '" << repoPath << "' at branch '" << branchName << "'\n" << RST;
+		LogError() << "Failed to determine download directory for repository '" << repoPath << "' at branch '" << branchName << "'";
 		return false;
 	}
 
@@ -531,7 +542,7 @@ bool ModuleResolver::ensureRepositoryDownloaded(const std::string_view repoPath,
 		// pull latest
 		if (!RunWithArgsInDirectory(downloadPath, "git pull"))
 		{
-			std::cerr << KYEL << "[WARNING] Failed to pull latest for repository '" << repoPath << "' at branch '" << branchName << "'\n" << RST;
+			LogWarning() << "Failed to pull latest for repository '" << repoPath << "' at branch '" << branchName << "'";
 		}
 
 		// we continue since we do have some code there
@@ -546,7 +557,7 @@ bool ModuleResolver::ensureRepositoryDownloaded(const std::string_view repoPath,
 		std::error_code ec;
 		if (!fs::create_directories(parentCloneDir, ec))
 		{
-			std::cerr << KRED << "[BREAKING] Failed to create cache directory '" << parentCloneDir << "\n" << RST;
+			LogError() << "Failed to create cache directory '" << parentCloneDir;
 			return false;
 		}
 	}
@@ -560,7 +571,7 @@ bool ModuleResolver::ensureRepositoryDownloaded(const std::string_view repoPath,
 	// pull latest
 	if (!RunWithArgsInDirectory(parentCloneDir, command.str()))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to clone repository '" << repoPath << "' at branch '" << branchName << "'\n" << RST;
+		LogError() << "Failed to clone repository '" << repoPath << "' at branch '" << branchName << "'";
 		return false;
 	}
 
@@ -576,12 +587,12 @@ ToolConfigure::ToolConfigure()
 
 void ToolConfigure::printUsage()
 {
-	std::cout << KBOLD << "onion configure [options]\n" << RST;
-	std::cout << "\n";
-	std::cout << "General options:\n";
-	std::cout << "  -module=<path to module to configure>\n";
-	std::cout << "  -configPath=<path where the generated configuration should be written\n";
-	std::cout << "\n";
+	LogInfo() << "onion configure [options]";
+	LogInfo() << "";
+	LogInfo() << "General options:";
+	LogInfo() << "  -module=<path to module to configure>";
+	LogInfo() << "  -configPath=<path where the generated configuration should be written";
+	LogInfo() << "";
 }
 
 static bool CheckSoftwareVersions()
@@ -644,9 +655,9 @@ static bool CheckSystemPackageInstalled(const std::string& name)
 #endif
 
     if (valid)
-        std::cout << "Found package '" << name << "' installed on the system\n";
+        LogInfo() << "Found package '" << name << "' installed on the system";
     else
-        std::cerr << KRED << "[BREAKING] System package '" << name << "' is not installed on the system\n";
+        LogError() << "System package '" << name << "' is not installed on the system";
 
     return valid;
 }
@@ -683,13 +694,13 @@ int ToolConfigure::run(const Commandline& cmdline)
     }
     else
     {
-        std::cout << KYEL << "[WARNING] System software version check was disabled (-skipVersionCheck)\n" << RST;
+        LogWarning() << "System software version check was disabled (-skipVersionCheck)";
     }
 
 	//--
 
 	const auto configPath = config.platformConfigurationFile();
-	std::cout << "Using configuration file " << configPath << "\n";
+	LogInfo() << "Using configuration file " << configPath;
 
 	//--
 
@@ -697,7 +708,7 @@ int ToolConfigure::run(const Commandline& cmdline)
 	ModuleResolver resolver(config.cachePath);
 	if (!resolver.processModuleFile(config.moduleFilePath, true))
 	{
-		std::cerr << KRED << "[BREAKING] Configuration failed\n" << RST;
+		LogError() << "Configuration failed";
 		return 1;
 	}
 
@@ -707,30 +718,58 @@ int ToolConfigure::run(const Commandline& cmdline)
 	manifest.platform = config.platform;
 	if (!resolver.exportToManifest(manifest))
 	{
-		std::cerr << KRED << "[BREAKING] Configuration export failed\n" << RST;
+		LogError() << "Configuration export failed";
 		return 1;
 	}
 
 	//--
 
-	// install libraries
-    std::unordered_set<std::string> requiredSystemPacakges;
+	// initialize library installer with library sources
+	LibraryInstaller libraries(config.platform, config.cachePath);
 	{
-		auto libraryInstaller = ILibraryInstaller::MakeLibraryInstaller(config.platform, config.cachePath);
-		if (!libraryInstaller->collect(cmdline))
+		std::vector<ModuleLibrarySource> librarySources;
+		resolver.collectLibrarySources(&librarySources);
+
+		bool valid = true;
+		for (const auto& source : librarySources)
 		{
-			std::cerr << KRED << "[BREAKING] Third party library repository failed to initialize\n" << RST;
-			return 1;
+			if (source.type == "aws")
+			{
+				valid &= libraries.installOnlineAWSEndpointSource(source.data);
+			}
+			else if (source.type == "packed")
+			{
+				valid &= libraries.installOfflinePackedDirectory(fs::path(source.data));
+			}
+			else if (source.type == "loose")
+			{
+				valid &= libraries.installOfflineLooseDirectory(fs::path(source.data));
+			}
+			else
+			{
+				LogError() << "Invalid library source type '" << source.type << "' pointing to '" << source.data << "'";
+				valid = false;
+			}
 		}
 
+		if (!valid)
+		{
+			LogError() << "Third party library repository failed to initialize";
+			return 1;
+		}
+	}
+
+	// install libraries
+	std::unordered_set<std::string> requiredSystemPacakges;
+	{
 		bool valid = true;
 		for (auto& lib : manifest.libraries)
 		{
 			fs::path installPath;
 			std::string installVersion;
-			if (!libraryInstaller->install(lib.name, installPath, installVersion, requiredSystemPacakges))
+			if (!libraries.install(lib.name, &installPath, &installVersion, &requiredSystemPacakges))
 			{
-				std::cerr << KRED << "[BREAKING] External third-party library '" << lib.name << "' failed to initialize\n" << RST;
+				LogError() << "External third-party library '" << lib.name << "' failed to initialize";
 				valid = false;
 			}
 
@@ -740,7 +779,7 @@ int ToolConfigure::run(const Commandline& cmdline)
 
 		if (!valid)
 		{
-			std::cerr << KRED << "[BREAKING] Failed to install all required libraries, project is not configured properly\n" << RST;
+			LogError() << "Failed to install all required libraries, project is not configured properly";
 			return 1;
 		}
 	}
@@ -757,7 +796,7 @@ int ToolConfigure::run(const Commandline& cmdline)
     if (cmdline.has("exportPackageList"))
     {
         const auto packagesString = BuildPackagesString(requiredSystemPacakges);
-        std::cout << KYEL << "[WARNING] Following system packages are required but are not checked: '" << packagesString << "'\n" << RST;
+        LogWarning() << "Following system packages are required but are not checked: '" << packagesString << "'";
 
         const auto packagesFilePath = fs::path(cmdline.get("exportPackageList"));
         SaveFileFromString(packagesFilePath, packagesString);
@@ -770,13 +809,13 @@ int ToolConfigure::run(const Commandline& cmdline)
 
         if (!valid)
         {
-            std::cerr << KRED << "[BREAKING] Required system packages are not installed, please install them and run the configuration again\n" << RST;
+            LogError() << "Required system packages are not installed, please install them and run the configuration again";
             return 1;
         }
     }
     else
     {
-        std::cout << KYEL << "[WARNING] System packages version check was disabled (-skipPackageCheck)\n" << RST;
+        LogWarning() << "System packages version check was disabled (-skipPackageCheck)";
     }
 
     //--
@@ -784,11 +823,11 @@ int ToolConfigure::run(const Commandline& cmdline)
 	// write configuration file
 	if (!manifest.save(configPath))
 	{
-		std::cerr << KRED << "[BREAKING] Configuration saving failed\n" << RST;
+		LogError() << "Configuration saving failed";
 		return 1;
 	}
 
-	std::cout << KGRN << "Configuration saved\n" << RST;
+	LogSuccess() << "Configuration saved";
 	return 0;
 
 	//--

@@ -195,7 +195,7 @@ SimpleJsonPtr SimpleJson::Parse(Parser& p)
             {
                 if (!p.parseKeyword(","))
                 {
-					std::cerr << KRED << "[JSON] Expected , between array elements\n" << RST;
+					LogError() << "[JSON] Expected , between array elements";
 					return nullptr;
                 }
             }
@@ -208,7 +208,7 @@ SimpleJsonPtr SimpleJson::Parse(Parser& p)
             needsSeparator = true;
         }
 
-        std::cerr << KRED << "[JSON] Unexpected end of JSon array\n" << RST;
+        LogError() << "[JSON] Unexpected end of JSon array";
         return nullptr;
     }
 	else if (p.parseKeyword("{"))
@@ -224,7 +224,7 @@ SimpleJsonPtr SimpleJson::Parse(Parser& p)
 			{
 				if (!p.parseKeyword(","))
 				{
-					std::cerr << KRED << "[JSON] Expected , between object elements\n" << RST;
+					LogError() << "[JSON] Expected , between object elements";
 					return nullptr;
 				}
 			}
@@ -232,13 +232,13 @@ SimpleJsonPtr SimpleJson::Parse(Parser& p)
             std::string_view name;
             if (!p.parseString(name, ":,}"))
             {
-				std::cerr << KRED << "[JSON] Expected object property name\n" << RST;
+				LogError() << "[JSON] Expected object property name";
 				return nullptr;
             }
 
             if (!p.parseKeyword(":"))
             {
-				std::cerr << KRED << "[JSON] Expected : between property name and value in object\n" << RST;
+				LogError() << "[JSON] Expected : between property name and value in object";
 				return nullptr;
             }
 
@@ -250,7 +250,7 @@ SimpleJsonPtr SimpleJson::Parse(Parser& p)
             needsSeparator = true;
 		}
 
-		std::cerr << KRED << "[JSON] Unexpected end of JSon object\n" << RST;
+		LogError() << "[JSON] Unexpected end of JSon object";
 		return nullptr;
 	}
     else
@@ -258,7 +258,7 @@ SimpleJsonPtr SimpleJson::Parse(Parser& p)
 		std::string value;
 		if (!p.parseStringWithScapement(value, ",}]"))
 		{
-			std::cerr << KRED << "[JSON] Expected value\n" << RST;
+			LogError() << "[JSON] Expected value";
 			return nullptr;
 		}
 

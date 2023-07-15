@@ -50,7 +50,7 @@ static bool EvalLibrarySourceType(LibraryManifest* manifest, const XMLNode* node
 		return true;
 	}	
 
-	std::cerr << "Unknown LibrarySourceType option '" << value << "'\n";
+	LogError() << "Unknown LibrarySourceType option '" << value << "'";
 	return false;
 }
 
@@ -74,7 +74,7 @@ static bool EvalLibraryArtifactType(LibraryArtifactInfo& info, const XMLNode* no
 		return true;
 	}
 
-	std::cerr << "Unknown LibraryArtifactType option '" << value << "'\n";
+	LogError() << "Unknown LibraryArtifactType option '" << value << "'";
 	return false;
 }
 
@@ -93,7 +93,7 @@ static bool EvalLibraryArtifactLocation(LibraryArtifactInfo& info, const XMLNode
 		return true;
 	}
 	
-	std::cerr << "Unknown LibraryArtifactLocation option '" << value << "'\n";
+	LogError() << "Unknown LibraryArtifactLocation option '" << value << "'";
 	return false;
 }
 
@@ -119,14 +119,14 @@ static bool EvalLibraryArtifact(LibraryManifest* manifest, const XMLNode* node, 
 				info.recursive = XMLNodeValueBool(node);
 			else
 			{
-				std::cerr << "Unknown library's manifest option '" << option << "'\n";
+				LogError() << "Unknown library's manifest option '" << option << "'";
 				valid = false;
 			}
 		});
 
 	if (!valid)
 	{
-		std::cerr << KRED << "[BREAKING] There were errors parsing artifact definition in a library manifest from '" << manifest->loadPath << "\n" << RST;
+		LogError() << "There were errors parsing artifact definition in a library manifest from '" << manifest->loadPath;
 		return false;
 	}
 
@@ -160,20 +160,20 @@ static bool EvalLibraryDependency(LibraryManifest* manifest, const XMLNode* node
 			}
 			else
 			{
-				std::cerr << "Unknown library's manifest option '" << option << "'\n";
+				LogError() << "Unknown library's manifest option '" << option << "'";
 				valid = false;
 			}
 		});
 
 	if (info.name.empty())
 	{
-		std::cerr << KRED << "[BREAKING] Missing name of the library dependency in a library manifest from '" << manifest->loadPath << "\n" << RST;
+		LogError() << "Missing name of the library dependency in a library manifest from '" << manifest->loadPath;
 		return false;
 	}
 	
 	if (!valid)
 	{
-		std::cerr << KRED << "[BREAKING] There were errors parsing artifact definition in a library manifest from '" << manifest->loadPath << "\n" << RST;
+		LogError() << "There were errors parsing artifact definition in a library manifest from '" << manifest->loadPath;
 		return false;
 	}
 
@@ -198,7 +198,7 @@ std::unique_ptr<LibraryManifest> LibraryManifest::Load(const fs::path& manifestP
 	std::string txt;
 	if (!LoadFileToString(manifestPath, txt))
 	{
-		std::cerr << "[BREAKING] Failed to load library manifest from '" << manifestPath << "'\n";
+		LogError() << "Failed to load library manifest from '" << manifestPath << "'";
 		return nullptr;
 	}
 
@@ -209,14 +209,14 @@ std::unique_ptr<LibraryManifest> LibraryManifest::Load(const fs::path& manifestP
 	}
 	catch (std::exception& e)
 	{
-		std::cout << "Error parsing XML '" << manifestPath << "': " << e.what() << "\n";
+		LogInfo() << "Error parsing XML '" << manifestPath << "': " << e.what();
 		return nullptr;
 	}
 
 	const auto* root = doc.first_node("Library");
 	if (!root)
 	{
-		std::cout << "Manifest XML at '" << manifestPath << "' is not a library manifest\n";
+		LogInfo() << "Manifest XML at '" << manifestPath << "' is not a library manifest";
 		return nullptr;
 	}
 
@@ -227,7 +227,7 @@ std::unique_ptr<LibraryManifest> LibraryManifest::Load(const fs::path& manifestP
 	ret->name = XMLNodeAttrbiute(root, "name");
 	if (ret->name.empty())
 	{
-		std::cout << "Manifest XML at '" << manifestPath << "' has no library name specified\n";
+		LogInfo() << "Manifest XML at '" << manifestPath << "' has no library name specified";
 		return nullptr;
 	}
 
@@ -263,14 +263,14 @@ std::unique_ptr<LibraryManifest> LibraryManifest::Load(const fs::path& manifestP
                 ret->additionalSystemFrameworks.emplace_back(XMLNodeValue(node));
 			else
 			{
-				std::cerr << "Unknown library's manifest option '" << option << "'\n";
+				LogError() << "Unknown library's manifest option '" << option << "'";
 				valid = false;
 			}
 		});
 
 	if (!valid)
 	{
-		std::cerr << KRED << "[BREAKING] There were errors parsing project manifest from '" << manifestPath << "\n" << RST;
+		LogError() << "There were errors parsing project manifest from '" << manifestPath;
 		return nullptr;
 	}
 

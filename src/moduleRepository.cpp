@@ -22,7 +22,7 @@ bool ModuleRepository::installConfiguredModule(const fs::path& absoluteModuleFil
 	auto* manifest = ModuleManifest::Load(absoluteModuleFilePath, local ? "" : "External");
 	if (!manifest)
 	{
-		std::cerr << "Failed to load module manifest from " << absoluteModuleFilePath << "\n";
+		LogError() << "Failed to load module manifest from " << absoluteModuleFilePath;
 		return false;
 	}
 
@@ -30,7 +30,7 @@ bool ModuleRepository::installConfiguredModule(const fs::path& absoluteModuleFil
 	manifest->local = local;
 
 	// install the loaded module
-	std::cout << "Installed local module at " << absoluteModuleFilePath << " with " << manifest->projects.size() << " project(s)\n";
+	LogInfo() << "Installed local module at " << absoluteModuleFilePath << " with " << manifest->projects.size() << " project(s)";
 	m_modules.push_back(manifest);
 	return true;
 }

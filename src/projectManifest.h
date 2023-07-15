@@ -65,6 +65,9 @@ struct ProjectManifest
     std::vector<std::string> optionalDependencies; // soft dependencies on another projects (we may continue if projects is NOT available)
     std::vector<std::string> libraryDependencies; // dependencies on third party libraries
 
+    std::vector<fs::path> localIncludePaths; // additional include path just for the project
+    std::vector<std::string> legacySourceDirectories; // directories with the source code (legacy only)
+
     std::vector<std::pair<std::string, std::string>> localDefines; // local defines to add when compiling this project alone
     std::vector<std::pair<std::string, std::string>> globalDefines; // global defines to add for the whole solution (usually stuff like HAS_EDITOR, HAS_PHYSX4, etc)
 

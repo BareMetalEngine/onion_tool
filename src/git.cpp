@@ -19,7 +19,7 @@ bool GitHubConfig::init(const Commandline& cmdLine)
 		initPath = fs::weakly_canonical(fs::path(cmdLine.get("gitPath")).make_preferred());
 		if (!fs::is_directory(path / ".git"))
 		{
-			std::cerr << KRED << "[BREAKING] Specified path " << initPath << " is not a Git repository\n" << RST;
+			LogError() << "Specified path " << initPath << " is not a Git repository";
 			return false;
 		}
 	}
@@ -28,7 +28,7 @@ bool GitHubConfig::init(const Commandline& cmdLine)
 		initPath = FindRepoPath();
 		if (initPath.empty())
 		{
-			std::cerr << KRED << "[BREAKING] Unable to find git repository in current or parent directories\n" << RST;
+			LogError() << "Unable to find git repository in current or parent directories";
 			return false;
 		}
 	}
@@ -53,13 +53,13 @@ bool GitHubConfig::init(const fs::path& initPath, const Commandline& cmdLine)
 	repo = GetRemoteRepo(path);
 	remote = GetRemote(path);
 
-	std::cout << "[GIT] Path: " << path << "\n";
-	std::cout << "[GIT] Token: '" << token << "'\n";
-	std::cout << "[GIT] Branch: '" << branch << "'\n";
-	std::cout << "[GIT] Head: '" << head << "'\n";
-	std::cout << "[GIT] Remote: '" << remote << "'\n";
-	std::cout << "[GIT] User: '" << user << "'\n";
-	std::cout << "[GIT] Repo: '" << repo << "'\n";
+	LogInfo() << "[GIT] Path: " << path;
+	LogInfo() << "[GIT] Token: '" << token;
+	LogInfo() << "[GIT] Branch: '" << branch;
+	LogInfo() << "[GIT] Head: '" << head;
+	LogInfo() << "[GIT] Remote: '" << remote;
+	LogInfo() << "[GIT] User: '" << user;
+	LogInfo() << "[GIT] Repo: '" << repo;
 
 	return true;
 }
@@ -132,7 +132,7 @@ std::string GitHubConfig::GetPublicToken(const fs::path& path)
 	if (str && *str)
 		return str;
 
-	std::cerr << KRED << "[BREAKING] Failed to retrieve GitHub access token\n" << RST;
+	LogError() << "Failed to retrieve GitHub access token";
 	return "";
 }
 
@@ -141,7 +141,7 @@ std::string GitHubConfig::GetBranchName(const fs::path& path)
 	std::stringstream txt;
 	if (!RunWithArgsInDirectoryAndCaptureOutput(path, "git branch --show-current", txt))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to retrieve GitHub branch name\n" << RST;
+		LogError() << "Failed to retrieve GitHub branch name";
 		return "";
 	}
 
@@ -153,7 +153,7 @@ std::string GitHubConfig::GetHeadRef(const fs::path& path)
 	std::stringstream hash;
 	if (!RunWithArgsInDirectoryAndCaptureOutput(path, "git rev-parse --verify HEAD", hash))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to fetch root hash from GitHub\n" << RST;
+		LogError() << "Failed to fetch root hash from GitHub";
 		return "";
 	}
 
@@ -165,7 +165,7 @@ std::string GitHubConfig::GetRemote(const fs::path& path)
 	std::stringstream txt;
 	if (!RunWithArgsInDirectoryAndCaptureOutput(path, "git config --get remote.origin.url", txt))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to retrieve GitHub remote\n" << RST;
+		LogError() << "Failed to retrieve GitHub remote";
 		return "";
 	}
 
@@ -200,7 +200,7 @@ SimpleJsonToken GitHubConfig::handleResult(std::string_view url, std::string_vie
 	auto ret = SimpleJsonToken(SimpleJson::Parse(result));
 	if (!ret)
 	{
-		std::cerr << KRED << "[BREAKING] GitHub API request returned invalid JSON: " << url << "\n" << RST;
+		LogError() << "GitHub API request returned invalid JSON: " << url;
 		return nullptr;
 	}
 
@@ -210,18 +210,18 @@ SimpleJsonToken GitHubConfig::handleResult(std::string_view url, std::string_vie
 		{
 			if (const auto code = err["code"])
 			{
-				std::cout << KRED << "GitHub API error: " << code.str() << "\n" << RST;
+				LogError() << "GitHub API error: " << code.str();
 				return nullptr;
 			}
 		}
 	}
 	else if (const auto message = ret["message"])
 	{
-		std::cout << KRED << "GitHub API error message: " << message.str() << "\n" << RST;
+		LogError() << "GitHub API error message: " << message.str();
 		return nullptr;
 	}
 
-	std::cout << KGRN << "GitHub API request " << url << " returned valid JSON\n" << RST;
+	LogSuccess() << "GitHub API request " << url << " returned valid JSON";
 	return ret;
 }
 
@@ -240,7 +240,7 @@ SimpleJsonToken GitHubConfig::get(std::string_view endpointName, const RequestAr
 	std::stringstream result;
 	if (!RunWithArgsAndCaptureOutput(txt.str(), result))
 	{
-		std::cerr << KRED << "[BREAKING] GitHub API request failed: " << url << ": " << result.str() << "\n" << RST;
+		LogError() << "GitHub API request failed: " << url << ": " << result.str();
 		return nullptr;
 	}
 
@@ -263,7 +263,7 @@ SimpleJsonToken GitHubConfig::del(std::string_view endpointName, const RequestAr
 	std::stringstream result;
 	if (!RunWithArgsAndCaptureOutput(txt.str(), result))
 	{
-		std::cerr << KRED << "[BREAKING] GitHub API request failed: " << url << ": " << result.str() << "\n" << RST;
+		LogError() << "GitHub API request failed: " << url << ": " << result.str();
 		return nullptr;
 	}
 
@@ -285,7 +285,7 @@ SimpleJsonToken GitHubConfig::post(std::string_view endpointName, const SimpleJs
 	std::stringstream result;
 	if (!RunWithArgsAndCaptureOutput(txt.str(), result))
 	{
-		std::cerr << KRED << "[BREAKING] GitHub API request failed: " << url << ": " << result.str() << "\n" << RST;
+		LogError() << "GitHub API request failed: " << url << ": " << result.str();
 		return nullptr;
 	}
 
@@ -307,7 +307,7 @@ SimpleJsonToken GitHubConfig::patch(std::string_view endpointName, const SimpleJ
 	std::stringstream result;
 	if (!RunWithArgsAndCaptureOutput(txt.str(), result))
 	{
-		std::cerr << KRED << "[BREAKING] GitHub API request failed: " << url << ": " << result.str() << "\n" << RST;
+		LogError() << "GitHub API request failed: " << url << ": " << result.str();
 		return nullptr;
 	}
 
@@ -333,7 +333,7 @@ SimpleJsonToken GitHubConfig::postFile(std::string_view endpointName, const Requ
 	std::stringstream result;
 	if (!RunWithArgsAndCaptureOutput(txt.str(), result))
 	{
-		std::cerr << KRED << "[BREAKING] GitHub API request failed: " << url << ": " << result.str() << "\n" << RST;
+		LogError() << "GitHub API request failed: " << url << ": " << result.str();
 		return nullptr;
 	}
 
@@ -354,13 +354,13 @@ bool GitApi_ListReleases(const GitHubConfig& git, std::vector<std::string>& outR
 		const auto result = git.get("tags", args);
 		if (!result)
 		{
-			std::cerr << KRED << "[BREAKING] GitHub API failed to get list of releases\n" << RST;
+			LogError() << "GitHub API failed to get list of releases";
 			return false;
 		}
 
 		if (result.values().empty())
 		{
-			std::cout << "Got empty result at page " << pageIndex << ", collected " << outReleases.size() << " release tags so far\n";
+			LogInfo() << "Got empty result at page " << pageIndex << ", collected " << outReleases.size() << " release tags so far";
 			break;
 		}
 
@@ -376,7 +376,7 @@ bool GitApi_CopyReleaseInfo(const SimpleJsonToken& tag, GitReleaseInfo& outInfo)
 {
 	if (!tag["tag_name"] || !tag["id"])
 	{
-		std::cerr << KRED << "[BREAKING] GitHub API got invalid release data\n" << RST;
+		LogError() << "GitHub API got invalid release data";
 		return false;
 	}
 
@@ -406,7 +406,7 @@ bool GitApi_GetAllReleaseInfos(const GitHubConfig& git, std::vector<GitReleaseIn
 		const auto result = git.get("releases", args);
 		if (!result)
 		{
-			std::cerr << KRED << "[BREAKING] GitHub API failed to get list of releases\n" << RST;
+			LogError() << "GitHub API failed to get list of releases";
 			return false;
 		}
 
@@ -441,7 +441,7 @@ bool GitApi_GetHighestReleaseNumber(const GitHubConfig& git, std::string_view pr
 		const auto result = git.get("tags", args);
 		if (!result)
 		{
-			std::cerr << KRED << "[BREAKING] GitHub API failed to get list of releases\n" << RST;
+			LogError() << "GitHub API failed to get list of releases";
 			return false;
 		}
 
@@ -488,7 +488,7 @@ bool GitApi_GetLatestReleaseName(const GitHubConfig& git, std::string& outReleas
 		return true;
 	}
 
-	std::cout << "No latest release\n";
+	LogInfo() << "No latest release";
 	return false;
 }
 
@@ -532,19 +532,19 @@ bool GitApi_CreateRelease(const GitHubConfig& git, std::string_view tag, std::st
 	const auto result = git.post("releases", json);
 	if (!result)
 	{
-		std::cerr << KRED << "[BREAKING] GitHub API failed to create release\n" << RST;
+		LogError() << "GitHub API failed to create release";
 		return false;
 	}
 
 	const auto id = result["id"];
 	if (!id)
 	{
-		std::cerr << KRED << "[BREAKING] GitHub API failed to create release (invalid response)\n" << RST;
+		LogError() << "GitHub API failed to create release (invalid response)";
 		return false;
 	}
 
 	outReleaseId = id.str();
-	std::cout << KGRN << "GitHub release created at ID " << id << "\n" << RST;
+	LogSuccess() << "GitHub release created at ID " << id;
 	return true;
 }
 
@@ -638,11 +638,11 @@ bool GitApi_UploadReleaseArtifact(const GitHubConfig& git, std::string_view id, 
 		const auto size = result["size"];
 		if (!id || !size)
 		{
-			std::cerr << KRED << "[BREAKING] GitHub API failed to verify asset upload (invalid response)\n" << RST;
+			LogError() << "GitHub API failed to verify asset upload (invalid response)";
 			return false;
 		}
 
-		std::cout << "Asset '" << name << "' upload as ID " << id.str() << " (size: " << size.str() << ")\n";
+		LogInfo() << "Asset '" << name << "' upload as ID " << id.str() << " (size: " << size.str() << ")";
 	}
 
 	return true;

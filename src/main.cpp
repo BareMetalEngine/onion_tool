@@ -50,20 +50,20 @@ static std::string MergeCommandline(int argc, char** argv)
 
 static void PrintUsage()
 {
-    std::cout << "\n";
-    std::cout << "---------------------------------------------------------\n";
+    LogInfo() << "";
+    LogInfo() << "---------------------------------------------------------";
     ToolConfigure().printUsage();
-    std::cout << "---------------------------------------------------------\n";
+    LogInfo() << "---------------------------------------------------------";
     ToolMake().printUsage();
-	std::cout << "---------------------------------------------------------\n";
+	LogInfo() << "---------------------------------------------------------";
 	ToolBuild().printUsage();
-	std::cout << "---------------------------------------------------------\n";
+	LogInfo() << "---------------------------------------------------------";
 	ToolLibrary().printUsage();
-	std::cout << "---------------------------------------------------------\n";
+	LogInfo() << "---------------------------------------------------------";
 	ToolRelease().printUsage();
-	std::cout << "---------------------------------------------------------\n";
+	LogInfo() << "---------------------------------------------------------";
 	ToolDeploy().printUsage();
-	std::cout << "---------------------------------------------------------\n";
+	LogInfo() << "---------------------------------------------------------";
 	ToolTest().printUsage();
 }
 
@@ -77,14 +77,14 @@ int main(int argc, char** argv)
     Commandline cmdLine;
     if (!cmdLine.parse(MergeCommandline(argc, argv)) || cmdLine.commands.size() != 1)
     {
-		std::cout << "Build Tool v1.0\n";
+		LogInfo() << "Build Tool v1.0";
         PrintUsage();
         return 1;
     }
 
     if (!cmdLine.has("nologo"))
     {
-        std::cout << "Build Tool v1.0\n";
+        LogInfo() << "Build Tool v1.0";
     }
 
     const auto& tool = cmdLine.commands[0];
@@ -145,7 +145,7 @@ int main(int argc, char** argv)
 	}
     else
     {
-        std::cerr << "Unknown tool specified :(\n\n";
+        LogError() << "Unknown tool specified";
         PrintUsage();
         return 1;
     }

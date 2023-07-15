@@ -20,6 +20,11 @@
       <Platform>Prospero</Platform>
     </ProjectConfiguration>
 
+    <ProjectConfiguration Include="Profile|Prospero">
+      <Configuration>Profile</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+
     <ProjectConfiguration Include="Final|Prospero">
       <Configuration>Final</Configuration>
       <Platform>Prospero</Platform>

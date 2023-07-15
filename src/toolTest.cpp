@@ -15,13 +15,13 @@ ToolTest::ToolTest()
 
 void ToolTest::printUsage()
 {
-	std::cout << KBOLD << "onion test [options]\n" << RST;
-	std::cout << "\n";
-	std::cout << "General options:\n";
-	std::cout << "  -module=<path to module to configure>\n";
-	std::cout << "  -parallel - run all tests in parallel\n";
-	std::cout << "  -fastfail - stop after first failure\n";
-	std::cout << "\n";
+	LogInfo() << "onion test [options]";
+	LogInfo() << "";
+	LogInfo() << "General options:";
+	LogInfo() << "  -module=<path to module to configure>";
+	LogInfo() << "  -parallel - run all tests in parallel";
+	LogInfo() << "  -fastfail - stop after first failure";
+	LogInfo() << "";
 }
 
 static bool IsTestableProject(const ProjectInfo* proj)
@@ -71,25 +71,25 @@ static bool ProjectBinaryPath(const ProjectInfo* project, const Configuration& c
 	if (!ProjectBinaryName(project, executableName))
 		return false;
 
-	outPath = (config.derivedBinaryPath / executableName).make_preferred();
+	outPath = (config.derivedBinaryPathBase / executableName).make_preferred();
 	return true;
 }
 
 static bool RunTestsForConfiguration(const ModuleRepository& modules, const Configuration& config, const Commandline& cmdLine)
 {
-	std::cout << "Running tests for configuration '" << config.mergedName() << "'\n";
+	LogInfo() << "Running tests for configuration '" << config.mergedName() << "'";
 
 	// populate project structure
 	ProjectCollection structure;
 	if (!structure.populateFromModules(modules.modules(), config))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to populate project structure from installed modules\n" << RST;
+		LogError() << "Failed to populate project structure from installed modules";
 		return false;
 	}
 
 	if (!structure.filterProjects(config))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to filter project structure\n" << RST;
+		LogError() << "Failed to filter project structure";
 		return false;
 	}
 
@@ -100,11 +100,11 @@ static bool RunTestsForConfiguration(const ModuleRepository& modules, const Conf
 
 	if (testProjects.empty())
 	{
-		std::cout << "No test projects found in configuration\n";
+		LogInfo() << "No test projects found in configuration";
 		return true;
 	}
 
-	std::cout << "Collected " << testProjects.size() << " projects for testing\n";
+	LogInfo() << "Collected " << testProjects.size() << " projects for testing";
 
 	bool valid = true;
 	for (const auto* proj : testProjects)
@@ -116,7 +116,7 @@ static bool RunTestsForConfiguration(const ModuleRepository& modules, const Conf
 
 			if (!fs::is_regular_file(binaryPath))
 			{
-				std::cerr << KRED << "[BREAKING] Failed to find binary for project '" << proj->name << "' at " << binaryPath << "\n" << RST;
+				LogError() << "Failed to find binary for project '" << proj->name << "' at " << binaryPath;
 				valid = false;
 				continue;
 			}
@@ -131,7 +131,7 @@ static bool RunTestsForConfiguration(const ModuleRepository& modules, const Conf
 
 			if (!RunWithArgsInDirectory(binaryDirectory, command.str()))
 			{
-				std::cerr << KRED << "[BREAKING] Test for project '" << proj->name << "' failed!\n" << RST;
+				LogError() << "Test for project '" << proj->name << "' failed!";
 				valid = false;
 				continue;
 			}
@@ -155,14 +155,14 @@ int ToolTest::run(const Commandline& cmdline)
 	const auto moduleConfig = std::unique_ptr<ModuleConfigurationManifest>(ModuleConfigurationManifest::Load(moduleConfigPath));
 	if (!moduleConfig)
 	{
-		std::cerr << KRED << "[BREAKING] Unable to load platform configuration from " << moduleConfigPath << ", run \"onion configure\" to properly configure the environment before generating any projects\n" << RST;
+		LogError() << "Unable to load platform configuration from " << moduleConfigPath << ", run \"onion configure\" to properly configure the environment before generating any projects";
 		return 1;
 	}
 
 	ModuleRepository modules;
 	if (!modules.installConfiguredModules(*moduleConfig, false))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to verify configured module at \"" << moduleConfigPath << "\"\n" << RST;
+		LogError() << "Failed to verify configured module at \"" << moduleConfigPath << "\"";
 		return 1;
 	}
 
@@ -171,7 +171,7 @@ int ToolTest::run(const Commandline& cmdline)
 
 	if (!RunTestsForConfiguration(modules, config, cmdline))
 	{
-		std::cerr << KRED "[BREAKING] Some tests failed\n" << RST;
+		LogError() << "Some tests failed";
 		return 1;
 	}
 

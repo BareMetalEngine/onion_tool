@@ -8,7 +8,6 @@ struct Configuration
 {
 	PlatformType platform; // target platform (windows, linux, etc)
 	GeneratorType generator; // code generator (cmake, vs2022, etc)
-	ConfigurationType configuration; // build type (release, debug, etc)
     LibraryType libs;
 
     fs::path executablePath; // path to onion.exe
@@ -18,12 +17,12 @@ struct Configuration
     fs::path tempPath; // (-tempPath) shared temp folder (Z:\projects\core\.temp) 
     fs::path cachePath; // (-cachePath) shared cache folder that could be retained between builds (Z:\projects\core\.cache) - UPDATED ONLT IN THE "configure" PHASE
 
-    fs::path derivedConfigurationPath; // where are all the configuration related things (Z:\projects\core\.temp\windows.vs2022.release.static.dev\)
-    fs::path derivedSolutionPath; // where are the generated solution files written (Z:\projects\core\.temp\windows.vs2022.release.static.dev\build\)
-    fs::path derivedBinaryPath; // "bin" folder when all crap is written (Z:\projects\core\.temp\windows.vs2022.release.static.dev\bin\)
+    fs::path derivedConfigurationPathBase; // where are all the configuration related things go (Z:\projects\core\.temp\windows.vs2022.static.dev\)
+    fs::path derivedSolutionPathBase; // where are the generated solution files written go (Z:\projects\core\.temp\windows.vs2022.static.dev\build\)
+    fs::path derivedBinaryPathBase; // "bin" folder when all crap is written (Z:\projects\core\.temp\windows.vs2022.static.dev\bin\)
 
     bool flagStaticBuild = false; // build is "static" - no runtime code generation, all has to be pregenerated in the "generate" step
-    bool flagShipmentBuild = false; // shipment configuration - strip all "development only" project
+    bool flagDevBuild = true; // dev build configuration - allows development only projects (that otherwise are stripped)
 
     Configuration();
 

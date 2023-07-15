@@ -53,7 +53,7 @@ SolutionGenerator::SolutionGenerator(FileRepository& files, const Configuration&
     m_rootGroup->mergedName = mainGroup;
     m_rootGroup->assignedVSGuid = GuidFromText(m_rootGroup->mergedName);
 
-    m_sharedGlueFolder = config.derivedSolutionPath / "generated" / "_shared";
+    m_sharedGlueFolder = config.derivedSolutionPathBase / "generated" / "_shared";
 }
 
 SolutionGenerator::~SolutionGenerator()
@@ -72,9 +72,9 @@ struct OrderedGraphBuilder
     {
         if (find(stack.begin(), stack.end(), p) != stack.end())
         {
-            std::cout << "Recursive project dependencies found when project '" << p->name << "' was encountered second time\n";
+            LogInfo() << "Recursive project dependencies found when project '" << p->name << "' was encountered second time";
             for (const auto* proj : stack)
-                std::cout << "  Reachable from '" << proj->name << "'\n";
+                LogInfo() << "  Reachable from '" << proj->name << "'";
             return false;
         }
 
@@ -176,9 +176,9 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         
         // paths
 		generatorProject->rootPath = proj->rootPath;
-        generatorProject->generatedPath = m_config.derivedSolutionPath / "generated" / proj->name;
-        generatorProject->projectPath = m_config.derivedSolutionPath / "projects" / proj->name;
-        generatorProject->outputPath = m_config.derivedSolutionPath / "output" / proj->name;
+        generatorProject->generatedPath = m_config.derivedSolutionPathBase / "generated" / proj->name;
+        generatorProject->projectPath = m_config.derivedSolutionPathBase / "projects" / proj->name;
+        generatorProject->outputPath = m_config.derivedSolutionPathBase / "output" / proj->name;
 
         // options
         generatorProject->optionUsePrecompiledHeaders = proj->manifest->optionUsePrecompiledHeaders;
@@ -199,6 +199,11 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         generatorProject->libraryDependencies = proj->resolvedLibraryDependencies;
         generatorProject->localDefines = proj->manifest->localDefines;
         generatorProject->globalDefines = proj->manifest->globalDefines;
+        generatorProject->legacySourceDirectories = proj->manifest->legacySourceDirectories;
+
+        // include paths
+        for (const auto& path : proj->manifest->localIncludePaths)
+            generatorProject->additionalIncludePaths.push_back(path);
 
         // register in solution and map
         m_projects.push_back(generatorProject);
@@ -316,9 +321,9 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
 
 			// paths
 			generatorProject->rootPath = fs::path(); // not coming from source
-			generatorProject->generatedPath = m_config.derivedSolutionPath / "generated" / generatorProject->name;
-			generatorProject->projectPath = m_config.derivedSolutionPath / "projects" / generatorProject->name;
-			generatorProject->outputPath = m_config.derivedSolutionPath / "output" / generatorProject->name;
+			generatorProject->generatedPath = m_config.derivedSolutionPathBase / "generated" / generatorProject->name;
+			generatorProject->projectPath = m_config.derivedSolutionPathBase / "projects" / generatorProject->name;
+			generatorProject->outputPath = m_config.derivedSolutionPathBase / "output" / generatorProject->name;
 
 			// options
 			generatorProject->optionUsePrecompiledHeaders = false;
@@ -374,14 +379,14 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
             const auto path = ToLower(entry.mountPath);
             if (!mountPaths.insert(path).second)
             {
-                std::cerr << KRED << "[BREAKING] Duplicated entry for mounting data to '" << entry.mountPath << "'\n" << RST;
+                LogError() << "Duplicated entry for mounting data to '" << entry.mountPath << "'";
                 validDeps = false;
                 continue;
             }
 
             /*if (m_config.flagShipmentBuild && !entry.published)
             {
-				std::cout << KYEL << "[WARNING] Non-publishable data at '" << entry.mountPath << "' will not be mounted\n" << RST;
+				LogWarning() << "Non-publishable data at '" << entry.mountPath << "' will not be mounted";
 				validDeps = false;
 				continue;
             }*/
@@ -410,17 +415,23 @@ bool SolutionGenerator::generateAutomaticCode(FileGenerator& fileGenerator)
         auto* project = m_projects[i];
         if (!generateAutomaticCodeForProject(project, fileGenerator))
         {
-            std::cerr << KRED << "[BREAKING] Failed to generate automatic code for project '" << project->name << "'\n" << RST;
+            LogError() << "Failed to generate automatic code for project '" << project->name << "'";
             valid = false;
         }
     }
 
+	const char* ConfigurationNames[] = {
+    	"Debug", "Checked", "Release", "Profile", "Final"
+	};
+
     // generate the data mapping file
+    for (const auto* configName : ConfigurationNames)
     {
-        const auto fstabFilePath = (m_config.derivedBinaryPath / "fstab.cfg").make_preferred();
+        const auto binaryPath = (m_config.derivedBinaryPathBase / configName).make_preferred();
+        const auto fstabFilePath = (binaryPath / "fstab.cfg").make_preferred();
 
 		auto generatedFile = fileGenerator.createFile(fstabFilePath);
-        if (!generateSolutionFstabFile(generatedFile->content))
+        if (!generateSolutionFstabFile(binaryPath, generatedFile->content))
             valid = false;
     }
 
@@ -449,7 +460,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
 			}
             else
             {
-                std::cerr << KRED << "[BREAKING] Failed to extract GoogleTest framework needed for project '" << project->name << "'\n" << RST;
+                LogError() << "Failed to extract GoogleTest framework needed for project '" << project->name << "'";
                 return false;
             }
 		}
@@ -471,7 +482,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
             }
             else
             {
-                std::cerr << KRED << "[BREAKING] Failed to extract GoogleTest framework needed for project '" << project->name << "'\n" << RST;
+                LogError() << "Failed to extract GoogleTest framework needed for project '" << project->name << "'";
                 return false;
             }
         }
@@ -514,7 +525,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
                 ToolReflection tool;
                 if (!tool.runStatic(fileGenerator, sourceFiles, project->name, reflectionFilePath))
                 {
-                    std::cerr << KRED << "[BREAKING] Failed to generate static reflection for project '" << project->name << "'\n" << RST;
+                    LogError() << "Failed to generate static reflection for project '" << project->name << "'";
                     valid = false;
                 }
             }
@@ -551,7 +562,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
         auto generatedFile = fileGenerator.createFile(info->absolutePath);
         if (!generateProjectGlueHeaderFile(project, generatedFile->content))
         {
-            std::cerr << KRED << "[BREAKING] Failed to generate glue header file for project '" << project->name << "'\n" << RST;
+            LogError() << "Failed to generate glue header file for project '" << project->name << "'";
             valid = false;
         }
     }
@@ -600,7 +611,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
             ToolEmbed tool;
             if (!tool.writeFile(fileGenerator, info.original->absolutePath, project->name, info.original->scanRelativePath, info.embed->absolutePath))
             {
-                std::cerr << KRED << "[BREAKING] Failed to write embedded file '" << info.original->scanRelativePath << "' in project '" << project->name << "'\n" << RST;
+                LogError() << "Failed to write embedded file '" << info.original->scanRelativePath << "' in project '" << project->name << "'";
                 valid = false;
             }
         }
@@ -622,7 +633,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
                 auto generatedFile = fileGenerator.createFile(info->absolutePath);
                 if (!generateProjectBuildHeaderFile(project, generatedFile->content))
                 {
-                    std::cerr << KRED << "[BREAKING] Failed to generate build.h for project '" << project->name << "'\n" << RST;
+                    LogError() << "Failed to generate build.h for project '" << project->name << "'";
                     valid = false;
                 }
             }
@@ -638,7 +649,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
 				auto generatedFile = fileGenerator.createFile(info->absolutePath);
                 if (!generateProjectBuildSourceFile(project, generatedFile->content))
                 {
-					std::cerr << KRED << "[BREAKING] Failed to generate build.cpp for project '" << project->name << "'\n" << RST;
+					LogError() << "Failed to generate build.cpp for project '" << project->name << "'";
 					valid = false;
                 }
             }
@@ -663,7 +674,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
             auto generatedFile = fileGenerator.createFile(info->absolutePath);
             if (!generateProjectAppMainSourceFile(project, generatedFile->content))
 			{
-				std::cerr << KRED << "[BREAKING] Failed to generate main.cpp for project '" << project->name << "'\n" << RST;
+				LogError() << "Failed to generate main.cpp for project '" << project->name << "'";
 				valid = false;
 			}
         }
@@ -688,7 +699,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
         {
             if (!processBisonFile(project, file))
             {
-                std::cerr << KRED << "[BREAKING] Failed to process BISON file '" << file->scanRelativePath << "' in project '" << project->name << "'\n" << RST;
+                LogError() << "Failed to process BISON file '" << file->scanRelativePath << "' in project '" << project->name << "'";
                 valid = false;
             }
         }
@@ -765,8 +776,8 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 
     if (!project->appDisableLogOnStart)
     {
-        writeln(f, "    ms::Log::EnableOutput(true);\n");
-        writeln(f, "    ms::Log::EnableDetails(true);\n");
+        writeln(f, "    ms::Log::EnableOutput(true);");
+        writeln(f, "    ms::Log::EnableDetails(true);");
     }
 
     {
@@ -1053,7 +1064,10 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
             writeln(f, "// Libraries");
             for (const auto* dep : exportedLibs)
             {
-                for (const auto& linkPath : dep->libraryFiles)
+                std::vector<fs::path> libraryFiles;
+                dep->collectLibraries(m_config.platform, &libraryFiles);
+
+                for (const auto& linkPath : libraryFiles)
                 {
 					std::stringstream ss;
 					ss << linkPath;
@@ -1370,7 +1384,7 @@ bool SolutionGenerator::generateProjectBuildHeaderFile(const SolutionProject* pr
 #if 0
 bool SolutionGenerator::generateSolutionReflectionFileTlogList(std::stringstream& f)
 {
-    f << m_config.executablePath.u8string() << "\n";
+    f << m_config.executablePath.u8string();
 
     uint32_t numReflectedFiles = 0;
     for (const auto* proj : m_projects)
@@ -1382,13 +1396,13 @@ bool SolutionGenerator::generateSolutionReflectionFileTlogList(std::stringstream
 				if (file->name == "build.cpp" || file->name == "reflection.cpp")
 					continue;
 
-                f << file->absolutePath.u8string() << "\n";
+                f << file->absolutePath.u8string();
                 numReflectedFiles += 1;
             }
         }
     }
 
-    std::cout << "Found " << numReflectedFiles << " source code files for reflection\n";
+    LogInfo() << "Found " << numReflectedFiles << " source code files for reflection";
     return true;
 }
 #endif
@@ -1444,7 +1458,7 @@ bool SolutionGenerator::generateSolutionEmbeddFileList(std::stringstream& f)
 		}
 	}
 
-	std::cout << "Found " << numMediaFiles << " embedded media build files\n";*/
+	LogInfo() << "Found " << numMediaFiles << " embedded media build files";*/
 	return true;
 }
 
@@ -1502,7 +1516,7 @@ bool SolutionGenerator::processBisonFile(SolutionProject* project, const Solutio
             {
                 if (!fs::create_directories(project->generatedPath, ec))
                 {
-                    std::cout << "BISON tool failed because output directory \"" << project->generatedPath << "\" can't be created: " << ec << "\n";
+                    LogInfo() << "BISON tool failed because output directory \"" << project->generatedPath << "\" can't be created: " << ec;
                     return false;
                 }
             }
@@ -1525,7 +1539,7 @@ bool SolutionGenerator::processBisonFile(SolutionProject* project, const Solutio
             fs::current_path(bisonDir, er);
             if (er)
             {
-                std::cout << "BISON tool failed to switch active directory to '" << bisonDir << "'\n";
+                LogInfo() << "BISON tool failed to switch active directory to " << bisonDir;
                 return false;
             }
 
@@ -1535,17 +1549,17 @@ bool SolutionGenerator::processBisonFile(SolutionProject* project, const Solutio
 
             if (code != 0)
             {
-                std::cout << "BISON tool failed with exit code " << code << "\n";
+                LogInfo() << "BISON tool failed with exit code " << code;
                 return false;
             }
             else
             {
-                std::cout << "BISON tool finished and generated '" << parserFile << "'\n";
+                LogInfo() << "BISON tool finished and generated " << parserFile;
             }
         }
         else
         {
-            std::cout << "BISON tool skipped because '" << parserFile << "' is up to date\n";
+            LogInfo() << "BISON tool skipped because '" << parserFile << "' is up to date";
         }
     }
 
@@ -1570,12 +1584,12 @@ bool SolutionGenerator::processBisonFile(SolutionProject* project, const Solutio
     return true;
 }
 
-bool SolutionGenerator::generateSolutionFstabFile(std::stringstream& outContent)
+bool SolutionGenerator::generateSolutionFstabFile(const fs::path& binaryPath, std::stringstream& outContent)
 {
     for (const auto& data : m_dataFolders)
     {
         std::error_code ec;
-        const auto relativePath = fs::relative(data.dataPath, m_config.derivedBinaryPath, ec);
+        const auto relativePath = fs::relative(data.dataPath, binaryPath, ec);
         if (!ec)
         {
 			writeln(outContent, "DATA_RELATIVE");

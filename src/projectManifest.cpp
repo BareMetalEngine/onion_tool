@@ -39,7 +39,7 @@ static bool EvalProjectType(ProjectManifest* manifest, const std::string_view va
         return true;
     }
 
-    std::cerr << "Unknown ProjectType option '" << value << "'\n";
+	LogError() << "Unknown ProjectType option '" << value << "'";
     return false;
 }
 
@@ -58,7 +58,7 @@ static bool EvalSubsystemType(ProjectManifest* manifest, const XMLNode* node)
 		return true;
 	}
 
-	std::cerr << "Unknown ProjectType option '" << value << "'\n";
+	LogError() << "Unknown ProjectType option '" << value << "'";
 	return false;
 }
 
@@ -100,7 +100,7 @@ ProjectManifest* ProjectManifest::Load(const fs::path& manifestPath)
     std::string txt;
     if (!LoadFileToString(manifestPath, txt))
     {
-        std::cerr << "[BREAKING] Failed to load project manifest from '" << manifestPath << "'\n";
+        LogError() << "Failed to load project manifest from '" << manifestPath << "'";
         return nullptr;
     }
 
@@ -111,14 +111,14 @@ ProjectManifest* ProjectManifest::Load(const fs::path& manifestPath)
     }
     catch (std::exception& e)
     {
-        std::cout << "Error parsing XML '" << manifestPath << "': " << e.what() << "\n";
+        LogError() << "Error parsing XML '" << manifestPath << "': " << e.what();
         return nullptr;
     }
 
     const auto* root = doc.first_node("Project");
     if (!root)
     {
-        std::cout << "Manifest XML at '" << manifestPath << "' is not a project manifest\n";
+		LogError() << "Manifest XML at '" << manifestPath << "' is not a project manifest";
         return nullptr;
     }
 
@@ -141,6 +141,8 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
     XMLNode* root = (XMLNode*)rootPtr;
     valid &= EvalProjectType(ret.get(), XMLNodeTag(root));
 
+	std::vector<std::string> localIncludePaths;
+
 	XMLNodeIterate(root, [&](const XMLNode* node, std::string_view option)
 		{
 			// TODO: filter
@@ -157,6 +159,8 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
                 ret->rootPath = fs::weakly_canonical((modulePath / XMLNodeValue(node)).make_preferred());
             else if (option == "Legacy")
                 ret->optionLegacy = XMLNodeValueBool(node, ret->optionLegacy);
+			else if (option == "LegacySourceDirectory")
+				ret->legacySourceDirectories.push_back(std::string(node->value()));
 			else if (option == "AppHeader")
 				ret->appHeaderName = XMLNodeValue(node);
 			else if (option == "Guid")
@@ -185,40 +189,58 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
 				ret->optionalDependencies.push_back(std::string(node->value()));
 			else if (option == "LibraryDependency")
 				ret->libraryDependencies.push_back(std::string(node->value()));
+			else if (option == "LocalIncludeDirectory")
+				localIncludePaths.push_back(std::string(node->value()));
 			else if (option == "PreprocessorDefines")
 				valid &= EvalPreprocessor(ret->localDefines, node);
 			else if (option == "GlobalPreprocessorDefines")
 				valid &= EvalPreprocessor(ret->globalDefines, node);
 			else
 			{
-				std::cerr << "Unknown project's manifest option '" << option << "'\n";
+				LogError() << "Unknown project's manifest option '" << option << "'";
 				valid = false;
 			}
 		});
 
 	if (ret->name.empty())
 	{
-		std::cerr << KRED << "[BREAKING] Project without a name at " << modulePath << "\n" << RST;
+		LogError() << "Project without a name at " << modulePath;
 		return nullptr;
 	}
 
     if (ret->rootPath.empty())
 	{
-        std::cerr << KRED << "[BREAKING] There's no root directory specified for a project '" << ret->name << "' at " << modulePath << "\n" << RST;
+        LogError() << "There's no root directory specified for a project '" << ret->name << "' at " << modulePath;
 		return nullptr;
 	}
 	if (!fs::is_directory(ret->rootPath))
 	{
-		std::cerr << KRED << "[BREAKING] Directory " << ret->rootPath << " is not a valid directory for project '" << ret->name << " at " << modulePath << "\n" << RST;
+		LogError() << "Directory " << ret->rootPath << " is not a valid directory for project '" << ret->name << " at " << modulePath;
 		return nullptr;
 	}
 
 	if (ret->guid.empty())
 		ret->guid = GuidFromText(ret->rootPath.u8string().c_str());
 
+    for (const std::string& relativePath : localIncludePaths)
+    {
+		const fs::path globalIncludePath = fs::weakly_canonical((modulePath / relativePath).make_preferred());
+		LogInfo() << "Found project local include path " << globalIncludePath;
+
+		if (fs::is_directory(globalIncludePath))
+		{
+			ret->localIncludePaths.push_back(globalIncludePath);
+		}
+		else
+		{
+			LogError() << "Specified local include path " << globalIncludePath << " does not point to a valid directory";
+			valid = false;
+		}
+    }
+
 	if (!valid)
 	{
-		std::cerr << KRED << "[BREAKING] There were errors parsing project '" << ret->name << "' at " << modulePath << "\n" << RST;
+		LogError() << "There were errors parsing project '" << ret->name << "' at " << modulePath;
 		return nullptr;
 	}
 

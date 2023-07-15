@@ -36,9 +36,18 @@ enum class ConfigurationType : uint8_t {
     Debug,
     Checked,
     Release,
-    Final, // release + even more code removed
+    Profile,
+    Final,
 
     MAX,
+};
+
+static const inline ConfigurationType CONFIGURATIONS[] = {
+    ConfigurationType::Debug,
+    ConfigurationType::Checked,
+    ConfigurationType::Release,
+    ConfigurationType::Profile,
+    ConfigurationType::Final,
 };
 
 enum class LibraryType : uint8_t {

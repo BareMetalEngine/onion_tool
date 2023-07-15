@@ -254,7 +254,7 @@ bool CodeTokenizer::handlePreprocessor(CodeParserState& s)
         char ch = s.peek();
         if (ch == '\n')
         {
-            std::cout << contextPath.u8string() << "(" << s.line << "): error: Invalid preprocessor directive\n";
+            LogInfo() << contextPath.u8string() << "(" << s.line << "): error: Invalid preprocessor directive";
             return false;
         }
 
@@ -442,23 +442,23 @@ bool CodeTokenizer::process()
         s.eat();
 
         if (print)
-            std::cout << "Token '" << token.text << "' at line " << token.line << "\n";
+            LogInfo() << "Token '" << token.text << "' at line " << token.line;
 
         if (token.text == "BEGIN_NAMESPACE")
         {
             if (!activeNamespace.empty())
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Nested BEGIN_BM_NAMESPACE are not allowed\n";
-                std::cerr << txt.str();
+                txt << contextPath.u8string() << "(" << token.line << "): error: Nested BEGIN_BM_NAMESPACE are not allowed";
+                LogError() << txt.str();
                 return false;
             }
 
             if (!ExtractEmptyBrackets(s))
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: This macro variant does not use a name\n";
-                std::cerr << txt.str();
+                txt << contextPath.u8string() << "(" << token.line << "): error: This macro variant does not use a name";
+                LogError() << txt.str();
                 return false;
             }
 
@@ -469,8 +469,8 @@ bool CodeTokenizer::process()
             if (!activeNamespace.empty())
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Nested BEGIN_BM_NAMESPACE_EX are not allowed\n";
-                std::cerr << txt.str();
+                txt << contextPath.u8string() << "(" << token.line << "): error: Nested BEGIN_BM_NAMESPACE_EX are not allowed";
+                LogError() << txt.str();
                 return false;
             }
 
@@ -478,8 +478,8 @@ bool CodeTokenizer::process()
             if (!ExtractNamespaceName(s, name))
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse namespace's name\n";
-                std::cerr << txt.str();
+                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse namespace's name";
+                LogError() << txt.str();
                 return false;
             }
 
@@ -490,15 +490,15 @@ bool CodeTokenizer::process()
             if (activeNamespace.empty())
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Found END_BM_NAMESPACE without previous BEGIN_BM_NAMESPACE\n";
-                std::cerr << txt.str();
+                txt << contextPath.u8string() << "(" << token.line << "): error: Found END_BM_NAMESPACE without previous BEGIN_BM_NAMESPACE";
+                LogError() << txt.str();
                 return false;
             }
 
             if (!ExtractEmptyBrackets(s))
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: This macro variant does not use a name\n";
+                txt << contextPath.u8string() << "(" << token.line << "): error: This macro variant does not use a name";
                 return false;
             }
 
@@ -509,7 +509,7 @@ bool CodeTokenizer::process()
             if (activeNamespace.empty())
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Found END_BM_NAMESPACE_EX without previous BEGIN_BM_NAMESPACE_E\n";
+                txt << contextPath.u8string() << "(" << token.line << "): error: Found END_NAMESPACE_EX without previous BEGIN_NAMESPACE_EX";
                 return false;
             }
 
@@ -517,7 +517,7 @@ bool CodeTokenizer::process()
             if (!ExtractNamespaceName(s, name))
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse namespace's name\n";
+                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse namespace's name";
                 return false;
             }
 
@@ -526,7 +526,7 @@ bool CodeTokenizer::process()
             if (name != activeNamespace)
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Inconsistent namespace name between BEGIN and END macros\n";
+                txt << contextPath.u8string() << "(" << token.line << "): error: Inconsistent namespace name between BEGIN and END macros";
                 return false;
             }
 
@@ -537,7 +537,7 @@ bool CodeTokenizer::process()
             if (activeNamespace.empty())
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"ms\" namespace BEGIN/END block\n";
+                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the namespace BEGIN/END block";
                 return false;
             }
 
@@ -545,8 +545,8 @@ bool CodeTokenizer::process()
             if (!ExtractIdentName(s, name))
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
-                std::cerr << txt.str();
+                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name";
+                LogError() << txt.str();
                 return false;
             }
 
@@ -567,8 +567,8 @@ bool CodeTokenizer::process()
             if (activeNamespace.empty())
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"ms\" namespace BEGIN/END block\n";
-                std::cerr << txt.str();
+                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the namespace BEGIN/END block";
+                LogError() << txt.str();
                 return false;
             }
 
@@ -576,8 +576,8 @@ bool CodeTokenizer::process()
             if (!ExtractIdentName(s, name))
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
-                std::cerr << txt.str();
+                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name";
+                LogError() << txt.str();
                 return false;
             }
 
@@ -601,8 +601,8 @@ bool CodeTokenizer::process()
             if (activeNamespace.empty())
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"ms\" namespace BEGIN/END block\n";
-                std::cerr << txt.str();
+                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the namespace BEGIN/END block";
+                LogError() << txt.str();
                 return false;
             }
 
@@ -610,8 +610,8 @@ bool CodeTokenizer::process()
             if (!ExtractNamespaceName(s, name))
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
-                std::cerr << txt.str();
+                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name";
+                LogError() << txt.str();
                 return false;
             }
 
@@ -632,8 +632,8 @@ bool CodeTokenizer::process()
             if (activeNamespace.empty())
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the \"ms\" namespace BEGIN/END block\n";
-                std::cerr << txt.str();
+                txt << contextPath.u8string() << "(" << token.line << "): error: Type declaration can only happen inside the namespace BEGIN/END block";
+                LogError() << txt.str();
                 return false;
             }
 
@@ -641,8 +641,8 @@ bool CodeTokenizer::process()
             if (!ExtractIdentName(s, name))
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
-                std::cerr << txt.str();
+                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name";
+                LogError() << txt.str();
                 return false;
             }
 
@@ -663,8 +663,8 @@ bool CodeTokenizer::process()
             if (activeNamespace.empty())
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Global function declaration can only happen inside the \"ms\" namespace BEGIN/END block\n";
-                std::cerr << txt.str();
+                txt << contextPath.u8string() << "(" << token.line << "): error: Global function declaration can only happen inside the namespace BEGIN/END block";
+                LogError() << txt.str();
                 return false;
             }
 
@@ -672,12 +672,12 @@ bool CodeTokenizer::process()
             if (!ExtractIdentName(s, name))
             {
                 std::stringstream txt;
-                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name\n";
-                std::cerr << txt.str();
+                txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse type's name";
+                LogError() << txt.str();
                 return false;
             }
     
-            //std::cout << "Found function: '" << name << "'\n";
+            //LogInfo() << "Found function: '" << name << "'";
 
             Declaration decl;
             decl.name = name;
@@ -690,8 +690,8 @@ bool CodeTokenizer::process()
 		    if (activeNamespace.empty())
 		    {
 			    std::stringstream txt;
-			    txt << contextPath.u8string() << "(" << token.line << "): error: Trace log channel can only happen inside the \"ms\" namespace BEGIN/END block\n";
-			    std::cerr << txt.str();
+			    txt << contextPath.u8string() << "(" << token.line << "): error: Trace log channel can only happen inside the namespace BEGIN/END block";
+			    LogError() << txt.str();
 			    return false;
 		    }
 
@@ -699,12 +699,12 @@ bool CodeTokenizer::process()
 		    if (!ExtractIdentName(s, name))
 		    {
 			    std::stringstream txt;
-			    txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse channel name\n";
-			    std::cerr << txt.str();
+			    txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse channel name";
+			    LogError() << txt.str();
 			    return false;
 		    }
 
-		    //std::cout << "Found function: '" << name << "'\n";
+		    //LogInfo() << "Found function: '" << name << "'";
 
 		    Declaration decl;
 		    decl.name = name;
@@ -717,8 +717,8 @@ bool CodeTokenizer::process()
 		    if (activeNamespace.empty())
 		    {
 			    std::stringstream txt;
-			    txt << contextPath.u8string() << "(" << token.line << "): error: Global StringID can only happen inside the \"ms\" namespace BEGIN/END block\n";
-			    std::cerr << txt.str();
+			    txt << contextPath.u8string() << "(" << token.line << "): error: Global StringID can only happen inside the namespace BEGIN/END block";
+			    LogError() << txt.str();
 			    return false;
 		    }
 
@@ -726,12 +726,12 @@ bool CodeTokenizer::process()
 		    if (!ExtractIdentName(s, name))
 		    {
 			    std::stringstream txt;
-			    txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse StringID text\n";
-			    std::cerr << txt.str();
+			    txt << contextPath.u8string() << "(" << token.line << "): error: Unable to parse StringID text";
+			    LogError() << txt.str();
 			    return false;
 		    }
 
-		    //std::cout << "Found function: '" << name << "'\n";
+		    //LogInfo() << "Found function: '" << name << "'";
 
 		    Declaration decl;
 		    decl.name = name;

@@ -55,7 +55,7 @@ static bool ParseConfigurationEntry(const XMLNode* node, ModuleConfigurationEntr
 	dep.path = fs::weakly_canonical(fs::absolute(manifestDirectory / path)).make_preferred();
 	if (!fs::is_regular_file(dep.path))
 	{
-		std::cerr << KRED << "[BREAKING] Module manifest '" << dep.path << "' does not exist, loaded configuration is not valid\n" << RST;
+		LogError() << "Module manifest '" << dep.path << "' does not exist, loaded configuration is not valid";
 		return false;
 	}
 
@@ -74,7 +74,7 @@ static bool ParseLibraryEntry(const XMLNode* node, ModuleLibraryEntry& dep, cons
 	dep.path = fs::weakly_canonical(fs::absolute(manifestDirectory / path)).make_preferred();
 	if (!fs::is_regular_file(dep.path))
 	{
-		std::cerr << KRED << "[BREAKING] Directory '" << dep.path << "' does not exist, loaded configuration is not valid\n" << RST;
+		LogError() << "Directory '" << dep.path << "' does not exist, loaded configuration is not valid";
 		return false;
 	}
 
@@ -102,14 +102,14 @@ ModuleConfigurationManifest* ModuleConfigurationManifest::Load(const fs::path& m
 	}
 	catch (std::exception& e)
 	{
-		std::cerr << KRED << "[BREAKING] Error parsing XML '" << manifestPath << "': " << e.what() << "\n" << RST;
+		LogError() << "Error parsing XML '" << manifestPath << "': " << e.what();
 		return nullptr;
 	}
 
 	const auto* root = doc.first_node("ModuleConfiguration");
 	if (!root)
 	{
-		std::cerr << KRED << "[BREAKING] File at '" << manifestPath << "' is not a module configuration file\n" << RST;
+		LogError() << "File at '" << manifestPath << "' is not a module configuration file";
 		return nullptr;
 	}
 
@@ -142,13 +142,13 @@ ModuleConfigurationManifest* ModuleConfigurationManifest::Load(const fs::path& m
 			}
 			else
 			{
-				std::cerr << KRED << "[BREAKING] Module manifest XML at '" << ret->rootPath << "' has invalid element '" << option << "'\n" << RST;
+				LogError() << "Module manifest XML at '" << ret->rootPath << "' has invalid element '" << option << "'";
 			}
 		});
 
 	if (!valid)
 	{
-		std::cerr << KRED << "[BREAKING] Failed to parse configuration XML at " << manifestPath << "\n" << RST;
+		LogError() << "Failed to parse configuration XML at " << manifestPath;
 		return nullptr;
 	}
 

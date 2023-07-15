@@ -33,14 +33,14 @@ ToolMake::ToolMake()
 
 void ToolMake::printUsage()
 {
-    std::cout << KBOLD << "onion generate [options]\n" << RST;
-    std::cout << "\n";
-    std::cout << "General options:\n";
-	std::cout << "  -module=<path to configured module directory>\n";
-	std::cout << "  -build=<build configuration string>\n";
-    std::cout << "  -tempDir=<custom temporary directory>\n";
-    std::cout << "  -cacheDir=<custom library/module cache directory>\n";
-	std::cout << "\n";
+    LogInfo() << "onion generate [options]";
+    LogInfo() << "";
+    LogInfo() << "General options:";
+	LogInfo() << "  -module=<path to configured module directory>";
+	LogInfo() << "  -build=<build configuration string>";
+    LogInfo() << "  -tempDir=<custom temporary directory>";
+    LogInfo() << "  -cacheDir=<custom library/module cache directory>";
+	LogInfo() << "";
 }
 
 int ToolMake::run(const Commandline& cmdline)
@@ -53,7 +53,7 @@ int ToolMake::run(const Commandline& cmdline)
 
     //--
 
-    std::cout << "Running with configuration " << config.mergedName() << "\n";
+    LogInfo() << "Running with configuration " << config.mergedName();
 
     //--
 
@@ -61,7 +61,7 @@ int ToolMake::run(const Commandline& cmdline)
     const auto moduleConfig = std::unique_ptr<ModuleConfigurationManifest>(ModuleConfigurationManifest::Load(moduleConfigPath));
     if (!moduleConfig)
     {
-        std::cerr << KRED << "[BREAKING] Unable to load platform configuration from " << moduleConfigPath << ", run \"onion configure\" to properly configure the environment before generating any projects\n" << RST;
+        LogError() << "Unable to load platform configuration from " << moduleConfigPath << ", run \"onion configure\" to properly configure the environment before generating any projects";
 		return 1;
     }
 
@@ -70,7 +70,7 @@ int ToolMake::run(const Commandline& cmdline)
     ModuleRepository modules;
     if (!modules.installConfiguredModules(*moduleConfig, verifyVersions))
     {
-        std::cerr << KRED << "[BREAKING] Failed to verify configured module at \"" << config.moduleFilePath << "\"\n" << RST;
+        LogError() << "Failed to verify configured module at \"" << config.moduleFilePath << "\"";
         return 1;
     }
 
@@ -79,19 +79,19 @@ int ToolMake::run(const Commandline& cmdline)
     ProjectCollection structure;
     if (!structure.populateFromModules(modules.modules(), config))
     {
-        std::cerr << KRED << "[BREAKING] Failed to populate project structure from installed modules\n" << RST;
+        LogError() << "Failed to populate project structure from installed modules";
         return 1;
     }
 
     if (!structure.filterProjects(config))
     {
-        std::cerr << KRED << "[BREAKING] Failed to filter project structure\n" << RST;
+        LogError() << "Failed to filter project structure";
         return 1;
     }
 
     if (!structure.resolveDependencies(config))
     {
-        std::cerr << KRED << "[BREAKING] Failed to resolve project internal dependencies\n" << RST;
+        LogError() << "Failed to resolve project internal dependencies";
         return 1;
     }
 
@@ -100,20 +100,26 @@ int ToolMake::run(const Commandline& cmdline)
 	ExternalLibraryReposistory libraries;
     if (!libraries.installConfiguredLibraries(*moduleConfig))
     {
-		std::cerr << KRED << "[BREAKING] Failed to install third party libraries\n" << RST;
+		LogError() << "Failed to install third party libraries";
 		return 1;
     }
 
 	if (!structure.resolveLibraries(libraries))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to resolve third party libraries\n" << RST;
+		LogError() << "Failed to resolve third party libraries";
 		return 1;
 	}
 
-    if (!libraries.deployFiles(config.derivedBinaryPath))
+    for (const auto& configType : CONFIGURATIONS)
     {
-        std::cerr << KRED << "[BREAKING] Failed to deploy library files\n" << RST;
-        return 1;
+        const auto configurationName = NameEnumOption(configType);
+        const auto binaryFolder = (config.derivedBinaryPathBase / configurationName).make_preferred();
+
+		if (!libraries.deployFiles(configType, binaryFolder))
+		{
+			LogError() << "Failed to deploy library files";
+			return 1;
+		}
     }
 
     //--
@@ -121,18 +127,18 @@ int ToolMake::run(const Commandline& cmdline)
     uint32_t totalFiles = 0;
     if (!structure.scanContent(totalFiles))
     {
-        std::cerr << KRED << "[BREAKING] Failed to scan projects content\n" << RST;
+        LogError() << "Failed to scan projects content";
         return 1;
     }
 
-    std::cout << "Found " << totalFiles << " total file(s) across " << structure.projects().size() << " project(s) from " << modules.modules().size() << " module(s)\n";
+    LogInfo() << "Found " << totalFiles << " total file(s) across " << structure.projects().size() << " project(s) from " << modules.modules().size() << " module(s)";
 
     //--
 
     FileRepository fileRepository;
     if (!fileRepository.initialize(config.executablePath, config.tempPath))
     {
-		std::cerr << KRED << "[BREAKING] Failed to initialize file repository\n" << RST;
+		LogError() << "Failed to initialize file repository";
 		return 1;
     }
 
@@ -145,13 +151,13 @@ int ToolMake::run(const Commandline& cmdline)
     auto codeGenerator = CreateSolutionGenerator(fileRepository, config, mainModuleName);
     if (!codeGenerator)
     {
-		std::cerr << KRED << "[BREAKING] Failed to create code generator\n" << RST;
+		LogError() << "Failed to create code generator";
 		return 1;
     }
 
     if (!codeGenerator->extractProjects(structure))
     {
-		std::cerr << KRED << "[BREAKING] Failed to extract project structure into code generator\n" << RST;
+		LogError() << "Failed to extract project structure into code generator";
 		return 1;
     }
 
@@ -160,19 +166,19 @@ int ToolMake::run(const Commandline& cmdline)
     FileGenerator files;
     if (!codeGenerator->generateAutomaticCode(files))
     {
-		std::cerr << KRED << "[BREAKING] Failed to generate automatic code\n" << RST;
+		LogError() << "Failed to generate automatic code";
 		return 1;
     }
 
 	if (!codeGenerator->generateSolution(files))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to generate solution\n" << RST;
+		LogError() << "Failed to generate solution";
 		return 1;
 	}
 
 	if (!codeGenerator->generateProjects(files))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to generate projects\n" << RST;
+		LogError() << "Failed to generate projects";
 		return 1;
 	}
 
@@ -180,12 +186,13 @@ int ToolMake::run(const Commandline& cmdline)
 
     if (!files.saveFiles(false))
     {
-        std::cerr << KRED << "[BREAKING] Failed to save files\n" << RST;
+        LogError() << "Failed to save files";
         return 1;
     }
 
     //--
 
+    LogSuccess() << "Solution file generated";
     return 0;
 }
 

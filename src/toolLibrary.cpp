@@ -57,8 +57,11 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 		{
 			if (!ParsePlatformType(str, outConfig.platform))
 			{
-				std::cerr << KRED "[BREAKING] Unknown platform \"" << str << "\"\n" << RST;
-				std::cout << "Valid platforms are : " << PrintEnumOptions(DefaultPlatform()) << "\n";
+				std::stringstream str2;
+				str2 << PrintEnumOptions(DefaultPlatform());
+
+				LogError() << "Unknown platform \"" << str << "\"";
+				LogInfo() << "Valid platforms are : " << str2.str();
 				return false;
 			}
 		}
@@ -68,14 +71,14 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 		const auto str = cmdline.get("library");
 		if (str.empty())
 		{
-			std::cerr << KRED "[BREAKING] Missing -library argument\n" << RST;
+			LogError() << "Missing -library argument";
 			return false;
 		}
 
 		const auto libraryPath = fs::weakly_canonical(fs::path(str).make_preferred());
 		if (!fs::is_regular_file(libraryPath))
 		{
-			std::cerr << KRED "[BREAKING] File " << libraryPath << " does not exist\n" << RST;
+			LogError() << "File " << libraryPath << " does not exist";
 			return false;
 		}
 
@@ -96,7 +99,7 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 
 		if (!CreateDirectories(outConfig.tempRootPath))
 		{
-			std::cerr << KRED "[BREAKING] Failed to create directory \"" << outConfig.tempRootPath << "\n" << RST;
+			LogError() << "Failed to create directory \"" << outConfig.tempRootPath;
 			return false;
 		}
 	}
@@ -114,7 +117,7 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 
 		if (!CreateDirectories(outConfig.srcRootPath))
 		{
-			std::cerr << KRED "[BREAKING] Failed to create directory \"" << outConfig.srcRootPath << "\n" << RST;
+			LogError() << "Failed to create directory \"" << outConfig.srcRootPath;
 			return false;
 		}
 	}
@@ -132,7 +135,7 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 
 		if (!CreateDirectories(outConfig.buildRootPath))
 		{
-			std::cerr << KRED "[BREAKING] Failed to create directory \"" << outConfig.buildRootPath << "\n" << RST;
+			LogError() << "Failed to create directory \"" << outConfig.buildRootPath;
 			return false;
 		}
 	}
@@ -150,7 +153,7 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 
 		if (!CreateDirectories(outConfig.commitRootPath))
 		{
-			std::cerr << KRED "[BREAKING] Failed to create directory \"" << outConfig.commitRootPath << "\n" << RST;
+			LogError() << "Failed to create directory \"" << outConfig.commitRootPath;
 			return false;
 		}
 	}
@@ -168,7 +171,7 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 
 		if (!CreateDirectories(outConfig.deployRootPath))
 		{
-			std::cerr << KRED "[BREAKING] Failed to create directory \"" << outConfig.deployRootPath << "\n" << RST;
+			LogError() << "Failed to create directory \"" << outConfig.deployRootPath;
 			return false;
 		}
 	}
@@ -186,7 +189,7 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 
 		if (!CreateDirectories(outConfig.packageRootPath))
 		{
-			std::cerr << KRED "[BREAKING] Failed to create directory \"" << outConfig.packageRootPath << "\n" << RST;
+			LogError() << "Failed to create directory \"" << outConfig.packageRootPath;
 			return false;
 		}
 	}
@@ -204,7 +207,7 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 
 		if (!CreateDirectories(outConfig.downloadRootPath))
 		{
-			std::cerr << KRED "[BREAKING] Failed to create directory \"" << outConfig.downloadRootPath << "\n" << RST;
+			LogError() << "Failed to create directory \"" << outConfig.downloadRootPath;
 			return false;
 		}
 	}
@@ -222,7 +225,7 @@ static bool ParseArgs(const Commandline& cmdline, ToolLibraryConfig& outConfig)
 
 		if (!CreateDirectories(outConfig.dependenciesRootPath))
 		{
-			std::cerr << KRED "[BREAKING] Failed to create directory \"" << outConfig.dependenciesRootPath << "\n" << RST;
+			LogError() << "Failed to create directory \"" << outConfig.dependenciesRootPath;
 			return false;
 		}
 	}	
@@ -267,14 +270,14 @@ static bool LibraryCloneRepo_GitHub(const LibraryManifest& lib, ToolLibraryConfi
 {
 	if (!RunWithArgs("git --version"))
 	{
-		std::cerr << KRED << "[BREAKING] Git not found in PATH, please install it\n" << RST;
+		LogError() << "Git not found in PATH, please install it";
 		return false;
 	}
 
 	// clone/pull
 	if (fs::is_directory(config.srcPath))
 	{
-		std::cout << "Source directory " << config.srcPath << " already exists, syncing only\n";
+		LogInfo() << "Source directory " << config.srcPath << " already exists, syncing only";
 
 		if (!lib.sourceBuild)
 		{
@@ -285,11 +288,11 @@ static bool LibraryCloneRepo_GitHub(const LibraryManifest& lib, ToolLibraryConfi
 			{
 				if (config.ignorePullErrors)
 				{
-					std::cerr << KYEL << "[BREAKING] Failed to update library '" << lib.name << "' from repository " << lib.sourceURL << ", using existing code\n" << RST;
+					LogWarning() << "Failed to update library '" << lib.name << "' from repository " << lib.sourceURL << ", using existing code";
 				}
 				else
 				{
-					std::cerr << KRED << "[BREAKING] Failed to update library '" << lib.name << "' from repository " << lib.sourceURL << "\n" << RST;
+					LogError() << "Failed to update library '" << lib.name << "' from repository " << lib.sourceURL;
 					return false;
 				}
 			}
@@ -307,19 +310,19 @@ static bool LibraryCloneRepo_GitHub(const LibraryManifest& lib, ToolLibraryConfi
 
 		if (!RunWithArgsInDirectory(config.srcRootPath, command.str()))
 		{
-			std::cerr << KRED << "[BREAKING] Failed to clone library '" << lib.name << "' from repository " << lib.sourceURL << "'\n" << RST;
+			LogError() << "Failed to clone library '" << lib.name << "' from repository " << lib.sourceURL << "'";
 			return false;
 		}
 	}
 
 	// cloned
-	std::cout << "Source directory " << config.srcPath << " cloned from '" << lib.sourceURL << "'\n";
+	LogInfo() << "Source directory " << config.srcPath << " cloned from '" << lib.sourceURL << "'";
 
 	// verify repository
 	{
 		if (!RunWithArgsInDirectory(config.srcPath, "git fsck --full"))
 		{
-			std::cerr << KRED << "[BREAKING] Failed to verify library '" << lib.name << "' fetched from repository " << lib.sourceURL << "'\n" << RST;
+			LogError() << "Failed to verify library '" << lib.name << "' fetched from repository " << lib.sourceURL << "'";
 			return false;
 		}
 	}
@@ -329,7 +332,7 @@ static bool LibraryCloneRepo_GitHub(const LibraryManifest& lib, ToolLibraryConfi
 		std::stringstream hash;
 		if (!RunWithArgsInDirectoryAndCaptureOutput(config.srcPath, "git rev-parse --verify HEAD", hash))
 		{
-			std::cerr << KRED << "[BREAKING] Failed to fetch root hash from library '" << lib.name << "' fetched from repository " << lib.sourceURL << "'\n" << RST;
+			LogError() << "Failed to fetch root hash from library '" << lib.name << "' fetched from repository " << lib.sourceURL << "'";
 			return false;
 		}
 
@@ -339,19 +342,19 @@ static bool LibraryCloneRepo_GitHub(const LibraryManifest& lib, ToolLibraryConfi
 	// apply hacks
 	if (fs::is_directory(config.hackPath))
 	{
-		std::cout << KYEL << "Applying hacks to library!\n" << RST;
+		LogWarning() << "Applying hacks to library!";
 
 		uint32_t numCopied = 0;
 		if (!CopyFilesRecursive(config.hackPath, config.srcPath, &numCopied))
 		{
-			std::cerr << KRED << "[BREAKING] Failed to apply hack to library '" << lib.name << "' in directory " << config.srcPath << "\n" << RST;
+			LogError() << "Failed to apply hack to library '" << lib.name << "' in directory " << config.srcPath;
 			return false;
 		}
 
-		std::cout << KYEL << "Applied " << numCopied << " hack files to library '" << lib.name << "'\n" << RST;
+		LogWarning() << "Applied " << numCopied << " hack files to library '" << lib.name << "'";
 	}
 
-	std::cout << KGRN << "Fetched library '" << lib.name << "' from repository " << lib.sourceURL << "' at hash " << lib.rootHash << "\n" << RST;
+	LogSuccess() << "Fetched library '" << lib.name << "' from repository " << lib.sourceURL << "' at hash " << lib.rootHash;
 	return true;
 }
 
@@ -360,7 +363,7 @@ static bool LibraryCloneRepo_URL(const LibraryManifest& lib, ToolLibraryConfig& 
 	const auto downloadPathName = PartAfterLast(lib.sourceURL, "/");
 	if (downloadPathName.empty())
 	{
-		std::cerr << KRED << "[BREAKING] Download URL '" << lib.sourceURL << "' does not contain valid file name\n" << RST;
+		LogError() << "Download URL '" << lib.sourceURL << "' does not contain valid file name";
 		return false;
 	}
 
@@ -375,17 +378,17 @@ static bool LibraryCloneRepo_URL(const LibraryManifest& lib, ToolLibraryConfig& 
 		cmd << " ";
 		cmd << lib.sourceURL;
 
-		std::cout << cmd.str() << "\n";
+		LogInfo() << cmd.str();
 
 		if (!RunWithArgs(cmd.str()))
 		{
-			std::cerr << KRED << "[BREAKING] Failed to download file from '" << lib.sourceURL << "\n" << RST;
+			LogError() << "Failed to download file from '" << lib.sourceURL;
 			return false;
 		}
 
 		if (!fs::is_regular_file(downloadFileName))
 		{ 
-			std::cerr << KRED << "[BREAKING] Downloaded file '" << downloadFileName << "' does not exist\n" << RST;
+			LogError() << "Downloaded file '" << downloadFileName << "' does not exist";
 			return false;
 		}
 	}
@@ -404,7 +407,7 @@ static bool LibraryCloneRepo_URL(const LibraryManifest& lib, ToolLibraryConfig& 
 
 		if (!RunWithArgs(cmd.str()))
 		{
-			std::cerr << KRED << "[BREAKING] Failed to download file from '" << lib.sourceURL << "\n" << RST;
+			LogError() << "Failed to download file from '" << lib.sourceURL;
 			return false;
 		}
 	}
@@ -458,8 +461,8 @@ static bool LibraryConfigure(const Commandline& cmdLine, const LibraryManifest& 
 	std::vector<DependencySymbol> additionalDefines;
 	if (!lib.dependencies.empty())
 	{
-		auto libraryInstaller = ILibraryInstaller::MakeLibraryInstaller(config.platform, config.dependenciesRootPath);
-		if (!libraryInstaller->collect(cmdLine))
+		LibraryInstaller libraryInstaller(config.platform, config.dependenciesRootPath);
+		if (!libraryInstaller.installOfflinePackedDirectory(config.packageRootPath))
 			return false;
 
 		for (const auto& dep : lib.dependencies)
@@ -467,23 +470,26 @@ static bool LibraryConfigure(const Commandline& cmdLine, const LibraryManifest& 
 			std::string verison;
 			fs::path manifestPath;
             std::unordered_set<std::string> requiredPackages;
-			if (libraryInstaller->install(dep.name, manifestPath, verison, requiredPackages))
+			if (libraryInstaller.install(dep.name, &manifestPath, &verison, &requiredPackages))
 			{
 				// load the library manifest
 				auto dependencyManifest = ExternalLibraryManifest::Load(manifestPath);
 				if (!dependencyManifest)
 				{
-					std::cerr << KRED << "[BREAKING] Failed to load library manifest found in unpacked dependency library at '" << manifestPath << "\n" << RST;
+					LogError() << "Failed to load library manifest found in unpacked dependency library at '" << manifestPath;
 					return false;
 				}
 
 				// include var ?
 				if (!dep.includeVar.empty())
 				{
-					if (!dependencyManifest->includePath.empty())
+					std::vector<fs::path> includePaths;
+					dependencyManifest->collectIncludeDirectories(config.platform, &includePaths);
+
+					for (const auto& path : includePaths)
 					{
-						std::cout << "Found include '" << dep.includeVar << "' as " << dependencyManifest->includePath << "\n";
-						additionalDefines.push_back({ dep.includeVar, dependencyManifest->includePath });
+						LogInfo() << "Found include '" << dep.includeVar << "' as " << path;
+						additionalDefines.push_back({ dep.includeVar, path });
 					}
 				}
 
@@ -492,16 +498,19 @@ static bool LibraryConfigure(const Commandline& cmdLine, const LibraryManifest& 
 				{
 					fs::path foundPath;
 
+					std::vector<fs::path> libraryPaths;
+					dependencyManifest->collectLibraries(config.platform, &libraryPaths);
+
 					if (libVar.fileName.empty())
 					{
-						if (dependencyManifest->libraryFiles.size() == 1)
+						if (libraryPaths.size() == 1)
 						{
-							foundPath = dependencyManifest->libraryFiles[0];
+							foundPath = libraryPaths[0];
 						}
 					}
 					else
 					{
-						for (const auto& libFile : dependencyManifest->libraryFiles)
+						for (const auto& libFile : libraryPaths)
 						{
 							if (libFile.filename().u8string() == libVar.fileName)
 							{
@@ -515,22 +524,22 @@ static bool LibraryConfigure(const Commandline& cmdLine, const LibraryManifest& 
 					{
 						if (!libVar.fileName.empty())
 						{
-							std::cerr << KRED << "[BREAKING] Dependency library '" << dep.name << "' has no library file named '" << libVar.fileName << "'\n" << RST;
+							LogError() << "Dependency library '" << dep.name << "' has no library file named '" << libVar.fileName << "'";
 							return false;
 						}
 						else
 						{
-							if (!dependencyManifest->libraryFiles.size())
+							if (!libraryPaths.size())
 							{
-								std::cerr << KRED << "[BREAKING] Dependency library '" << dep.name << "' has no library file to link with!\n" << RST;
+								LogError() << "Dependency library '" << dep.name << "' has no library file to link with!";
 							}
 							else
 							{
-								std::cerr << KRED << "[BREAKING] Dependency library '" << dep.name << "' has more than one library file to link with. Specify file name directly.!\n" << RST;
+								LogError() << "Dependency library '" << dep.name << "' has more than one library file to link with. Specify file name directly.!";
 
-								for (const auto& libFile : dependencyManifest->libraryFiles)
+								for (const auto& libFile : libraryPaths)
 								{
-									std::cout << "Potential library file: '" << libFile << "'\n";
+									LogInfo() << "Potential library file: '" << libFile << "'";
 								}
 							}
 						}
@@ -539,14 +548,14 @@ static bool LibraryConfigure(const Commandline& cmdLine, const LibraryManifest& 
 					}
 					else
 					{
-						std::cout << "Found library '" << libVar.varName << "' as " << foundPath << "\n";
+						LogInfo() << "Found library '" << libVar.varName << "' as " << foundPath;
 						additionalDefines.push_back({ libVar.varName, foundPath });
 					}
 				}
 			}
 			else
 			{
-				std::cerr << KRED << "[BREAKING] Dependency library '" << dep.name << "' failed to install\n" << RST;
+				LogError() << "Dependency library '" << dep.name << "' failed to install";
 				return false;
 			}
 		}
@@ -567,12 +576,12 @@ static bool LibraryConfigure(const Commandline& cmdLine, const LibraryManifest& 
 	// run the command
 	if (!RunWithArgsInDirectory(runDirectory, command))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to configure library '" << lib.name << "'\n" << RST;
+		LogError() << "Failed to configure library '" << lib.name << "'";
 		return false;
 	}
 
 	// configured	
-	std::cout << KGRN << "Library '" << lib.name << "' configured\n" << RST;
+	LogSuccess() << "Library '" << lib.name << "' configured";
 	return true;
 }
 
@@ -612,12 +621,12 @@ static bool LibraryBuild(const LibraryManifest& lib, ToolLibraryConfig& config)
 	// run the command
 	if (!RunWithArgsInDirectory(runDirectory, command))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to build library '" << lib.name << "'\n" << RST;
+		LogError() << "Failed to build library '" << lib.name << "'";
 		return false;
 	}
 
 	// configured	
-	std::cout << KGRN << "Library '" << lib.name << "' built\n" << RST;
+	LogSuccess() << "Library '" << lib.name << "' built";
 	return true;
 }
 
@@ -723,8 +732,8 @@ static bool LibraryCollectArtifacts(const LibraryManifest& lib, ToolLibraryConfi
 			{
 				if (!LibraryCollectArtifactsFromDirectory(info.type, fullSearchPath, fullSearchPath, fullDeployPath, searchFileName, searchExtension, info.recursive, outArtifacts))
 				{
-					std::cerr << KRED << "[BREAKING] Failed to collect build artifacts at '" << searchParentDir << "' in form of " << searchFileName << "." << searchExtension <<
-						(info.recursive ? " (recrusive)" : "(non recrusive)") << "\n" << RST;
+					LogError() << "Failed to collect build artifacts at '" << searchParentDir << "' in form of " << searchFileName << "." << searchExtension <<
+						(info.recursive ? " (recrusive)" : "(non recrusive)");
 					valid = false;
 				}
 			}
@@ -745,7 +754,7 @@ static bool LibraryCollectArtifacts(const LibraryManifest& lib, ToolLibraryConfi
 				}
 				else
 				{
-					std::cerr << KRED << "[BREAKING] Failed to collect build artifact at '" << fullSearchFile << "\n" << RST;
+					LogError() << "Failed to collect build artifact at '" << fullSearchFile;
 					valid = false;
 				}
 			}
@@ -802,7 +811,7 @@ static bool LibraryDeploy(const LibraryManifest& lib, ToolLibraryConfig& config)
 		return false;
 
 	// stats
-	std::cout << KGRN << "Collected " << artifacts.size() << " artifacts for library '" << lib.name << "'\n" << RST;
+	LogSuccess() << "Collected " << artifacts.size() << " artifacts for library '" << lib.name << "'";
 
 	// copy artifacts (if newer, to the build directory)
 	bool valid = true;
@@ -839,12 +848,12 @@ static bool LibraryDeploy(const LibraryManifest& lib, ToolLibraryConfig& config)
 
 	if (!valid)
 	{
-		std::cout << KRED << "Failed to deploy all files for library '" << lib.name << "'\n" << RST;
+		LogError() << "Failed to deploy all files for library '" << lib.name << "'";
 		return false;
 	}
 
 	// done
-	std::cout << KGRN << "Deployed " << numActuallyCopied << " file(s) (out of total " << artifacts.size() << ") for library '" << lib.name << "'\n" << RST;
+	LogSuccess() << "Deployed " << numActuallyCopied << " file(s) (out of total " << artifacts.size() << ") for library '" << lib.name << "'";
 	return true;
 }
 
@@ -880,7 +889,7 @@ static bool LibraryPackage(const LibraryManifest& lib, ToolLibraryConfig& config
 	// make
 	if (!RunWithArgs("tar --version"))
 	{
-		std::cerr << KRED << "[BREAKING] Tar not found in PATH, please install it\n" << RST;
+		LogError() << "Tar not found in PATH, please install it";
 		return false;
 	}
 
@@ -889,7 +898,7 @@ static bool LibraryPackage(const LibraryManifest& lib, ToolLibraryConfig& config
 	const auto manifest = ExternalLibraryManifest::Load(manifestPath);
 	if (!manifest)
 	{
-		std::cerr << KRED << "[BREAKING] Failed to load output manifest for library '" << lib.name << "', was the library built and deployed correctly?\n" << RST;
+		LogError() << "Failed to load output manifest for library '" << lib.name << "', was the library built and deployed correctly?";
 		return false;
 	}
 
@@ -906,7 +915,7 @@ static bool LibraryPackage(const LibraryManifest& lib, ToolLibraryConfig& config
 		}
 		else
 		{
-			std::cout << KRED << "Required file " << filePath << " is missing\n" << RST;
+			LogError() << "Required file " << filePath << " is missing";
 			valid = false;
 		}
 	}
@@ -925,11 +934,11 @@ static bool LibraryPackage(const LibraryManifest& lib, ToolLibraryConfig& config
 		{
 			if (config.forceOperation)
 			{
-				std::cout << KYEL << "Output archive " << archivePath << " is up to date but a -force switch is used so it will be rebuilt\n" << RST;
+				LogWarning() << "Output archive " << archivePath << " is up to date but a -force switch is used so it will be rebuilt";
 			}
 			else
 			{
-				std::cout << KGRN << "Output archive " << archivePath << " is up to date, skipping packaging!\n" << RST;
+				LogSuccess() << "Output archive " << archivePath << " is up to date, skipping packaging!";
 				return true;
 			}
 		}
@@ -944,13 +953,13 @@ static bool LibraryPackage(const LibraryManifest& lib, ToolLibraryConfig& config
 
 		if (!RunWithArgsInDirectory(config.deployPath, command.str()))
 		{
-			std::cout << KRED << "[BREAKING] Failed to package " << archivePath << "\n" << RST;
+			LogError() << "Failed to package " << archivePath;
 			return false;
 		}
 	}
 
 	// done
-	std::cout << KGRN << "Packaged library '" << lib.name << "'\n" << RST;
+	LogSuccess() << "Packaged library '" << lib.name << "'";
 	return true;
 }
 
@@ -974,7 +983,7 @@ static bool LibraryUpload(AWSConfig& aws, const LibraryManifest& lib, ToolLibrar
 	const auto manifest = ExternalLibraryManifest::Load(manifestPath);
 	if (!manifest)
 	{
-		std::cerr << KRED << "[BREAKING] Failed to load output manifest for library '" << lib.name << "', was the library built and deployed correctly?\n" << RST;
+		LogError() << "Failed to load output manifest for library '" << lib.name << "', was the library built and deployed correctly?";
 		return false;
 	}
 
@@ -982,19 +991,19 @@ static bool LibraryUpload(AWSConfig& aws, const LibraryManifest& lib, ToolLibrar
 	const auto archivePath = LibraryArchivePath(*manifest, config);
 	if (!fs::is_regular_file(archivePath))
 	{
-		std::cerr << KRED << "[BREAKING] Archived library file " << archivePath << " does not exist, there's nothing to publish" << RST;
+		LogError() << "Archived library file " << archivePath << " does not exist, there's nothing to publish" << RST;
 		return false;
 	}
 
 	// upload file
 	if (!AWS_S3_UploadLibrary(aws, archivePath, config.platform, manifest->name))
 	{
-		std::cerr << KRED << "[BREAKING] Archived library file " << archivePath << " failed to upload to AWS" << RST;
+		LogError() << "Archived library file " << archivePath << " failed to upload to AWS" << RST;
 		return false;
 	}
 
 	// uploaded
-	std::cerr << KGRN << "Archived library file " << archivePath << " was uploaded to AWS S3" << RST;
+	LogSuccess() << "Archived library file " << archivePath << " was uploaded to AWS S3" << RST;
 	return true;	
 }
 
@@ -1008,7 +1017,7 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 	const auto manifest = ExternalLibraryManifest::Load(manifestPath);
 	if (!manifest)
 	{
-		std::cerr << KRED << "[BREAKING] Failed to load output manifest for library '" << lib.name << "', was the library built and deployed correctly?\n" << RST;
+		LogError() << "Failed to load output manifest for library '" << lib.name << "', was the library built and deployed correctly?";
 		return false;
 	}
 
@@ -1016,7 +1025,7 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 	const auto archivePath = LibraryArchivePath(*manifest, config);
 	if (!fs::is_regular_file(archivePath))
 	{
-		std::cerr << KRED << "[BREAKING] Archived library file " << archivePath << " does not exist, there's nothing to publish" << RST;
+		LogError() << "Archived library file " << archivePath << " does not exist, there's nothing to publish" << RST;
 		return false;
 	}
 
@@ -1040,7 +1049,7 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 	}
 
 	// list found directory
-	std::cout << "Found unused upload directory at " << checkoutDir << "\n";
+	LogInfo() << "Found unused upload directory at " << checkoutDir;
 
 	// push the update
 	double waitTime = 1.0;
@@ -1057,7 +1066,7 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 			command << checkoutDirName;
 			if (!RunWithArgsInDirectory(config.commitRootPath, command.str()))
 			{
-				std::cout << KRED << "[BREAKING] Failed to do a sparse checkout on " << config.commitRepo << " into " << checkoutDirName << "\n" << RST;
+				LogError() << "Failed to do a sparse checkout on " << config.commitRepo << " into " << checkoutDirName;
 				return false;
 			}
 		}
@@ -1071,7 +1080,7 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 			command << "\"";
 			if (!RunWithArgsInDirectory(checkoutDir, command.str()))
 			{
-				std::cout << KRED << "Failed to setup sparse checkout\n" << RST;
+				LogError() << "Failed to setup sparse checkout";
 				return false;
 			}
 		}
@@ -1083,7 +1092,7 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 			command << "git checkout";
 			if (!RunWithArgsInDirectory(checkoutDir, command.str()))
 			{
-				std::cout << KRED << "Failed to setup sparse checkout\n" << RST;
+				LogError() << "Failed to setup sparse checkout";
 				return false;
 			}
 		}
@@ -1092,7 +1101,7 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 		const auto targetFile = (checkoutDir / libraryFile).make_preferred();
 		if (!CopyFile(archivePath, targetFile))
 		{
-			std::cout << KRED << "Failed to copy " << archivePath << "\n" << RST;
+			LogError() << "Failed to copy " << archivePath;
 			return false;
 		}
 
@@ -1105,7 +1114,7 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 			command << "\"";
 			if (!RunWithArgsInDirectory(checkoutDir, command.str()))
 			{
-				std::cout << KRED << "Failed to setup sparse checkout\n" << RST;
+				LogError() << "Failed to setup sparse checkout";
 				return false;
 			}
 		}
@@ -1123,7 +1132,7 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 			command << "\"";
 			if (!RunWithArgsInDirectory(checkoutDir, command.str()))
 			{
-				std::cout << KRED << "Failed to create commit\n" << RST;
+				LogError() << "Failed to create commit";
 				return false;
 			}
 		}
@@ -1136,20 +1145,20 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 			if (!config.commitToken.empty())
 			{
 				const auto coreRepoName = PartAfter(config.commitRepo, "https://");
-				std::cout << "Repo name: '" << config.commitRepo << "'\n";
-				std::cout << "Repo core: '" << coreRepoName << "'\n";
+				LogInfo() << "Repo name: '" << config.commitRepo << "'";
+				LogInfo() << "Repo core: '" << coreRepoName << "'";
 				command << "-q https://" << config.commitToken << "@" << coreRepoName;
 			}
 
 			if (RunWithArgsInDirectory(checkoutDir, command.str()))
 			{
-				std::cout << KGRN << "New packed library pushed\n" << RST;
+				LogSuccess() << "New packed library pushed";
 				return true;
 			}
 		}
 
 		// wait
-		std::cout << "Initial push failed, waiting for " << waitTime << "\n";
+		LogInfo() << "Initial push failed, waiting for " << waitTime;
 		std::this_thread::sleep_for(std::chrono::duration<double>(waitTime));
 		waitTime = waitTime * 1.5f;
 
@@ -1158,7 +1167,7 @@ static bool LibraryCommit(GitHubConfig& git, const LibraryManifest& lib, ToolLib
 	}
 
 	// updated
-	std::cout << KRED << "Failed to push file\n" << RST;
+	LogError() << "Failed to push file";
 	return false;
 }
 #endif
@@ -1172,18 +1181,21 @@ void ToolLibrary::printUsage()
 {
 	auto platform = DefaultPlatform();
 
-	std::cout << KBOLD << "onion library [options]\n" << RST;
-	std::cout << "\n";
-	std::cout << "Build configuration options:\n";
-	std::cout << "  -platform=" << PrintEnumOptions(platform) << "\n";
-	std::cout << "\n";
-	std::cout << "General options:\n";
-	std::cout << "  -library=<library to build>\n";
-	std::cout << "  -step=[clone|configure|build|deploy]\n";
-	std::cout << "  -srcDir=<path to source directory where original repository is downloaded>\n";
-	std::cout << "  -buildDir=<path to build directory where all the build files are stored>\n";
-	std::cout << "  -deployDir=<path where all final library files and includes are copied to>\n";
-	std::cout << "\n";
+	std::stringstream str;
+	str << PrintEnumOptions(platform);
+
+	LogInfo() << "onion library [options]";
+	LogInfo() << "";
+	LogInfo() << "Build configuration options:";
+	LogInfo() << "  -platform=" << str.str();
+	LogInfo() << "";
+	LogInfo() << "General options:";
+	LogInfo() << "  -library=<library to build>";
+	LogInfo() << "  -step=[clone|configure|build|deploy]";
+	LogInfo() << "  -srcDir=<path to source directory where original repository is downloaded>";
+	LogInfo() << "  -buildDir=<path to build directory where all the build files are stored>";
+	LogInfo() << "  -deployDir=<path where all final library files and includes are copied to>";
+	LogInfo() << "";
 }
 
 int ToolLibrary::run(const Commandline& cmdline)
@@ -1200,7 +1212,7 @@ int ToolLibrary::run(const Commandline& cmdline)
 	const auto library = LibraryManifest::Load(config.libraryManifestPath, filters);
 	if (!library)
 	{
-		std::cerr << KRED << "[BREAKING] Failed to load library manifest from " << config.libraryManifestPath << "\n" << RST;
+		LogError() << "Failed to load library manifest from " << config.libraryManifestPath;
 		return 1;
 	}
 
@@ -1214,7 +1226,7 @@ int ToolLibrary::run(const Commandline& cmdline)
 		config.buildPath = (config.buildRootPath / library->name).make_preferred();
 	config.deployPath = (config.deployRootPath / library->name).make_preferred();
 	config.hackPath = (config.hacksRootPath / library->name).make_preferred();
-	std::cout << "Hack path: " << config.hackPath << " " << fs::is_directory(config.hackPath) << "\n";
+	LogInfo() << "Hack path: " << config.hackPath << " " << fs::is_directory(config.hackPath);
 
 	//--
 
@@ -1223,7 +1235,7 @@ int ToolLibrary::run(const Commandline& cmdline)
 	{
 		if (!aws.init(cmdline))
 		{
-			std::cerr << KRED << "[BREAKING] Failed to initialize AWS interface\n" << RST;
+			LogError() << "Failed to initialize AWS interface";
 			return-1;
 		}
 	}
@@ -1232,7 +1244,7 @@ int ToolLibrary::run(const Commandline& cmdline)
 	{
 		if (!LibraryCloneRepo(*library, config))
 		{
-			std::cerr << KRED << "[BREAKING] Clone step for library " << library->name << " failed\n" << RST;
+			LogError() << "Clone step for library " << library->name << " failed";
 			return 1;
 		}
 	}
@@ -1241,7 +1253,7 @@ int ToolLibrary::run(const Commandline& cmdline)
 	{
 		if (!LibraryConfigure(cmdline, *library, config))
 		{
-			std::cerr << KRED << "[BREAKING] Configure step for library " << library->name << " failed\n" << RST;
+			LogError() << "Configure step for library " << library->name << " failed";
 			return 1;
 		}
 	}
@@ -1250,7 +1262,7 @@ int ToolLibrary::run(const Commandline& cmdline)
 	{
 		if (!LibraryBuild(*library, config))
 		{
-			std::cerr << KRED << "[BREAKING] Build step for library " << library->name << " failed\n" << RST;
+			LogError() << "Build step for library " << library->name << " failed";
 			return 1;
 		}
 	}
@@ -1259,7 +1271,7 @@ int ToolLibrary::run(const Commandline& cmdline)
 	{
 		if (!LibraryDeploy(*library, config))
 		{
-			std::cerr << KRED << "[BREAKING] Deploy step for library " << library->name << " failed\n" << RST;
+			LogError() << "Deploy step for library " << library->name << " failed";
 			return 1;
 		}
 	}
@@ -1268,7 +1280,7 @@ int ToolLibrary::run(const Commandline& cmdline)
 	{
 		if (!LibraryPackage(*library, config))
 		{
-			std::cerr << KRED << "[BREAKING] Package step for library " << library->name << " failed\n" << RST;
+			LogError() << "Package step for library " << library->name << " failed";
 			return 1;
 		}
 	}
@@ -1277,7 +1289,7 @@ int ToolLibrary::run(const Commandline& cmdline)
 	{
 		if (!LibraryUpload(aws, *library, config))
 		{
-			std::cerr << KRED << "[BREAKING] Upload step for library " << library->name << " failed\n" << RST;
+			LogError() << "Upload step for library " << library->name << " failed";
 			return 1;
 		}
 	}

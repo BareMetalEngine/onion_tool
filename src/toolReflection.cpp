@@ -19,12 +19,12 @@ static bool ProjectsNeedsReflectionUpdate(const fs::path& reflectionFile, const 
     {
         if (!fs::is_regular_file(reflectionFile))
         {
-            std::cout << "Detected deleted reflection file '" << reflectionFile << "', reflection has to be rebuilt for project\n";
+            LogInfo() << "Detected deleted reflection file '" << reflectionFile << "', reflection has to be rebuilt for project";
             return true;
         }
 
         const auto reflectionFileTimestamp = fs::last_write_time(reflectionFile);
-        //std::cout << "Reflection timestamp for " << reflectionFile << ": " << reflectionFileTimestamp.time_since_epoch().count() << "\n";
+        //LogInfo() << "Reflection timestamp for " << reflectionFile << ": " << reflectionFileTimestamp.time_since_epoch().count();
 
         outNewstTimestamp = reflectionFileTimestamp;
 
@@ -32,15 +32,15 @@ static bool ProjectsNeedsReflectionUpdate(const fs::path& reflectionFile, const 
         for (const auto* file : files)
         {
             const auto sourceFileTimestamp = fs::last_write_time(file->absolutePath);
-          //  std::cout << "Timestamp for source " << file->absoluitePath << ": " << sourceFileTimestamp.time_since_epoch().count() << "\n";
+          //  LogInfo() << "Timestamp for source " << file->absoluitePath << ": " << sourceFileTimestamp.time_since_epoch().count();
 
             if (sourceFileTimestamp > reflectionFileTimestamp)
             {
                 if (sourceFileTimestamp > outNewstTimestamp)
                 {
-                    //std::cout << "Reflection timestamp for " << reflectionFile << ": " << reflectionFileTimestamp.time_since_epoch().count() << "\n";
-                    //std::cout << "Timestamp for source " << file->absoluitePath << ": " << sourceFileTimestamp.time_since_epoch().count() << "\n";
-                    std::cout << "Detected change in file " << file->absolutePath << ", reflection has to be scanned for project\n";
+                    //LogInfo() << "Reflection timestamp for " << reflectionFile << ": " << reflectionFileTimestamp.time_since_epoch().count();
+                    //LogInfo() << "Timestamp for source " << file->absoluitePath << ": " << sourceFileTimestamp.time_since_epoch().count();
+                    LogInfo() << "Detected change in file " << file->absolutePath << ", reflection has to be scanned for project";
                     outNewstTimestamp = sourceFileTimestamp;
 					hasChangedDetected = true;
                 }
@@ -50,7 +50,7 @@ static bool ProjectsNeedsReflectionUpdate(const fs::path& reflectionFile, const 
 
         if (hasChangedDetected)
         {
-            std::cout << "Some files used to build " << reflectionFile << " changed, reflection will have to be refreshed\n";
+            LogInfo() << "Some files used to build " << reflectionFile << " changed, reflection will have to be refreshed";
             return true;
         }
 
@@ -58,7 +58,7 @@ static bool ProjectsNeedsReflectionUpdate(const fs::path& reflectionFile, const 
     }
     catch (...)
     {
-        //std::cout << "Detected problems checking reflection file '" << reflectionFile << "', reflection has to be rebuilt for project\n";
+        //LogInfo() << "Detected problems checking reflection file '" << reflectionFile << "', reflection has to be rebuilt for project";
         return false;
     }
 }
@@ -83,7 +83,7 @@ bool ProjectReflection::GetFileTime(const fs::path& path, fs::file_time_type& ou
     {
         std::error_code ec;
         outLastWriteTime = fs::last_write_time(path, ec);
-        //std::cout << "Last write time " << path << ": " << print_time(outLastWriteTime) << "\n";
+        //LogInfo() << "Last write time " << path << ": " << print_time(outLastWriteTime);
         return !ec;
     }
 	catch (...)
@@ -97,13 +97,13 @@ bool ProjectReflection::CheckFileUpToDate(const fs::file_time_type& referenceTim
     fs::file_time_type lastModificationTime;
     if (!GetFileTime(path, lastModificationTime))
     {
-        std::cout << "Compact list not up to date because " << path << " does not exist\n";
+        LogWarning() << "Compact list not up to date because " << path << " does not exist";
         return false; // file does not exist
     }
 
     if (lastModificationTime > referenceTime)
     {
-		std::cout << "Compact list not up to date because " << path << " was modified: " << print_time(lastModificationTime) << " > " << print_time(referenceTime) << "\n";
+		LogInfo() << "Compact list not up to date because " << path << " was modified: " << print_time(lastModificationTime) << " > " << print_time(referenceTime);
 		return false; // file does not exist
     }
 
@@ -115,7 +115,7 @@ bool ProjectReflection::CheckIfCompactListUpToDate(const fs::path& outputFilePat
     fs::file_time_type referenceTime;
     if (!GetFileTime(outputFilePath, referenceTime))
     {
-        std::cout << "Compact list not up to date because " << outputFilePath << " does not exist\n";
+        LogWarning() << "Compact list not up to date because " << outputFilePath << " does not exist";
         return false; // there's no compact list xD
     }
 
@@ -151,11 +151,11 @@ bool ProjectReflection::LoadCompactProjectsFromFileList(const fs::path& inputFil
             }
         }
 
-        std::cout << "Loaded " << outCompactProjects.size() << " project entries\n";
+        LogInfo() << "Loaded " << outCompactProjects.size() << " project entries";
     }
     catch (const std::exception& e)
     {
-        std::cout << "Error parsing reflection list " << e.what() << "\n";
+        LogError() << "Error parsing reflection list " << e.what();
         return false;
     }
 
@@ -198,7 +198,7 @@ bool ProjectReflection::CollectSourcesFromDirectory(const fs::path& directoryPat
 	}
 	catch (fs::filesystem_error& e)
 	{
-		std::cout << "Filesystem Error: " << e.what() << "\n";
+        LogError() << "Filesystem Error: " << e.what();
 		valid = false;
 	}
 
@@ -269,11 +269,11 @@ bool ProjectReflection::extractFromExpandedList(const fs::path& fileList)
             }
         }
 
-        std::cout << "Loaded " << numFiles << " files from " << projects.size() << " projects for reflection\n";
+        LogInfo() << "Loaded " << numFiles << " files from " << projects.size() << " projects for reflection";
     }
     catch (const std::exception& e)
     {
-        std::cout << "Error parsing reflection list " << e.what() << "\n";
+        LogError() << "Error parsing reflection list " << e.what();
         return false;
     }
 
@@ -346,14 +346,14 @@ bool ProjectReflection::extractFromArgs(const std::string& fileList, const std::
 	std::string txt;
 	if (!LoadFileToString(fileList, txt))
 	{
-		std::cout << "Error loading file list " << fileList << "\n";
+		LogInfo() << "Error loading file list " << fileList;
 		return false;
 	}
 
 	std::vector<std::string_view> filePaths;
 	SplitString(txt, "\n", filePaths);
-	std::cout << "Gathered " << filePaths.size() << " files to process in project '" << projectName << "'\n";
-	std::cout << "Output will be written to '" << outputFile << "'\n";
+	LogInfo() << "Gathered " << filePaths.size() << " files to process in project '" << projectName << "'";
+	LogInfo() << "Output will be written to " << outputFile ;
 
     std::vector<fs::path> filePathsEx;
     for (const auto& path : filePaths)
@@ -413,7 +413,7 @@ bool ProjectReflection::filterProjects()
         }
     }
 
-    std::cout << "Found " << files.size() << " files from " << projects.size() << " projects that need to be checked\n";
+    LogInfo() << "Found " << files.size() << " files from " << projects.size() << " projects that need to be checked";
     return true;
 }
 
@@ -433,7 +433,7 @@ bool ProjectReflection::tokenizeFiles()
         }
         else
         {
-            std::cout << "Failed to load content of file " << file->absolutePath << "\n";
+            LogInfo() << "Failed to load content of file " << file->absolutePath;
             valid = false;
         }
     }
@@ -451,7 +451,7 @@ bool ProjectReflection::parseDeclarations()
         auto* file = files[i];
         if (!file->tokenized.process())
         {
-            std::cerr << KRED << "[BREKAING] Failed to process declaration from " << file->absolutePath << "\n" << RST;
+            LogError() << "[BREKAING] Failed to process declaration from " << file->absolutePath;
             valid = 0;
         }
     }
@@ -460,7 +460,7 @@ bool ProjectReflection::parseDeclarations()
     for (auto* file : files)
         totalDeclarations += (uint32_t)file->tokenized.declarations.size();
 
-    std::cout << "Discovered " << totalDeclarations << " declarations\n";
+    LogInfo() << "Discovered " << totalDeclarations << " declarations";
 
     return valid;
 }
@@ -478,7 +478,7 @@ bool ProjectReflection::generateReflection(FileGenerator& files) const
         file->customtTime = p->reflectionFileTimstamp;
         if (!generateReflectionForProject(*p, file->content))
         {
-            std::cerr << KRED << "[BREAKING] RTTI generation for project '" << p->mergedName << "' failed\n" << RST;
+            LogError() << "RTTI generation for project '" << p->mergedName << "' failed";
             valid = false;
         }
     }
@@ -654,7 +654,7 @@ bool ToolReflection::runStatic(FileGenerator& fileGenerator, const std::vector<f
 	if (!reflection.parseDeclarations())
 		return false;
 
-	std::cout << "Generating reflection files...\n";
+	LogInfo() << "Generating reflection files...";
 
     return reflection.generateReflection(fileGenerator);
 }
@@ -666,7 +666,7 @@ int ToolReflection::run(const Commandline& cmdline)
         std::string fileListPath = cmdline.get("list");
         if (fileListPath.empty())
         {
-            std::cout << "Reflection file list must be specified by -list\n";
+            LogInfo() << "Reflection file list must be specified by -list";
             return 1;
         }
 
@@ -682,7 +682,7 @@ int ToolReflection::run(const Commandline& cmdline)
 
     if (reflection.files.empty() && reflection.projects.empty())
     {
-        std::cout << "Noting to update in reflection\n";
+        LogInfo() << "Noting to update in reflection";
         return 0;
     }
 
@@ -692,7 +692,7 @@ int ToolReflection::run(const Commandline& cmdline)
 	if (!reflection.parseDeclarations())
 		return 4;
 
-	std::cout << "Generating reflection files...\n";
+	LogInfo() << "Generating reflection files...";
 
     FileGenerator files;
 	if (!reflection.generateReflection(files))

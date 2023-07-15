@@ -95,7 +95,7 @@ bool ToolEmbed::writeFile(FileGenerator& gen, const fs::path& inputPath, std::st
 	std::vector<uint8_t> data;
 	if (!LoadFileToBuffer(inputPath, data))
 	{
-		std::cout << "[BREKAING] Failed to load content of " << inputPath << "\n";
+		LogError() << "[BREKAING] Failed to load content of " << inputPath;
 		return false;
 	}
 
@@ -151,32 +151,32 @@ int ToolEmbed::run(const Commandline& cmdline)
     std::string sourceFilePath = cmdline.get("source");
     if (sourceFilePath.empty())
     {
-        std::cout << "Embed file list must be specified by -source\n";
+        LogInfo() << "Embed file list must be specified by -source";
         return 1;
 	}
 
 	std::string projectName = cmdline.get("project");
 	if (projectName.empty())
 	{
-		std::cout << "Reflection project name must be specified by -project\n";
+		LogInfo() << "Reflection project name must be specified by -project";
 		return 1;
 	}
 
 	std::string outputFilePath = cmdline.get("output");
 	if (outputFilePath.empty())
 	{
-		std::cout << "Reflection output file path must be specified by -output\n";
+		LogInfo() << "Reflection output file path must be specified by -output";
 		return 1;
 	}
-	//std::cout << "OutputPath: \"" << outputFilePath << "\"\n";
+	//LogInfo() << "OutputPath: " << outputFilePath;
 
 	std::string relativeFilePath = ReplaceAll(cmdline.get("relative"), "\\", "/");
 	if (relativeFilePath.empty())
 	{
-		std::cout << "Embed relative file name must be specified by -relative\n";
+		LogInfo() << "Embed relative file name must be specified by -relative\n";
 		return 1;
 	}
-	//std::cout << "RelativePath: \"" << relativeFilePath << "\"\n";
+	//LogInfo() << "RelativePath: " << relativeFilePath;
 
     FileGenerator files;
 	if (!writeFile(files, sourceFilePath, projectName, relativeFilePath, outputFilePath))

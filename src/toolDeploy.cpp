@@ -36,13 +36,13 @@ public:
     {
         const auto* project = m_collection.findProject(name);
         if (!project) {
-			std::cerr << KRED << "[BREAKING] Unable to find deployable application '" << name << "'\n" << RST;
+			LogError() << "Unable to find deployable application '" << name << "'";
 			return false;
         }
 
         if (project->manifest->type != ProjectType::Application)
         {
-			std::cerr << KRED << "[BREAKING] Project '" << name << "' is not a deployable application\n" << RST;
+			LogError() << "Project '" << name << "' is not a deployable application";
 			return false;
         }
 
@@ -52,8 +52,8 @@ public:
 
     void printStats() const
     {
-		std::cout << "Collected " << m_projectsToDeploy.size() << " projects to deploy from " << m_modulesToDeploy.size() << " modules\n";
-		std::cout << "Collected " << m_librariesToDeploy.size() << " libraries to deploy\n";
+		LogInfo() << "Collected " << m_projectsToDeploy.size() << " projects to deploy from " << m_modulesToDeploy.size() << " modules";
+		LogInfo() << "Collected " << m_librariesToDeploy.size() << " libraries to deploy";
     }
 
     bool collectFiles(std::vector<ProjectDeployFile>& outFiles) const
@@ -133,7 +133,7 @@ private:
 		}
 		catch (fs::filesystem_error& e)
 		{
-			std::cout << "Filesystem Error: " << e.what() << "\n";
+			LogInfo() << "Filesystem Error: " << e.what();
 			valid = false;
 		}
 
@@ -153,7 +153,7 @@ private:
                     const auto safeMountPath = std::string(data.mountPath.c_str() + 1);
 
                     const auto destinationDirectory = (m_deployPath / safeMountPath).make_preferred();
-                    std::cout << "Found module mount directory '" << data.mountPath << "' that will be deployed as " << destinationDirectory << "\n";
+                    LogInfo() << "Found module mount directory '" << data.mountPath << "' that will be deployed as " << destinationDirectory;
                     valid &= collectFilesFromDirectory(data.sourcePath, destinationDirectory, outFiles);
                 }
             }
@@ -171,7 +171,7 @@ private:
 
             if (!fs::is_regular_file(executablePath))
             {
-				std::cerr << KRED << "[BREAKING] Project '" << info->name << "' is missing executable " << executablePath << "\n" << RST;
+				LogError() << "Project '" << info->name << "' is missing executable " << executablePath;
                 return false;
             }
 
@@ -186,13 +186,13 @@ private:
 
 	bool collectFilesFromLibrary(const ExternalLibraryManifest* lib, std::vector<ProjectDeployFile>& outFiles) const
 	{
-        for (const auto& file : lib->deployFiles)
+        /*for (const auto& file : lib->deployFiles)
         {
 			ProjectDeployFile deployInfo;
 			deployInfo.sourcePath = file.absoluteSourcePath;
 			deployInfo.destinationPath = (m_deployPath / file.relativeDeployPath).make_preferred();
 			outFiles.push_back(deployInfo);
-        }
+        }*/
 
         return true;
 	}
@@ -205,16 +205,16 @@ ToolDeploy::ToolDeploy()
 
 void ToolDeploy::printUsage()
 {
-    std::cout << KBOLD << "onion deploy [options]\n" << RST;
-    std::cout << "\n";
-	std::cout << "General options:\n";
-	std::cout << "  -module=<path to configured module directory>\n";
-	std::cout << "  -app=<application project to deploy>\n";
-	std::cout << "  -build=<build configuration string>\n";
-	std::cout << "  -tempDir=<custom temporary directory>\n";
-	std::cout << "  -cacheDir=<custom library/module cache directory>\n";
-    std::cout << "  -deployDir=<where all stuff is copied to>\n";
-	std::cout << "\n";
+    LogInfo() << "onion deploy [options]";
+    LogInfo() << "";
+	LogInfo() << "General options:";
+	LogInfo() << "  -module=<path to configured module directory>";
+	LogInfo() << "  -app=<application project to deploy>";
+	LogInfo() << "  -build=<build configuration string>";
+	LogInfo() << "  -tempDir=<custom temporary directory>";
+	LogInfo() << "  -cacheDir=<custom library/module cache directory>";
+    LogInfo() << "  -deployDir=<where all stuff is copied to>";
+	LogInfo() << "";
 }
 
 int ToolDeploy::run(const Commandline& cmdline)
@@ -231,7 +231,7 @@ int ToolDeploy::run(const Commandline& cmdline)
 	{
 		const auto& str = cmdline.get("deployDir");
 		if (str.empty())
-            deployDir = (config.derivedConfigurationPath / "deploy").make_preferred();
+            deployDir = (config.derivedConfigurationPathBase / "deploy").make_preferred();
 		else
             deployDir = fs::weakly_canonical(fs::absolute(fs::path(str).make_preferred()));
 
@@ -240,7 +240,7 @@ int ToolDeploy::run(const Commandline& cmdline)
 		{
 			if (!fs::create_directories(deployDir, ec))
 			{
-				std::cerr << KRED << "[BREAKING] Failed to create deploy directory " << deployDir << "\n" << RST;
+				LogError() << "Failed to create deploy directory " << deployDir;
 				return false;
 			}
 		}
@@ -248,15 +248,15 @@ int ToolDeploy::run(const Commandline& cmdline)
 
     //--
 
-    std::cout << "Running with configuration " << config.mergedName() << "\n";
-    std::cout << "Deploying to " << deployDir << "\n";
+    LogInfo() << "Running with configuration " << config.mergedName();
+    LogInfo() << "Deploying to " << deployDir;
 
     //--
 
     std::vector<std::string> applicationsToDeploy = cmdline.getAll("app");
     if (applicationsToDeploy.empty())
     {
-        std::cerr << KRED << "[BREAKING] Please specify application(s) to deploy with the -app argument. Auto-deploying everything is not supported (to much noise).\n" << RST;
+        LogError() << "Please specify application(s) to deploy with the -app argument. Auto-deploying everything is not supported (to much noise).";
         return false;
     }
 
@@ -266,7 +266,7 @@ int ToolDeploy::run(const Commandline& cmdline)
 	const auto moduleConfig = std::unique_ptr<ModuleConfigurationManifest>(ModuleConfigurationManifest::Load(moduleConfigPath));
 	if (!moduleConfig)
 	{
-		std::cerr << KRED << "[BREAKING] Unable to load platform configuration from " << moduleConfigPath << ", run \"onion configure\" to properly configure the environment before generating any projects\n" << RST;
+		LogError() << "Unable to load platform configuration from " << moduleConfigPath << ", run \"onion configure\" to properly configure the environment before generating any projects";
 		return 1;
 	}
 
@@ -275,7 +275,7 @@ int ToolDeploy::run(const Commandline& cmdline)
     ModuleRepository modules;
     if (!modules.installConfiguredModules(*moduleConfig, verifyVersions))
     {
-        std::cerr << KRED << "[BREAKING] Failed to verify configured module at \"" << config.moduleFilePath << "\"\n" << RST;
+        LogError() << "Failed to verify configured module at \"" << config.moduleFilePath << "\"";
         return 1;
     }
 
@@ -284,19 +284,19 @@ int ToolDeploy::run(const Commandline& cmdline)
     ProjectCollection structure;
     if (!structure.populateFromModules(modules.modules(), config))
     {
-        std::cerr << KRED << "[BREAKING] Failed to populate project structure from installed modules\n" << RST;
+        LogError() << "Failed to populate project structure from installed modules";
         return 1;
     }
 
     if (!structure.filterProjects(config))
     {
-        std::cerr << KRED << "[BREAKING] Failed to filter project structure\n" << RST;
+        LogError() << "Failed to filter project structure";
         return 1;
     }
 
     if (!structure.resolveDependencies(config))
     {
-        std::cerr << KRED << "[BREAKING] Failed to resolve project internal dependencies\n" << RST;
+        LogError() << "Failed to resolve project internal dependencies";
         return 1;
     }
 
@@ -305,19 +305,19 @@ int ToolDeploy::run(const Commandline& cmdline)
 	ExternalLibraryReposistory libraries;
     if (!libraries.installConfiguredLibraries(*moduleConfig))
     {
-		std::cerr << KRED << "[BREAKING] Failed to install configured third party libraries\n" << RST;
+		LogError() << "Failed to install configured third party libraries";
 		return 1;
     }
 
 	if (!structure.resolveLibraries(libraries))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to resolve third party libraries\n" << RST;
+		LogError() << "Failed to resolve third party libraries";
 		return 1;
 	}
 
     //--
 
-    ProjectDeployExplorer deployList(structure, deployDir, config.derivedBinaryPath);
+    ProjectDeployExplorer deployList(structure, deployDir, config.derivedBinaryPathBase);
     for (const auto name : applicationsToDeploy)
         if (!deployList.exploreApp(name))
             return 1;
@@ -326,7 +326,7 @@ int ToolDeploy::run(const Commandline& cmdline)
     if (!deployList.collectFiles(deployFiles))
         return 1;
 
-    std::cout << "Collected " << deployFiles.size() << " actual files to deploy\n";
+    LogInfo() << "Collected " << deployFiles.size() << " actual files to deploy";
 
     uint32_t numCopied = 0;
     for (const auto& file : deployFiles)
@@ -334,7 +334,7 @@ int ToolDeploy::run(const Commandline& cmdline)
         bool actuallyCopied = false;
         if (!CopyNewerFile(file.sourcePath, file.destinationPath, &actuallyCopied))
         {
-			std::cerr << KRED << "[BREAKING] Failed to copy file " << file.sourcePath << " to " << file.destinationPath << "\n" << RST;
+			LogError() << "Failed to copy file " << file.sourcePath << " to " << file.destinationPath;
 			return 1;
         }
 
@@ -342,7 +342,7 @@ int ToolDeploy::run(const Commandline& cmdline)
             numCopied += 1;
     }
 
-    std::cout << "Copied " << numCopied << " files out of " << deployFiles.size() << " files collected\n";
+    LogInfo() << "Copied " << numCopied << " files out of " << deployFiles.size() << " files collected";
     return 0;
 }
 

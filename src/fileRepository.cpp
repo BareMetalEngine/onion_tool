@@ -64,13 +64,13 @@ bool GluedArchive::storeFile(const std::string& name, fs::file_time_type timesta
 {
 	if (name.empty())
 	{
-		std::cout << KRED << "[BREAKING] Failed to store glue file without a name\n" << RST;
+		LogError() << "Failed to store glue file without a name";
 		return false;
 	}
 
 	if (data.empty())
 	{
-		std::cout << KRED << "[BREAKING] Failed to store glue file '" << name << "' without content\n" << RST;
+		LogError() << "Failed to store glue file '" << name << "' without content";
 		return false;
 	}
 
@@ -85,7 +85,7 @@ bool GluedArchive::storeFile(const std::string& name, fs::file_time_type timesta
 	file.uncompressedSize = (uint32_t)data.size();
 	m_files[file.name] = file;
 
-	std::cout << "Stored file '" << name << "' (size: " << data.size() << ", compressed: " << compressedData.size() << ")\n";
+	LogInfo() << "Stored file '" << name << "' (size: " << data.size() << ", compressed: " << compressedData.size() << ")";
 	return true;
 }
 
@@ -94,7 +94,7 @@ bool GluedArchive::storeFile(const std::string& name, const fs::path& sourcePath
 	std::vector<uint8_t> data;
 	if (!LoadFileToBuffer(sourcePath, data))
 	{
-		std::cout << KRED << "[BREAKING] Failed to load content of " << sourcePath << " into a memory buffer\n" << RST;
+		LogError() << "Failed to load content of " << sourcePath << " into a memory buffer";
 		return false;
 	}
 
@@ -110,14 +110,14 @@ bool GluedArchive::loadFromFile(const fs::path& path)
 	std::vector<uint8_t> buffer;
 	if (!LoadFileToBuffer(path, buffer))
 	{
-		std::cout << KYEL << "[WARNING] Failed to load content of " << path << " into a memory buffer\n" << RST;
+		LogWarning() << "Failed to load content of " << path << " into a memory buffer";
 		return false;
 	}
 
 	// file is smaller than the header
 	if (buffer.size() < sizeof(GluedArchiveHeader))
 	{
-		std::cout << KYEL << "[WARNING] File " << path << " is to small to host GLUE header\n" << RST;
+		LogWarning() << "File " << path << " is to small to host GLUE header";
 		return false;
 	}
 
@@ -125,11 +125,11 @@ bool GluedArchive::loadFromFile(const fs::path& path)
 	const auto* header = (const GluedArchiveHeader*)(buffer.data() + buffer.size() - sizeof(GluedArchiveHeader));
 	if (header->magic != GluedArchiveHeader::MAGIC)
 	{
-		std::cout << KYEL << "[WARNING] File " << path << " does not contain glued data\n" << RST;
+		LogWarning() << "File " << path << " does not contain glued data";
 		return false;
 	}
 
-	std::cout << "Found " << header->count << " glued file(s)\n";
+	LogInfo() << "Found " << header->count << " glued file(s)";
 
 	// extract files
 	uint32_t offset = header->offset;
@@ -138,7 +138,7 @@ bool GluedArchive::loadFromFile(const fs::path& path)
 		// invalid file
 		if (offset + sizeof(GluedEntryHeader) > buffer.size())
 		{
-			std::cout << KYEL << "[WARNING] File " << path << " has corrupted glue data, entry " << i << " header lies out of file boundary\n" << RST;
+			LogWarning() << "File " << path << " has corrupted glue data, entry " << i << " header lies out of file boundary";
 			return false;
 		}
 
@@ -146,7 +146,7 @@ bool GluedArchive::loadFromFile(const fs::path& path)
 		const auto* fileHeader = (const GluedEntryHeader*)(buffer.data() + offset);
 		if (fileHeader->magic != GluedEntryHeader::MAGIC)
 		{
-			std::cout << KYEL << "[WARNING] File " << path << " has corrupted glue data, entry " << i << " has invalid magic value\n" << RST;
+			LogWarning() << "File " << path << " has corrupted glue data, entry " << i << " has invalid magic value";
 			return false;
 		}
 
@@ -154,20 +154,20 @@ bool GluedArchive::loadFromFile(const fs::path& path)
 		const auto endOffset = offset + sizeof(GluedEntryHeader) + fileHeader->nameSize + fileHeader->contentSize + 1;
 		if (endOffset > buffer.size())
 		{
-			std::cout << KYEL << "[WARNING] File " << path << " has corrupted glue data, entry " << i << " lies out of file boundary\n" << RST;
+			LogWarning() << "File " << path << " has corrupted glue data, entry " << i << " lies out of file boundary";
 			return false;
 		}
 
 		// read file name and content
 		const auto* name = (const char*)buffer.data() + offset + sizeof(GluedEntryHeader);
 		const auto* content = (const uint8_t*)name + fileHeader->nameSize + 1;
-		//std::cout << "Found glued file '" << name << "' at offset " << offset << "\n";
+		//LogInfo() << "Found glued file '" << name << "' at offset " << offset << "\n";
 
 		// calculate content CRC
 		const auto crc = Crc64(content, fileHeader->contentSize);
 		if (crc != fileHeader->crc)
 		{
-			std::cout << KYEL << "[WARNING] File " << path << " has corrupted content for glued file '" << name << "' - invalid CRC\n" << RST;
+			LogWarning() << "File " << path << " has corrupted content for glued file '" << name << "' - invalid CRC";
 			return false;
 		}
 
@@ -175,7 +175,7 @@ bool GluedArchive::loadFromFile(const fs::path& path)
 		const auto nameStr = std::string(name);
 		if (m_files.find(nameStr) != m_files.end())
 		{
-			std::cout << KYEL << "[WARNING] File " << path << " has duplicated glued file '" << name << "'\n" << RST;
+			LogWarning() << "File " << path << " has duplicated glued file '" << name << "'";
 			return false;
 		}
 
@@ -225,7 +225,7 @@ bool GluedArchive::saveToFile(const fs::path& path)
 	std::vector<uint8_t> buffer;
 	if (!LoadFileToBuffer(path, buffer))
 	{
-		std::cout << KYEL << "[WARNING] Failed to load content of " << path << " into a memory buffer\n" << RST;
+		LogWarning() << "Failed to load content of " << path << " into a memory buffer";
 		return false;
 	}
 
@@ -235,7 +235,7 @@ bool GluedArchive::saveToFile(const fs::path& path)
 		const auto* header = (const GluedArchiveHeader*)(buffer.data() + buffer.size() - sizeof(GluedArchiveHeader));
 		if (header->magic == GluedArchiveHeader::MAGIC)
 		{
-			std::cout << "Found " << header->count << " already glued file(s) at offset " << header->offset << "\n";
+			LogInfo() << "Found " << header->count << " already glued file(s) at offset " << header->offset;
 			buffer.resize(header->offset);
 		}
 	}
@@ -268,7 +268,7 @@ bool GluedArchive::saveToFile(const fs::path& path)
 		}
 
 		// final info
-		std::cout << "Stored " << filesToSave.size() << " glued file(s) at offset " << startOffset << ", total size of stored data is " << (buffer.size() - startOffset) << "\n";
+		LogInfo() << "Stored " << filesToSave.size() << " glued file(s) at offset " << startOffset << ", total size of stored data is " << (buffer.size() - startOffset);
 
 		// store header
 		{
@@ -300,7 +300,7 @@ bool FileRepository::initialize(const fs::path& executablePath, const fs::path& 
 		const auto testFile = testDirectory / "README.md";
 		if (fs::is_regular_file(testFile))
 		{
-			std::cout << "Found local files at " << testDirectory << "\n";
+			LogInfo() << "Found local files at " << testDirectory;
 			m_rootFileSystemPath = testDirectory;
 			return true;
 		}
@@ -314,7 +314,7 @@ bool FileRepository::initialize(const fs::path& executablePath, const fs::path& 
 	}
 
 	// no files found
-	std::cerr << KRED << "[BREAKING] No third party files found for the Build Tool, files should either be glued to executable or in the '../files' directory WRT the binary\n";
+	LogError() << "No third party files found for the Build Tool, files should either be glued to executable or in the '../files' directory WRT the binary";
 	return false;
 }
 
@@ -344,7 +344,7 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 	// no extraction supported
 	if (m_extractedFilesPath.empty())
 	{
-		std::cerr << KRED << "[BREAKING] No extraction folder setup\n" << RST;
+		LogError() << "No extraction folder setup";
 		return false;
 	}
 
@@ -358,18 +358,18 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 		const auto fileTime = fs::last_write_time(targetFilePath, ec);
 		if (fileTime == file->timestamp)
 		{
-			//std::cout << "Skipping file '" << file->name << "' as it's up to date\n";
+			//LogInfo() << "Skipping file '" << file->name << "' as it's up to date";
 			outActualPath = targetFilePath;
 			return true;
 		}
 		else
 		{
-			//std::cout << "Not skipping file '" << file->name << "' as it's NOT up to date\n";
+			//LogInfo() << "Not skipping file '" << file->name << "' as it's NOT up to date";
 		}
 	}
 	else
 	{
-		//std::cout << "Not skipping file '" << file->name << "' as it's NOT extracted yet\n";
+		//LogInfo() << "Not skipping file '" << file->name << "' as it's NOT extracted yet";
 	}
 
 	// decompress file content
@@ -377,7 +377,7 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 	decompresedContent.resize(file->uncompressedSize);
 	if (!DecompressLZ4(file->compressedData, decompresedContent))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to decompress files '" << file->name << "'\n" << RST;
+		LogError() << "Failed to decompress files '" << file->name << "'";
 		return false;
 	}
 
@@ -392,7 +392,7 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 	uint32_t saved = 0;
 	if (!SaveFileFromBuffer(targetFilePath, decompresedContent, false, false, &saved, file->timestamp))
 	{
-		std::cerr << KRED << "[BREAKING] Failed to save extracted data for file '" << file->name << "'\n" << RST;
+		LogError() << "Failed to save extracted data for file '" << file->name << "'";
 		return false;
 	}
 
@@ -402,12 +402,12 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 		const auto fileExtension = targetFilePath.extension().u8string();
 		if (fileExtension == ".sh" || fileExtension == "")
 		{
-            std::cout << KYEL << "[WARNING] Setting +x on file '" << file->name << "'\n" << RST;
+            LogWarning() << "Setting +x on file '" << file->name << "'";
 
 			const auto mode = S_IRWXG | S_IRWXO | S_IRWXU;
 			if (0 != chmod(targetFilePath.u8string().c_str(), mode))
 			{
-				std::cerr << KRED << "[BREAKING] Failed to make file executable '" << file->name << "'\n" << RST;
+				LogError() << "Failed to make file executable '" << file->name << "'";
 				return false;
 			}
 		}
@@ -416,7 +416,7 @@ bool FileRepository::extractLocalFile(const GluedFile* file, fs::path& outActual
 
 	// saved
 	outActualPath = targetFilePath;
-	std::cout << "Extracted glued file '" << file->name << "'\n";
+	LogInfo() << "Extracted glued file '" << file->name << "'";
 	return true;
 }
 
@@ -449,7 +449,7 @@ bool FileRepository::resolveDirectoryPath(std::string_view localPath, fs::path& 
 	}
 
 	// unable to resolve file
-	std::cerr << KRED << "[BREAKING] Unable to resolve path to third party directory '" << localPath << "'\n" << RST;
+	LogError() << "Unable to resolve path to third party directory '" << localPath << "'";
 	return false;
 }
 
@@ -465,7 +465,7 @@ bool FileRepository::resolveFilePath(std::string_view localPath, fs::path& outAc
 		}
 		else
 		{
-			std::cerr << KRED << "[BREAKING] Packed file '" << localPath << "' not found\n" << RST;
+			LogError() << "Packed file '" << localPath << "' not found";
 			return false;
 		}
 	}
@@ -482,6 +482,6 @@ bool FileRepository::resolveFilePath(std::string_view localPath, fs::path& outAc
 	}
 
 	// unable to resolve file
-	std::cerr << KRED << "[BREAKING] Unable to resolve path to third party file '" << localPath << "'\n" << RST;
+	LogError() << "Unable to resolve path to third party file '" << localPath << "'";
 	return false;
 }

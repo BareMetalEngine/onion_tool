@@ -35,7 +35,7 @@ static void ClearConsole()
 #else
 static void ClearConsole()
 {
-    std::cout << "\x1B[2J\x1B[H";
+    std::cout<< "\x1B[2J\x1B[H";
 }
 
 static struct termios old, current;
@@ -71,30 +71,30 @@ bool ConfigEnum(T& option, const char* title)
 
     int maxOption = (int)T::MAX;
 
-    std::cout << title << std::endl;
-    std::cout << std::endl;
-    std::cout << "Options:\n";
+    LogInfo() << title;
+    LogInfo() << "";
+    LogInfo() << "Options:";
 
     for (int i = 0; i < maxOption; ++i)
     {
-        std::cout << "  " << (i + 1) << "): ";
-        std::cout << NameEnumOption((T)i);
+        LogInfo() << "  " << (i + 1) << "): ";
+        LogInfo() << NameEnumOption((T)i);
 
         if (option == (T)i)
-            std::cout << " (current)";
-        std::cout << std::endl;
+            LogInfo() << " (current)";
+        LogInfo() << "";
     }
-    std::cout << std::endl;
-    std::cout << std::endl;
+    LogInfo() << "";
+    LogInfo() << "";
 
-    std::cout << "Press (1-" << maxOption << ") to select option\n";
-    std::cout << "Press (ENTER) to use current option (" << NameEnumOption(option) << ")\n";
-    std::cout << "Press (ESC) to exit\n";
+    LogInfo() << "Press (1-" << maxOption << ") to select option";
+    LogInfo() << "Press (ENTER) to use current option (" << NameEnumOption(option) << ")";
+    LogInfo() << "Press (ESC) to exit";
 
     for (;;)
     {
         auto ch = _getch();
-        std::cout << "Code: " << (int)ch << std::endl;
+        LogInfo() << "Code: " << (int)ch;
         if (ch == 13 || ch == 10)
             return true;
         if (ch == 27)
@@ -110,28 +110,28 @@ bool ConfigEnum(T& option, const char* title)
 
 static void PrintConfig(const Configuration& cfg)
 {
-    std::cout << "  Platform  : " << NameEnumOption(cfg.platform) << std::endl;
-    std::cout << "  Generator : " << NameEnumOption(cfg.generator) << std::endl;
-    std::cout << "  Libraries : " << NameEnumOption(cfg.libs) << std::endl;
-    std::cout << "  Config    : " << NameEnumOption(cfg.configuration) << std::endl;
+    LogInfo() << "  Platform  : " << NameEnumOption(cfg.platform);
+    LogInfo() << "  Generator : " << NameEnumOption(cfg.generator);
+    LogInfo() << "  Libraries : " << NameEnumOption(cfg.libs);
+    //LogInfo() << "  Config    : " << NameEnumOption(cfg.configuration);
 }
 
 bool RunInteractiveConfig(Configuration& cfg, const fs::path& configPath)
 {
     if (cfg.load(configPath))
     {
-        std::cout << std::endl;
-        std::cout << "Loaded existing configuration:" << std::endl;
+        LogInfo() << "";
+        LogInfo() << "Loaded existing configuration:";
         PrintConfig(cfg);
-        std::cout << std::endl;
-        std::cout << std::endl;
-        std::cout << "Press (ENTER) to use" << std::endl;
-        std::cout << "Press (ESC) to edit" << std::endl;
+        LogInfo() << "";
+        LogInfo() << "";
+        LogInfo() << "Press (ENTER) to use";
+        LogInfo() << "Press (ESC) to edit";
 
         for (;;)
         {
             auto ch = _getch();
-            std::cout << "Code: " << (int)ch << std::endl;
+            LogInfo() << "Code: " << (int)ch;
             if (ch == 13 || ch == 10)
                 return true;
             if (ch == 27)
@@ -162,16 +162,16 @@ bool RunInteractiveConfig(Configuration& cfg, const fs::path& configPath)
     if (!ConfigEnum(cfg.libs, "Select libraries type:"))
         return false;
 
-    ClearConsole();
-    if (!ConfigEnum(cfg.configuration, "Select configuration type:"))
-        return false;
+    //ClearConsole();
+    //if (!ConfigEnum(cfg.configuration, "Select configuration type:"))
+      //  return false;
 
     ClearConsole();
 
     if (!cfg.save(configPath))
-        std::cout << "Failed to save configuration!\n";
+        LogInfo() << "Failed to save configuration!";
 
-    std::cout << "Running with config:\n";
+    LogInfo() << "Running with config:";
     PrintConfig(cfg);
 
     return true;
@@ -181,7 +181,7 @@ bool RunInteractiveConfig(Configuration& cfg, const fs::path& configPath)
 
 bool RunWithArgs(std::string_view cmd, int* outCode /*= nullptr*/)
 {
-    std::cout << "Running: '" << cmd << "'\n";
+    LogInfo() << "Running: '" << cmd << "'";
 
     auto code = std::system(std::string(cmd).c_str());
 
@@ -190,7 +190,7 @@ bool RunWithArgs(std::string_view cmd, int* outCode /*= nullptr*/)
 
     if (code != 0)
     {
-		std::cerr << KRED << "[BREAKING] Failed to run external command, exit code: " << code << "\n";
+		LogError() << "Failed to run external command, exit code: " << code;
 		return false;
     }
 
@@ -205,7 +205,7 @@ bool RunWithArgsInDirectory(const fs::path& dir, std::string_view cmd, int* outC
 	fs::current_path(dir, er);
 	if (er)
 	{
-		std::cerr << "[BREAKING] Failed to change directory to " << dir << ", error: " << er << "\n";
+		LogError() << "Failed to change directory to " << dir << ", error: " << er;
 		return false;
 	}
 
@@ -217,12 +217,12 @@ bool RunWithArgsInDirectory(const fs::path& dir, std::string_view cmd, int* outC
 	}
 	catch (fs::filesystem_error& e)
 	{
-		std::cerr << KRED << "[EXCEPTION] File system Error: " << e.what() << "\n" << RST;
+		LogError() << "[EXCEPTION] File system Error: " << e.what();
 		valid = false;
 	}
 	catch (std::exception& e)
 	{
-		std::cerr << KRED << "[EXCEPTION] General Error: " << e.what() << "\n" << RST;
+		LogError() << "[EXCEPTION] General Error: " << e.what();
 		valid = false;
 	}
 
@@ -239,7 +239,7 @@ bool RunWithArgsInDirectoryAndCaptureOutput(const fs::path& dir, std::string_vie
 	fs::current_path(dir, er);
 	if (er)
 	{
-		std::cerr << "[BREAKING] Failed to change directory to " << dir << ", error: " << er << "\n";
+		LogError() << "Failed to change directory to " << dir << ", error: " << er << "\n";
 		return false;
 	}
 
@@ -251,12 +251,12 @@ bool RunWithArgsInDirectoryAndCaptureOutput(const fs::path& dir, std::string_vie
 	}
 	catch (fs::filesystem_error& e)
 	{
-		std::cerr << KRED << "[EXCEPTION] File system Error: " << e.what() << "\n" << RST;
+		LogError() << "[EXCEPTION] File system Error: " << e.what();
 		valid = false;
 	}
 	catch (std::exception& e)
 	{
-		std::cerr << KRED << "[EXCEPTION] General Error: " << e.what() << "\n" << RST;
+		LogError() << "[EXCEPTION] General Error: " << e.what();
 		valid = false;
 	}
 
@@ -267,7 +267,7 @@ bool RunWithArgsInDirectoryAndCaptureOutput(const fs::path& dir, std::string_vie
 
 bool RunWithArgsAndCaptureOutput(std::string_view cmd, std::stringstream& outStr, int* outCode /*= nullptr*/)
 {
-    std::cout << "Running: '" << cmd << "'\n";
+    LogInfo() << "Running: '" << cmd << "'";
 
 #ifdef _WIN32
 	FILE* f = _popen(std::string(cmd).c_str(), "r");
@@ -276,7 +276,7 @@ bool RunWithArgsAndCaptureOutput(std::string_view cmd, std::stringstream& outStr
 #endif
     if (!f)
     {
-        std::cerr << KRED << "[BREAKING] popen failed\n";
+        LogError() << "popen failed";
         return false;
     }
 
@@ -290,7 +290,7 @@ bool RunWithArgsAndCaptureOutput(std::string_view cmd, std::stringstream& outStr
     // close
     if (!feof(f))
     {
-		std::cerr << KRED << "[BREAKING] Failed to read popen pipe to the end\n";
+		LogError() << "Failed to read popen pipe to the end";
 		return false;
     }
 
@@ -307,7 +307,7 @@ bool RunWithArgsAndCaptureOutput(std::string_view cmd, std::stringstream& outStr
     // the app itself may fail
     if (code != 0)
     {
-        std::cerr << KRED << "[BREAKING] Failed to run external command, exit code: " << code << "\n";
+        LogError() << "Failed to run external command, exit code: " << code;
 		return false;
     }
 

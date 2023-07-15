@@ -85,6 +85,7 @@ struct SolutionProject
 
 	std::vector<SolutionProjectFile*> files; // may be empty
 	std::vector<fs::path> additionalIncludePaths;
+	std::vector<std::string> legacySourceDirectories;
 
 	std::string assignedVSGuid;	
 
@@ -161,7 +162,7 @@ protected:
 
     bool generateSolutionEmbeddFileList(std::stringstream& outContent);
 	bool generateSolutionReflectionFileProcessingList(std::stringstream& outContent);
-	bool generateSolutionFstabFile(std::stringstream& outContent);
+	bool generateSolutionFstabFile(const fs::path& binaryPath, std::stringstream& outContent);
 
     SolutionGroup* findOrCreateGroup(std::string_view name, SolutionGroup* parent);
 

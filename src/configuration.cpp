@@ -7,7 +7,6 @@
 
 Configuration::Configuration()
 {
-    configuration = ConfigurationType::Release;
 	platform = DefaultPlatform();
 
     if (platform == PlatformType::Windows)
@@ -31,11 +30,9 @@ std::string Configuration::mergedName() const
     ret += NameEnumOption(generator);
     ret += ".";
     ret += NameEnumOption(libs);
-    ret += ".";
-    ret += NameEnumOption(configuration);
 
-    if (flagShipmentBuild)
-        ret += ".shipment";
+    if (flagDevBuild)
+        ret += ".dev";
 
     return ret;
 }
@@ -65,10 +62,9 @@ bool Configuration::load(const fs::path& path)
 	bool valid = ParsePlatformType(parts[0], platform);
 	valid &= ParseGeneratorType(parts[1], generator);
 	valid &= ParseLibraryType(parts[2], libs);
-	valid &= ParseConfigurationType(parts[3], configuration);
 
-    if (parts.size() == 5 && parts[4] == "shipment")
-        flagShipmentBuild = true;
+    //if (parts.size() == 5 && parts[4] == "shipment")
+      //  flagShipmentBuild = true;
 
 	return valid;
 }
@@ -78,12 +74,12 @@ bool Configuration::Parse(const Commandline& cmd, Configuration& cfg)
     cfg.executablePath = GetExecutablePath();
 	if (!fs::is_regular_file(cfg.executablePath))
 	{
-		std::cout << "Invalid local executable name: " << cfg.executablePath << "\n";
+		LogInfo() << "Invalid local executable name: " << cfg.executablePath;
 		return false;
 	}
 
 	if (!ParseOptions(cmd, cfg)) {
-		std::cerr << KRED << "[BREAKING] Invalid/incomplete configuration\n" << RST;
+		LogError() << "Invalid/incomplete configuration";
 		return 1;
 	}
 
@@ -92,11 +88,11 @@ bool Configuration::Parse(const Commandline& cmd, Configuration& cfg)
 			return false;*/
 
 	if (!ParsePaths(cmd, cfg)) {
-		std::cerr << KRED << "[BREAKING] Invalid/incomplete configuration\n" << RST;
+		LogError() << "Invalid/incomplete configuration";
 		return 1;
 	}
 
-	std::cout << "Configuration: '" << cfg.mergedName() << "'\n";
+	LogInfo() << "Configuration: '" << cfg.mergedName() << "'";
     return true;
 }
 
@@ -126,7 +122,7 @@ bool Configuration::ParseOptions(const Commandline& cmd, Configuration& cfg)
             {
                 if (hasPlatform)
                 {
-                    std::cerr << KRED << "[BREAKING] Platform was already defined in build configuration string\n" << RST;
+                    LogError() << "Platform was already defined in build configuration string";
                     return false;
                 }
 
@@ -136,45 +132,29 @@ bool Configuration::ParseOptions(const Commandline& cmd, Configuration& cfg)
             {
                 if (hasLibsType)
                 {
-                    std::cerr << KRED << "[BREAKING] Library type was already defined in build configuration string\n" << RST;
+                    LogError() << "Library type was already defined in build configuration string";
                     return false;
                 }
 
                 hasLibsType = true;
             }
-            else if (ParseConfigurationType(part, cfg.configuration))
-            {
-                if (hasConfigType)
-                {
-                    std::cerr << KRED << "[BREAKING] Configuration type was already defined in build configuration string\n" << RST;
-                    return false;
-                }
-
-                hasConfigType = true;
-            }
             else if (ParseGeneratorType(part, cfg.generator))
             {
                 if (hasGeneratorType)
                 {
-                    std::cerr << KRED << "[BREAKING] Generator type was already defined in build configuration string\n" << RST;
+                    LogError() << "Generator type was already defined in build configuration string";
                     return false;
                 }
 
                 hasGeneratorType = true;
             }
-            else if (part == "shipment")
+            else if (part == "nodev")
             {
-                if (cfg.flagShipmentBuild)
-                {
-                    std::cerr << KRED << "[BREAKING] Shipment flag was already defined in build configuration string\n" << RST;
-                    return false;
-                }
-
-                cfg.flagShipmentBuild = true;
+                cfg.flagDevBuild = false;
             }
             else
             {
-                std::cerr << KRED << "[BREAKING] Invalid build configuration token '" << part << "' that does not match any platform, generator, library type or other shit\n" << RST;
+                LogError() << "Invalid build configuration token '" << part << "' that does not match any platform, generator, library type or other shit";
                 return false;
             }
         }
@@ -194,7 +174,7 @@ bool Configuration::ParseOptions(const Commandline& cmd, Configuration& cfg)
     // when using the CMake generator we can't really generate reflection and other shit at runtime :(
     if (cfg.generator == GeneratorType::CMake || cmd.has("static"))
     {
-        std::cout << "Enabled static content generation\n";
+        LogInfo() << "Enabled static content generation";
         cfg.flagStaticBuild = true;
     }
 
@@ -211,7 +191,7 @@ bool Configuration::ParsePaths(const Commandline& cmd, Configuration& cfg)
             auto testPath = fs::weakly_canonical(fs::absolute((fs::current_path() / "build.xml").make_preferred()));
 			if (!fs::is_regular_file(testPath))
 			{
-				std::cerr << KRED << "[BREAKING] Build tool run in a directory without \"build.xml\", did you run the configure command?\n" << RST;
+				LogError() << "Build tool run in a directory without \"build.xml\", did you run the configure command?";
 				return false;
 			}
 			else
@@ -225,7 +205,7 @@ bool Configuration::ParsePaths(const Commandline& cmd, Configuration& cfg)
             auto testPath = fs::weakly_canonical(fs::absolute(str).make_preferred());
 			if (!fs::is_regular_file(testPath))
 			{
-                std::cerr << KRED << "[BREAKING] Specified module path '" << str << " does not exist\n" << RST;
+                LogError() << "Specified module path '" << str << " does not exist";
 				return false;
 			}
 
@@ -247,7 +227,7 @@ bool Configuration::ParsePaths(const Commandline& cmd, Configuration& cfg)
 		{
 			if (!fs::create_directories(cfg.tempPath, ec))
 			{
-				std::cerr << KRED << "[BREAKING] Failed to create temp directory " << cfg.tempPath << "\n" << RST;
+				LogError() << "Failed to create temp directory " << cfg.tempPath;
 				return false;
 			}
 		}
@@ -266,16 +246,16 @@ bool Configuration::ParsePaths(const Commandline& cmd, Configuration& cfg)
 		{
 			if (!fs::create_directories(cfg.cachePath, ec))
 			{
-				std::cerr << KRED << "[BREAKING] Failed to create temp directory " << cfg.cachePath << "\n" << RST;
+				LogError() << "Failed to create temp directory " << cfg.cachePath;
 				return false;
 			}
 		}
 	}
 
     // derived paths
-    cfg.derivedConfigurationPath = (cfg.tempPath / cfg.mergedName()).make_preferred();
-    cfg.derivedBinaryPath = (cfg.derivedConfigurationPath / "bin").make_preferred();
-    cfg.derivedSolutionPath = (cfg.derivedConfigurationPath / "build").make_preferred();
+    cfg.derivedConfigurationPathBase = (cfg.tempPath / cfg.mergedName()).make_preferred();
+    cfg.derivedBinaryPathBase = (cfg.derivedConfigurationPathBase / "bin").make_preferred();
+    cfg.derivedSolutionPathBase = (cfg.derivedConfigurationPathBase / "build").make_preferred();
 
     return true;
 }
