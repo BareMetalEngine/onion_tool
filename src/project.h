@@ -66,7 +66,7 @@ struct ProjectInfo
 	~ProjectInfo();
 
 	bool scanContent(); // scan for actual files, fails if any of the hand-specified files are missing
-	bool resolveDependencies(const ProjectCollection& projects);
+	bool resolveDependencies(const ProjectCollection& projects, std::vector<std::string>* outMissingProjectDependencies);
 	bool resolveLibraries(ExternalLibraryReposistory& libs);
 
     //--

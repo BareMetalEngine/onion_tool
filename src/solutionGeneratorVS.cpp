@@ -452,7 +452,7 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
     if (!project->optionUseWindowSubsystem)
         f  << "CONSOLE;";
 
-    if (!m_config.flagDevBuild)
+    if (m_config.flagDevBuild)
         f << "DEVELOPMENT;";
 
     if (m_config.platform == PlatformType::UWP)

@@ -27,7 +27,7 @@ public:
     bool resolveLibraries(ExternalLibraryReposistory& libs);
     bool scanContent(uint32_t& outTotalFiles) const;
 
-    bool resolveDependency(const std::string_view name, std::vector<ProjectInfo*>& outProjects, bool soft) const;
+    bool resolveDependency(const std::string_view name, std::vector<ProjectInfo*>& outProjects, bool soft, std::vector<std::string>* outMissingDependencies) const;
 
     //--
 

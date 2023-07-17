@@ -93,7 +93,7 @@ bool ProjectCollection::scanContent(uint32_t& outTotalFiles) const
 
 //--
 
-bool ProjectCollection::resolveDependency(const std::string_view name, std::vector<ProjectInfo*>& outProjects, bool soft) const
+bool ProjectCollection::resolveDependency(const std::string_view name, std::vector<ProjectInfo*>& outProjects, bool soft, std::vector<std::string>* outMissingDependencies) const
 {
 	if (EndsWith(name, "*"))
 	{
@@ -128,6 +128,10 @@ bool ProjectCollection::resolveDependency(const std::string_view name, std::vect
 			else
 			{
 				LogError() << "Project '" << proj->name << "' is not a library and can't be a dependency";
+
+				if (outMissingDependencies)
+					PushBackUnique(*outMissingDependencies, std::string(name));
+
 				return false;
 			}
 
@@ -137,7 +141,9 @@ bool ProjectCollection::resolveDependency(const std::string_view name, std::vect
 		{
 			if (!soft)
 			{
-				LogError() << "No project named '" << name << "' found in all loaded modules";
+				if (outMissingDependencies)
+					PushBackUnique(*outMissingDependencies, std::string(name));
+
 				return false;
 			}
 		}
@@ -185,8 +191,59 @@ bool ProjectCollection::resolveDependencies(const Configuration& config)
 {
 	bool valid = true;
 
+	std::vector<std::string> missingProjectDependencies;
 	for (auto* proj : m_projects)
-		valid &= proj->resolveDependencies(*this);
+		valid &= proj->resolveDependencies(*this, &missingProjectDependencies);
+
+	if (!missingProjectDependencies.empty())
+	{
+		valid = false;
+
+		LogError() << "Found " << missingProjectDependencies.size() << " missing project dependencies!";
+
+		for (const auto& name : missingProjectDependencies)
+		{
+			std::stringstream str;
+			str << "Missing project '" << name << "'";
+
+			bool first = true;
+
+			for (auto* proj : m_projects)
+			{
+				bool hasDependency = false;
+				for (const auto& info : proj->manifest->dependencies)
+				{
+					if (info == name)
+					{
+						hasDependency = true;
+						break;
+					}
+				}
+
+				for (const auto& info : proj->manifest->optionalDependencies)
+				{
+					if (info == name)
+					{
+						hasDependency = true;
+						break;
+					}
+				}
+
+				if (hasDependency)
+				{
+					if (first)
+						str << " referenced in: ";
+					else
+						str << ", ";
+
+					str << "'" << proj->name << "'";
+					first = false;
+				}
+			}
+
+			LogError() << str.str();
+		}
+	}
 
 	return valid;
 }

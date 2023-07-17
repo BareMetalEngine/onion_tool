@@ -168,7 +168,7 @@ bool ProjectInfo::scanFilesAtDir(const fs::path& scanRootPath, const fs::path& d
 
 //--
 
-bool ProjectInfo::resolveDependencies(const ProjectCollection& projects)
+bool ProjectInfo::resolveDependencies(const ProjectCollection& projects, std::vector<std::string>* outMissingProjectDependencies)
 {
     bool valid = true;
 
@@ -176,11 +176,11 @@ bool ProjectInfo::resolveDependencies(const ProjectCollection& projects)
     {
         // resolve required dependencies
         for (const auto& dep : manifest->dependencies)
-            valid &= projects.resolveDependency(dep, resolvedDependencies, false);
+            valid &= projects.resolveDependency(dep, resolvedDependencies, false, outMissingProjectDependencies);
 
         // resolve optional dependencies
         for (const auto& dep : manifest->optionalDependencies)
-            projects.resolveDependency(dep, resolvedDependencies, true);
+            projects.resolveDependency(dep, resolvedDependencies, true, outMissingProjectDependencies);
 
         // remove self from dependency list
         Remove(resolvedDependencies, this);
