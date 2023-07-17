@@ -2760,6 +2760,13 @@ static void LeaveLog()
     LogLock.unlock();
 }
 
+#else
+static void EnterLog(uint32_t type)
+{
+}
+static void LeaveLog()
+{
+}
 #endif
 
 LogPrinter::LogPrinter(int type)
