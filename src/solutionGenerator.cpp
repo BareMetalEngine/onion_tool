@@ -188,6 +188,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         generatorProject->optionUseWindowSubsystem = (proj->manifest->optionSubstem == ProjectAppSubsystem::Windows);
         generatorProject->optionWarningLevel = proj->manifest->optionWarningLevel;
         generatorProject->optionUseExceptions = proj->manifest->optionUseExceptions;
+        generatorProject->optionUseGtest = (proj->manifest->optionTestFramework == ProjectTestFramework::GTest);
         generatorProject->optionDetached = proj->manifest->optionDetached;
         generatorProject->optionExportApplicataion = proj->manifest->optionExportApplicataion;
         generatorProject->optionUseEmbeddedFiles = false;
@@ -447,46 +448,93 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
     // Google test framework files
     if (project->type == ProjectType::TestApplication)
     {
-		// sources 
-		static const char* gtestFiles[] = {
-			"gtest-assertion-result.cc", "gtest-death-test.cc", "gtest-filepath.cc", "gtest-matchers.cc",
-			"gtest-port.cc", "gtest-printers.cc", "gtest-test-part.cc", "gtest-typed-test.cc", "gtest.cc", "gtest-internal-inl.h"
-		};
-
-		// extract includes
-		{
-			fs::path fullPath;
-			if (m_files.resolveDirectoryPath("tools/gtest/include", fullPath))
-			{
-                project->additionalIncludePaths.push_back(fullPath);
-			}
-            else
-            {
-                LogError() << "Failed to extract GoogleTest framework needed for project '" << project->name << "'";
-                return false;
-            }
-		}
-
-        // extract the source code files
-        for (const auto* sourceFileName : gtestFiles)
+        // GTest framework
+        if (project->optionUseGtest)
         {
-            const auto localPath = std::string("tools/gtest/src/") + sourceFileName;
+            // sources 
+            static const char* gtestFiles[] = {
+                "gtest-assertion-result.cc", "gtest-death-test.cc", "gtest-filepath.cc", "gtest-matchers.cc",
+                "gtest-port.cc", "gtest-printers.cc", "gtest-test-part.cc", "gtest-typed-test.cc", "gtest.cc", "gtest-internal-inl.h"
+            };
 
-            fs::path fullPath;
-            if (m_files.resolveFilePath(localPath, fullPath))
+            // extract includes
             {
-                auto* info = new SolutionProjectFile;
-                info->type = ProjectFileType::CppSource;
-                info->absolutePath = fullPath;
-                info->filterPath = "_gtest";
-                info->name = sourceFileName;
-                project->files.push_back(info);
+                fs::path fullPath;
+                if (m_files.resolveDirectoryPath("tools/gtest/include", fullPath))
+                {
+                    project->additionalIncludePaths.push_back(fullPath);
+                }
+                else
+                {
+                    LogError() << "Failed to extract GoogleTest framework needed for project '" << project->name << "'";
+                    return false;
+                }
             }
-            else
+
+            // extract the source code files
+            for (const auto* sourceFileName : gtestFiles)
             {
-                LogError() << "Failed to extract GoogleTest framework needed for project '" << project->name << "'";
-                return false;
+                const auto localPath = std::string("tools/gtest/src/") + sourceFileName;
+
+                fs::path fullPath;
+                if (m_files.resolveFilePath(localPath, fullPath))
+                {
+                    auto* info = new SolutionProjectFile;
+                    info->type = ProjectFileType::CppSource;
+                    info->absolutePath = fullPath;
+                    info->filterPath = "_gtest";
+                    info->name = sourceFileName;
+                    project->files.push_back(info);
+                }
+                else
+                {
+                    LogError() << "Failed to extract GoogleTest framework needed for project '" << project->name << "'";
+                    return false;
+                }
             }
+        }
+        else
+        {
+			// sources 
+			static const char* gtestFiles[] = {
+				"catch2.cpp"
+            };
+
+			// extract includes
+			{
+				fs::path fullPath;
+				if (m_files.resolveDirectoryPath("tools/catch2/include", fullPath))
+				{
+					project->additionalIncludePaths.push_back(fullPath);
+				}
+				else
+				{
+					LogError() << "Failed to extract GoogleTest framework needed for project '" << project->name << "'";
+					return false;
+				}
+			}
+
+			// extract the source code files
+			for (const auto* sourceFileName : gtestFiles)
+			{
+				const auto localPath = std::string("tools/catch2/src/") + sourceFileName;
+
+				fs::path fullPath;
+				if (m_files.resolveFilePath(localPath, fullPath))
+				{
+					auto* info = new SolutionProjectFile;
+					info->type = ProjectFileType::CppSource;
+					info->absolutePath = fullPath;
+					info->filterPath = "_catch2";
+					info->name = sourceFileName;
+					project->files.push_back(info);
+				}
+				else
+				{
+					LogError() << "Failed to extract Catch2 framework needed for project '" << project->name << "'";
+					return false;
+				}
+			}
         }
     }
 
@@ -894,7 +942,10 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
         writelnf(f, "#include \"core/containers/include/commandLine.h\"");
     writeln(f, "");
 
-    writeln(f, "#include \"gtest/gtest.h\"");
+    if (project->optionUseGtest)
+        writeln(f, "#include \"gtest/gtest.h\"");
+    else
+        writeln(f, "#include \"catch2/cach2.hpp\"");
     writeln(f, "");
 
     if (hasPreMain)
@@ -942,8 +993,15 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
             if (hasPreMain)
                 writeln(f, "  if (!pre_main(argc, argv, &ret)) {");
 
-            writeln(f, "    testing::InitGoogleTest(&argc, argv);");
-            writeln(f, "    ret = RUN_ALL_TESTS();");
+            if (project->optionUseGtest)
+            {
+                writeln(f, "    testing::InitGoogleTest(&argc, argv);");
+                writeln(f, "    ret = RUN_ALL_TESTS();");
+            }
+            else
+            {
+                writeln(f, "    ret = Catch::Session().run(argc, argv);");
+            }
 
             if (hasPreMain)
 				writeln(f, "  }");
@@ -966,8 +1024,15 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
 		if (hasPreMain)
 			writeln(f, "  if (!pre_main(argc, argv, &ret)) {");
 
-        writeln(f, "  testing::InitGoogleTest(&argc, argv);");
-        writeln(f, "  ret = RUN_ALL_TESTS();");
+        if (project->optionUseGtest)
+        {
+            writeln(f, "  testing::InitGoogleTest(&argc, argv);");
+            writeln(f, "  ret = RUN_ALL_TESTS();");
+        }
+        else
+        {
+			writeln(f, "  ret = Catch::Session().run(argc, argv);");
+		}
 
 		if (hasPreMain)
 			writeln(f, "  }");
@@ -1286,9 +1351,18 @@ bool SolutionGenerator::generateProjectGlueHeaderFile(const SolutionProject* pro
     // if compiling as test app include the macro first to allow some headers to reconfigure for tests
     if (project->type == ProjectType::TestApplication)
     {
-        writeln(f, "// We are running tests");
-        writeln(f, "#define WITH_GTEST");
-        writeln(f, "");
+        if (project->optionUseGtest)
+        {
+            writeln(f, "// We are running tests");
+            writeln(f, "#define WITH_GTEST");
+            writeln(f, "");
+        }
+        else
+        {
+			writeln(f, "// We are running tests");
+			writeln(f, "#define WITH_CATCH2");
+			writeln(f, "");
+        }
     }
 
     // Library interface
@@ -1403,9 +1477,18 @@ bool SolutionGenerator::generateProjectBuildHeaderFile(const SolutionProject* pr
     // Google Test Suite
     if (project->type == ProjectType::TestApplication)
     {
-        writeln(f, "// Google Test Suite");
-        writeln(f, "#include \"gtest/gtest.h\"");
-		writeln(f, "");
+        if (project->optionUseGtest)
+        {
+			writeln(f, "// Google Test Suite");
+			writeln(f, "#include \"gtest/gtest.h\"");
+			writeln(f, "");
+        }
+        else
+        {
+            writeln(f, "// Catch2 Test Suite");
+            writeln(f, "#include \"catch2/catch2.hpp\"");
+            writeln(f, "");
+        }
     }
 
     return true;

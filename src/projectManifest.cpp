@@ -62,6 +62,25 @@ static bool EvalSubsystemType(ProjectManifest* manifest, const XMLNode* node)
 	return false;
 }
 
+static bool EvalTestFramework(ProjectManifest* manifest, const XMLNode* node)
+{
+	const auto value = XMLNodeValue(node);
+
+	if (value == "GTest")
+	{
+		manifest->optionTestFramework = ProjectTestFramework::GTest;
+		return true;
+	}
+	else if (value == "Catch2")
+	{
+		manifest->optionTestFramework = ProjectTestFramework::Catch2;
+		return true;
+	}
+
+	LogError() << "Unknown TestFramework option '" << value << "'";
+	return false;
+}
+
 static void InsertPreprocessor(std::vector<std::pair<std::string, std::string>>& prep, std::string_view key, std::string_view value)
 {
     for (auto& p : prep)
@@ -149,6 +168,8 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
 
             if (option == "Subsystem")
                 valid &= EvalSubsystemType(ret.get(), node);
+			else if (option == "TestFramework")
+				valid &= EvalTestFramework(ret.get(), node);
             else if (option == "AppClass")
                 ret->appClassName = XMLNodeValue(node);
             else if (option == "AppNoLog")

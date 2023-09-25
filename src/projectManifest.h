@@ -33,6 +33,12 @@ enum class ProjectAppSubsystem : uint8_t
 	Console, // typical console window app
 };
 
+enum class ProjectTestFramework : uint8_t
+{
+	GTest, // Windows only - project does not have console window
+	Catch2, // typical console window app
+};
+
 struct Configuration;
 
 struct ProjectManifest
@@ -47,6 +53,7 @@ struct ProjectManifest
 
     ProjectLibraryLinkType optionLinkType = ProjectLibraryLinkType::Auto; // how they library should be linked
     ProjectAppSubsystem optionSubstem = ProjectAppSubsystem::Console;
+    ProjectTestFramework optionTestFramework = ProjectTestFramework::GTest;
 
     int optionWarningLevel = 4;
     bool optionDevOnly = false; // project is development only project and will be skipped in final build
