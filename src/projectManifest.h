@@ -60,6 +60,9 @@ struct ProjectManifest
     bool optionSelfTest = false; // project is a self-test project (without gtest)
     bool optionHasPreMain = false; // project has additional pre_main than can override default behavior
     bool optionLegacy = false; // legacy project without the src/include structure
+    bool optionEngineOnly = false; // project is "engine only" - included only when building raw engine (not the game)
+	bool optionHasInit = false; // project has the initialization function called after reflection was established
+	bool optionHasPreInit = false; // project has the initialization function called before reflection was established
 
     std::vector<std::string> dependencies; // dependencies on another projects
     std::vector<std::string> optionalDependencies; // soft dependencies on another projects (we may continue if projects is NOT available)

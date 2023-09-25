@@ -570,9 +570,9 @@ bool ProjectReflection::generateReflectionForProject(const RefelctionProject& p,
 		}
         else
         {
-            writelnf(f, "namespace %s { extern void CreateType_%s(const char* name); }", d.declaration->scope.c_str(), d.declaration->name.c_str());
+            writelnf(f, "namespace %s { extern void CreateType_%s(); }", d.declaration->scope.c_str(), d.declaration->name.c_str());
             writelnf(f, "namespace %s { extern void InitType_%s(); }", d.declaration->scope.c_str(), d.declaration->name.c_str());
-            //writelnf(f, "namespace %s { extern void RegisterType_%s(const char* name); }", d.declaration->scope.c_str(), d.declaration->name.c_str());
+            writelnf(f, "namespace %s { extern void FinishType_%s(); }", d.declaration->scope.c_str(), d.declaration->name.c_str());
         }
     }
 
@@ -587,13 +587,8 @@ bool ProjectReflection::generateReflectionForProject(const RefelctionProject& p,
 		if (d.declaration->type == CodeTokenizer::DeclarationType::LOG_CHANNEL || d.declaration->type == CodeTokenizer::DeclarationType::GLOBAL_FUNC || d.declaration->type == CodeTokenizer::DeclarationType::STRINGID)
 			continue;
 
-        {
-            const auto typeName = ReplaceAll(d.declaration->typeName, "::", ".");
-
-            writelnf(f, "%s::CreateType_%s(\"%s\");", 
-                d.declaration->scope.c_str(), d.declaration->name.c_str(),
-                typeName.c_str());
-        }
+        //const auto typeName = ReplaceAll(d.declaration->typeName, "::", ".");
+        writelnf(f, "%s::CreateType_%s();", d.declaration->scope.c_str(), d.declaration->name.c_str());// , typeName.c_str());
     }
 
     for (const auto& d : declarations)
@@ -615,6 +610,13 @@ bool ProjectReflection::generateReflectionForProject(const RefelctionProject& p,
                 d.declaration->scope.c_str(), d.declaration->name.c_str());
         }
     }
+
+    for (const auto& d : declarations)
+    {
+        if (d.declaration->type == CodeTokenizer::DeclarationType::CLASS || d.declaration->type == CodeTokenizer::DeclarationType::ENUM || d.declaration->type == CodeTokenizer::DeclarationType::BITFIELD || d.declaration->type == CodeTokenizer::DeclarationType::CUSTOM_TYPE)
+            writelnf(f, "%s::FinishType_%s();", d.declaration->scope.c_str(), d.declaration->name.c_str());
+    }
+
     writeln(f, "}");
 
     writeln(f, "");

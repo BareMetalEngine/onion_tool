@@ -483,7 +483,7 @@ bool CodeTokenizer::process()
                 return false;
             }
 
-            activeNamespace = "ms::" + name;
+            activeNamespace = "potato::" + name;
         }
         else if (token.text == "END_NAMESPACE")
         {
@@ -521,7 +521,7 @@ bool CodeTokenizer::process()
                 return false;
             }
 
-            name = "ms::" + name;
+            name = "potato::" + name;
 
             if (name != activeNamespace)
             {
@@ -555,7 +555,7 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::ENUM;
 
-            decl.typeName = PartAfter(activeNamespace, "ms::");
+            decl.typeName = PartAfter(activeNamespace, "potato::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;
@@ -586,7 +586,7 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::BITFIELD;
             
-            decl.typeName = PartAfter(activeNamespace, "ms::");
+            decl.typeName = PartAfter(activeNamespace, "potato::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;
@@ -620,7 +620,7 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::CLASS;
             
-            decl.typeName = PartAfter(activeNamespace, "ms::");
+            decl.typeName = PartAfter(activeNamespace, "potato::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;
@@ -651,7 +651,7 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::CUSTOM_TYPE;
             
-            decl.typeName = PartAfter(activeNamespace, "ms::");
+            decl.typeName = PartAfter(activeNamespace, "potato::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;

@@ -8,7 +8,7 @@
 
 ModuleConfigurationManifest::ModuleConfigurationManifest()
 {
-	name = "moonshoot";
+	name = "onion";
 }
 
 ModuleConfigurationManifest::~ModuleConfigurationManifest()

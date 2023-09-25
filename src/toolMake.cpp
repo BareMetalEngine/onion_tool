@@ -146,7 +146,7 @@ int ToolMake::run(const Commandline& cmdline)
 
     auto mainModuleName = moduleConfig->name;
     if (mainModuleName.empty())
-        mainModuleName = "moonshoot";
+        mainModuleName = "onion";
 
     auto codeGenerator = CreateSolutionGenerator(fileRepository, config, mainModuleName);
     if (!codeGenerator)

@@ -167,6 +167,8 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
 				ret->guid = XMLNodeValue(node);
 			else if (option == "DeveloperOnly")
 				ret->optionDevOnly = XMLNodeValueBool(node, ret->optionDevOnly);
+			else if (option == "EngineOnly")
+				ret->optionEngineOnly = XMLNodeValueBool(node, ret->optionEngineOnly);			
 			else if (option == "WarningLevel")
 				ret->optionWarningLevel = XMLNodeValueInt(node, ret->optionWarningLevel);
 			else if (option == "InitializeStaticDependencies")
@@ -195,6 +197,10 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
 				valid &= EvalPreprocessor(ret->localDefines, node);
 			else if (option == "GlobalPreprocessorDefines")
 				valid &= EvalPreprocessor(ret->globalDefines, node);
+			else if (option == "HasInit")
+				ret->optionHasInit = XMLNodeValueBool(node, ret->optionHasInit);
+			else if (option == "HasPreInit")
+				ret->optionHasPreInit = XMLNodeValueBool(node, ret->optionHasPreInit);
 			else
 			{
 				LogError() << "Unknown project's manifest option '" << option << "'";

@@ -62,6 +62,8 @@ struct SolutionProject
 	bool optionGenerateMain = false;
 	bool optionUsePreMain = false;
 	bool optionLegacy = false;
+	bool optionHasInit = false;
+	bool optionHasPreInit = false;
 	int optionWarningLevel = 4;
 
     SolutionGroup* group = nullptr;
