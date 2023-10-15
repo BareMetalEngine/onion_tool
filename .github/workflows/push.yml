@@ -47,7 +47,7 @@ jobs:
               git config --global user.name "GitHub Actions"
               ./build_darwin.sh
   BuildMacM1:
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: macos-latest-large
     needs: BuildMac
     env:
       GITHUB_TOKEN: ${{secrets.ONION_GIT_PUBLIC_TOKEN}}
@@ -64,7 +64,7 @@ jobs:
     needs: BuildWindows
     strategy:
       matrix:
-        config: [release, debug, checked, final]
+        configuration: [Release, Debug, Checked, Final, Profile]
         test: [tests/app_self_contained, tests/app_with_lib, tests/app_with_lib_and_tests, tests/app_with_local_static_lib, tests/app_with_external_static_lib, tests/app_with_thirdparty_dep, tests/common_static_lib, tests/bison_file, tests/detached_lib, tests/embed_file, tests/module_with_static_lib]
         libs: [shared, static]
     steps:
@@ -74,15 +74,15 @@ jobs:
                 git clone https://github.com/BareMetalEngine/onion.git C:\onion
                 pushd ${{matrix.test}}
                 C:\onion\onion.exe configure
-                C:\onion\onion.exe make -config=${{matrix.config}} -libs=${{matrix.libs}}
-                C:\onion\onion.exe build
-                C:\onion\onion.exe test
+                C:\onion\onion.exe make -libs=${{matrix.libs}}
+                C:\onion\onion.exe build -config=${{matrix.configuration}} 
+                C:\onion\onion.exe test -config=${{matrix.configuration}} 
   TestLinux:
     runs-on: ubuntu-22.04
     needs: BuildLinux
     strategy:
       matrix:
-        config: [release, debug, checked, final]
+        configuration: [Release, Debug, Checked, Final, Profile]
         test: [tests/app_self_contained, tests/app_with_lib, tests/app_with_lib_and_tests, tests/app_with_local_static_lib, tests/app_with_external_static_lib, tests/app_with_thirdparty_dep, tests/common_static_lib, tests/bison_file, tests/detached_lib, tests/embed_file, tests/module_with_static_lib]
         libs: [static]
     steps:
@@ -92,15 +92,15 @@ jobs:
                 git clone https://github.com/BareMetalEngine/onion.git ~/onion/
                 pushd ${{matrix.test}}
                 ~/onion/onion configure
-                ~/onion/onion make -config=${{matrix.config}} -libs=${{matrix.libs}}
-                ~/onion/onion build
-                ~/onion/onion test
+                ~/onion/onion make -libs=${{matrix.libs}}
+                ~/onion/onion build -config=${{matrix.configuration}} 
+                ~/onion/onion test -config=${{matrix.configuration}} 
   TestMac:
     runs-on: macos-12
     needs: BuildMac
     strategy:
       matrix:
-        config: [release, debug, checked, final]
+        configuration: [Release, Debug, Checked, Final, Profile]
         test: [tests/app_self_contained, tests/app_with_lib, tests/app_with_lib_and_tests, tests/app_with_local_static_lib, tests/app_with_external_static_lib, tests/app_with_thirdparty_dep, tests/common_static_lib, tests/bison_file, tests/detached_lib, tests/embed_file, tests/module_with_static_lib]
         libs: [static]
     steps:
@@ -110,15 +110,15 @@ jobs:
                 git clone https://github.com/BareMetalEngine/onion.git ~/onion/
                 pushd ${{matrix.test}}
                 ~/onion/onion_mac configure
-                ~/onion/onion_mac make -config=${{matrix.config}} -libs=${{matrix.libs}}
-                ~/onion/onion_mac build
-                ~/onion/onion_mac test
+                ~/onion/onion_mac make -libs=${{matrix.libs}}
+                ~/onion/onion_mac builde -config=${{matrix.configuration}}
+                ~/onion/onion_mac teste -config=${{matrix.configuration}}
   TestMacM1:
     runs-on: [self-hosted, macOS, ARM64]
     needs: BuildMacM1
     strategy:
       matrix:
-        config: [release, debug, checked, final]
+        configuration: [Release, Debug, Checked, Final, Profile]
         libs: [static]
         test: [tests/app_self_contained, tests/app_with_lib, tests/app_with_lib_and_tests, tests/app_with_local_static_lib, tests/app_with_external_static_lib, tests/app_with_thirdparty_dep, tests/common_static_lib, tests/bison_file, tests/detached_lib, tests/embed_file, tests/module_with_static_lib]
     steps:
@@ -128,6 +128,6 @@ jobs:
                 git clone https://github.com/BareMetalEngine/onion.git ~/onion/
                 pushd ${{matrix.test}}
                 ~/onion/onion_mac configure
-                ~/onion/onion_mac make -config=${{matrix.config}} -libs=${{matrix.libs}}
-                ~/onion/onion_mac build
-                ~/onion/onion_mac test
+                ~/onion/onion_mac make -libs=${{matrix.libs}}
+                ~/onion/onion_mac build -config=${{matrix.configuration}}
+                ~/onion/onion_mac test -config=${{matrix.configuration}}
