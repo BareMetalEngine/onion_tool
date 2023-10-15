@@ -2763,9 +2763,54 @@ static void LeaveLog()
 #else
 static void EnterLog(uint32_t type)
 {
+	LogLock.lock();
+
+	if (0 == LogLevel++)
+	{
+		LogType = type;
+
+		switch (type)
+		{
+		case 1:
+            std::cout << KGRN;
+			break;
+		case 2:
+			std::cerr << KYEL;
+			break;
+		case 3:
+            std::cerr << KRED;
+			break;
+		default:
+			break;
+		}
+	}
 }
 static void LeaveLog()
 {
+	assert(LogLevel >= 1);
+
+	if (0 == --LogLevel)
+	{
+		switch (LogType)
+		{
+		case 1:
+            std::cout << RST;
+
+		default:
+			std::cout << "\n";
+			break;
+
+		case 2:
+		case 3:
+			std::cerr << RST;
+			std::cerr << "\n";
+			break;
+		}
+
+		LogType = 0;
+	}
+
+	LogLock.unlock();
 }
 #endif
 
