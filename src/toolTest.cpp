@@ -21,7 +21,7 @@ void ToolTest::printUsage()
 	LogInfo() << "  -module=<path to module to configure>";
 	LogInfo() << "  -parallel - run all tests in parallel";
 	LogInfo() << "  -fastfail - stop after first failure";
-	LogInfo() << "  -config=<Release|Debug|Final|Profile|Checked> - configuration to run (defaults to Release)";
+	LogInfo() << "  -config=<release|debug|final|profile|checked> - configuration to run (defaults to Release)";
 	LogInfo() << "";
 }
 

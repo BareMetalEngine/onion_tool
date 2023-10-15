@@ -189,7 +189,7 @@ void ToolBuild::printUsage()
 	LogInfo() << "";
 	LogInfo() << "General options:";
 	LogInfo() << "  -module=<module to build>";
-	LogInfo() << "  -config=<Release|Debug|Final|Profile|Checked> - configuration to build (defaults to Release)";
+	LogInfo() << "  -config=<release|debug|final|profile|checked> - configuration to build (defaults to Release)";
 	LogInfo() << "  -platform=" << str.str() << "";
 	LogInfo() << "";
 }

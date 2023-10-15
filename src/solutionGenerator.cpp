@@ -435,7 +435,7 @@ bool SolutionGenerator::generateAutomaticCode(FileGenerator& fileGenerator)
     }
 
 	const char* ConfigurationNames[] = {
-    	"Debug", "Checked", "Release", "Profile", "Final"
+    	"debug", "checked", "release", "profile", "final"
 	};
 
     // generate the data mapping file
