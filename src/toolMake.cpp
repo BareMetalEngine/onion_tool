@@ -113,7 +113,7 @@ int ToolMake::run(const Commandline& cmdline)
     for (const auto& configType : CONFIGURATIONS)
     {
         const auto configurationName = NameEnumOption(configType);
-        const auto binaryFolder = (config.derivedBinaryPathBase / configurationName).make_preferred();
+        const auto binaryFolder = (config.derivedBinaryPathBase / ToLower(configurationName)).make_preferred();
 
 		if (!libraries.deployFiles(configType, binaryFolder))
 		{

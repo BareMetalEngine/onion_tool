@@ -72,7 +72,7 @@ static bool ProjectBinaryPath(const ProjectInfo* project, const Configuration& c
 	if (!ProjectBinaryName(project, executableName))
 		return false;
 
-	outPath = (config.derivedBinaryPathBase / runtimeConfig / executableName).make_preferred();
+	outPath = (config.derivedBinaryPathBase / ToLower(runtimeConfig) / executableName).make_preferred();
 	return true;
 }
 

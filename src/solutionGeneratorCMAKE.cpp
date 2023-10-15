@@ -57,7 +57,11 @@ bool SolutionGeneratorCMAKE::generateSolution(FileGenerator& gen)
     writelnf(f, "set(CMAKE_MODULE_PATH %s)", EscapePath(m_cmakeScriptsPath).c_str());
     writelnf(f, "set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPathBase / "lib").c_str());
     writelnf(f, "set(CMAKE_LIBRARY_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPathBase / "lib").c_str());
-    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedBinaryPathBase).c_str());
+    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG %s)", EscapePath(m_config.derivedBinaryPathBase / "debug").c_str());
+    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE %s)", EscapePath(m_config.derivedBinaryPathBase / "release").c_str());
+    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_CHECKED %s)", EscapePath(m_config.derivedBinaryPathBase / "checked").c_str());
+    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_PROFILE %s)", EscapePath(m_config.derivedBinaryPathBase / "profile").c_str());
+    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_FINAL %s)", EscapePath(m_config.derivedBinaryPathBase / "final").c_str());
 
     //if (solution.platformType == PlatformType.WINDOWS)
     writeln(f, "set_property(GLOBAL PROPERTY USE_FOLDERS ON)");
@@ -134,10 +138,12 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
     writeln(f, "set(CMAKE_CXX_STANDARD 17)");
     writeln(f, "set(CMAKE_CXX_STANDARD_REQUIRED ON)");
     writeln(f, "set(CMAKE_CXX_EXTENSIONS OFF)");
+    writeln(f, "set(CMAKE_CONFIGURATION_TYPES \"Debug;Release;Profile;Checked;Final\")");
+    writeln(f, "set(CMAKE_CONFIGURATION_TYPES \"${CMAKE_CONFIGURATION_TYPES}\" CACHE STRING \"List of supported configurations.\")");
+    
 
     writelnf(f, "add_definitions(-DPROJECT_NAME=%s)", p->name.c_str());
     writeln(f, "string(TOUPPER \"${CMAKE_BUILD_TYPE}\" uppercase_CMAKE_BUILD_TYPE)");
-    writelnf(f, "set(CMAKE_CONFIGURATION_TYPES \"Debug;Checked;Release;Profile;Final\")");
 
     const bool staticLink = (p->type == ProjectType::StaticLibrary);
     if (staticLink)
@@ -168,16 +174,11 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
       
     }
 
-#if 0
-    if (m_config.configuration == ConfigurationType::Debug)
-        writeln(f, "set( CMAKE_CXX_FLAGS  \"${CMAKE_CXX_FLAGS} -DBUILD_DEBUG -D_DEBUG -DDEBUG\")");
-    else if (m_config.configuration == ConfigurationType::Checked)
-        writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -DBUILD_CHECKED -DNDEBUG\")");
-    else if (m_config.configuration == ConfigurationType::Release)
-        writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -DBUILD_RELEASE -DNDEBUG\")");
-    else if (m_config.configuration == ConfigurationType::Final)
-        writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -DBUILD_RELEASE -DBUILD_FINAL -DNDEBUG\")");
-#endif
+    writeln(f, "set( CMAKE_CXX_FLAGS_DEBUG  \"${CMAKE_CXX_FLAGS} -DBUILD_DEBUG -D_DEBUG -DDEBUG\")");
+    writeln(f, "set( CMAKE_CXX_FLAGS_CHECKED \"${CMAKE_CXX_FLAGS} -DBUILD_CHECKED -DNDEBUG\")");
+    writeln(f, "set( CMAKE_CXX_FLAGS_RELEASE \"${CMAKE_CXX_FLAGS} -DBUILD_RELEASE -DNDEBUG\")");
+    writeln(f, "set( CMAKE_CXX_FLAGS_PROFILE \"${CMAKE_CXX_FLAGS} -DBUILD_FINAL -DPROFILING -DNDEBUG\")");
+    writeln(f, "set( CMAKE_CXX_FLAGS_FINALE \"${CMAKE_CXX_FLAGS} -DBUILD_FINAL -DNDEBUG\")");
 
     if (windowsPlatform)
     {
@@ -201,14 +202,11 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
 
         writeln(f, "set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -g\")");
 
-#if 0
-        if (m_config.configuration == ConfigurationType::Debug)
-            writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -O0 -m64 -fstack-protector-all\")");
-        else if (m_config.configuration == ConfigurationType::Checked)
-            writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -O2 -m64 -fstack-protector-all\")");
-        else
-            writeln(f, "set( CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -O3 -m64 -fno-stack-protector\")");
-#endif
+        writeln(f, "set( CMAKE_CXX_FLAGS_DEBUG \"${CMAKE_CXX_FLAGS} -O0 -m64 -fstack-protector-all\")");
+        writeln(f, "set( CMAKE_CXX_FLAGS_CHECKED \"${CMAKE_CXX_FLAGS} -O2 -m64 -fstack-protector-all\")");
+        writeln(f, "set( CMAKE_CXX_FLAGS_RELEASE \"${CMAKE_CXX_FLAGS} -O3 -m64 -fno-stack-protector\")");
+        writeln(f, "set( CMAKE_CXX_FLAGS_FINAL \"${CMAKE_CXX_FLAGS} -O3 -m64 -fno-stack-protector\")");
+        writeln(f, "set( CMAKE_CXX_FLAGS_PROFILE \"${CMAKE_CXX_FLAGS} -O3 -m64 -fno-stack-protector\")");
     }
 
     /*if (solutionSetup.solutionType == SolutionType.FINAL)
