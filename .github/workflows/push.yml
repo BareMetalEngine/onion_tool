@@ -46,19 +46,6 @@ jobs:
               git config --global user.email "actions@github.com"
               git config --global user.name "GitHub Actions"
               ./build_darwin.sh
-  BuildMacM1:
-    runs-on: macos-latest-large
-    needs: BuildMac
-    env:
-      GITHUB_TOKEN: ${{secrets.ONION_GIT_PUBLIC_TOKEN}}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v1
-      - uses: lukka/get-cmake@v3.23.0
-      - run: |
-              git config --global user.email "actions@github.com"
-              git config --global user.name "GitHub Actions"
-              ./build_darwin.sh
   TestWindows:
     runs-on: windows-2022
     needs: BuildWindows
@@ -111,23 +98,5 @@ jobs:
                 pushd ${{matrix.test}}
                 ~/onion/onion_mac configure
                 ~/onion/onion_mac make -libs=${{matrix.libs}}
-                ~/onion/onion_mac builde -config=${{matrix.configuration}}
-                ~/onion/onion_mac teste -config=${{matrix.configuration}}
-  TestMacM1:
-    runs-on: macos-latest-large
-    needs: BuildMacM1
-    strategy:
-      matrix:
-        configuration: [Release, Debug, Checked, Final, Profile]
-        libs: [static]
-        test: [tests/app_self_contained, tests/app_with_lib, tests/app_with_lib_and_tests, tests/app_with_local_static_lib, tests/app_with_external_static_lib, tests/app_with_thirdparty_dep, tests/common_static_lib, tests/bison_file, tests/detached_lib, tests/embed_file, tests/module_with_static_lib]
-    steps:
-      - uses: actions/checkout@v3
-      - uses: lukka/get-cmake@v3.23.0
-      - run: |
-                git clone https://github.com/BareMetalEngine/onion.git ~/onion/
-                pushd ${{matrix.test}}
-                ~/onion/onion_arm configure
-                ~/onion/onion_arm make -libs=${{matrix.libs}}
-                ~/onion/onion_arm build -config=${{matrix.configuration}}
-                ~/onion/onion_arm test -config=${{matrix.configuration}}
+                ~/onion/onion_mac build -config=${{matrix.configuration}}
+                ~/onion/onion_mac test -config=${{matrix.configuration}}
