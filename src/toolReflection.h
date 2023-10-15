@@ -11,6 +11,7 @@ struct ProjectReflection
     struct CompactProjectInfo
     {
 		std::string name;
+        std::string globalNamespace;
         std::string vxprojFilePath; // input
         std::string sourceDirectoryPath; // input
         std::string reflectionFilePath; // output
@@ -21,12 +22,15 @@ struct ProjectReflection
     struct RefelctionFile
     {
         fs::path absolutePath;
+        std::string globalNamespace;
+        bool sourceFile = false;
         CodeTokenizer tokenized;
     };
 
     struct RefelctionProject
     {
         std::string mergedName;
+        std::string globalNamespace;
         std::vector<RefelctionFile*> files;
         fs::path reflectionFilePath;
         fs::file_time_type reflectionFileTimstamp;

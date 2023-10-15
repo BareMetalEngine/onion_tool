@@ -16,6 +16,8 @@ public:
 
     //--
 
+    inline const std::string& solutionName() const { return m_solutionName; }
+
     inline const std::vector<fs::path>& rootIncludePaths() const { return m_rootIncludePaths; }
     inline const std::vector<ProjectInfo*>& projects() const { return m_projects; }
 
@@ -36,6 +38,8 @@ public:
     //--
 
 private:
+    std::string m_solutionName;
+
 	std::vector<fs::path> m_rootIncludePaths; // set of root include paths (one for each used module)
 
 	std::vector<ProjectInfo*> m_projects; // all discovered projects

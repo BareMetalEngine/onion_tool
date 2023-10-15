@@ -173,7 +173,8 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         auto* generatorProject = new SolutionProject;
         generatorProject->type = proj->manifest->type;
         generatorProject->name = ReplaceAll(proj->name, "/", "_");
-        
+		generatorProject->globalNamespace = proj->globalNamespace;
+
         // paths
 		generatorProject->rootPath = proj->rootPath;
         generatorProject->generatedPath = m_config.derivedSolutionPathBase / "generated" / proj->name;
@@ -203,6 +204,16 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         generatorProject->legacySourceDirectories = proj->manifest->legacySourceDirectories;
         generatorProject->optionHasInit = proj->manifest->optionHasInit;
         generatorProject->optionHasPreInit = proj->manifest->optionHasPreInit;
+
+        // if we have the "init.cpp" file enable the init and pre-init automatically
+        for (const auto* file : proj->files)
+        {
+            if (file->name == "init.cpp")
+            {
+                generatorProject->optionHasInit = true;
+				generatorProject->optionHasPreInit = true;
+            }
+        }
 
         // include paths
         for (const auto& path : proj->manifest->localIncludePaths)
@@ -303,10 +314,10 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
 	// disable static initialization on projects that don't use the core
     for (auto* proj : m_projects)
     {
-        if (proj->optionUseReflection && !HasDependency(proj, "core_reflection"))
+        if (proj->optionUseReflection && !HasDependency(proj, "core_object") && proj->name != "core_object")
             proj->optionUseReflection = false;
 
-		if (proj->optionUseStaticInit && !HasDependency(proj, "core_system"))
+		if (proj->optionUseStaticInit && !HasDependency(proj, "core_system") && proj->name != "core_system")
 			proj->optionUseStaticInit = false;
 
 		if (proj->optionUseEmbeddedFiles && !HasDependency(proj, "core_file"))
@@ -315,7 +326,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
 
     // create the _rtti_generator project and make everybody a dependency
     {
-        if (auto* coreObjectsProject = findProject("core_reflection"))
+        if (auto* coreObjectsProject = findProject("core_object"))
         {
 			// create wrapper
 			auto* generatorProject = new SolutionProject;
@@ -783,17 +794,16 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
     writeln(f, "#include \"build.h\"");
 
     const auto hasSystem = HasDependency(project, "core_system");
-    const auto hasTasks = HasDependency(project, "core_task");
 	const auto hasPreMain = project->optionUsePreMain;
 
     if (!project->appHeaderName.empty())
         writelnf(f, "#include \"%hs\"", project->appHeaderName.c_str());
-    writelnf(f, "#include \"core/containers/include/commandLine.h\"");
+    writelnf(f, "#include \"core/app/include/commandLine.h\"");
     writeln(f, "");
 
     if (project->appHeaderName.empty())
     {
-        writeln(f, "extern int ms_main(const potato::CommandLine& cmdLine);");
+        writelnf(f, "extern int %hs_main(const %hs::CommandLine& cmdLine);", project->globalNamespace.c_str(), project->globalNamespace.c_str());
         writeln(f, "");
     }
 
@@ -826,8 +836,8 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 
     if (!project->appDisableLogOnStart)
     {
-        writeln(f, "    potato::Log::EnableOutput(true);");
-        writeln(f, "    potato::Log::EnableDetails(true);");
+        writelnf(f, "    %hs::Log::EnableOutput(true);", project->globalNamespace.c_str());
+        writelnf(f, "    %hs::Log::EnableDetails(true);", project->globalNamespace.c_str());
     }
 
     {
@@ -845,10 +855,10 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
         }
         writeln(f, "");
 
-        writeln(f, "    if (!potato::modules::HasAllModulesInitialize()) {");
+        writelnf(f, "    if (!%hs::modules::HasAllModulesInitialize()) {", project->globalNamespace.c_str());
         writeln(f, "      TRACE_ERROR(\"No all required modules were initialized, application cannot start\");");        
 		if (project->optionUseWindowSubsystem)
-            writeln(f, "      MessageBoxA(NULL, \"No all required modules (DLLs) were initialized, application cannot start.\", \"BareMetalEngine startup\", MB_ICONERROR | MB_TASKMODAL);");
+            writeln(f, "      MessageBoxA(NULL, \"No all required modules (DLLs) were initialized, application cannot start.\", \"Startup error\", MB_ICONERROR | MB_TASKMODAL);");
         writeln(f, "      return 5;");
         writeln(f, "    }");
         writeln(f, "");
@@ -859,61 +869,33 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 	writeln(f, "  int ret = 0;");
 	writeln(f, "");
 
-    // commandline
-    writeln(f, "  potato::CommandLine commandLine;");
-    if (windowsCommandLine)
-        writeln(f, "  if (!commandLine.parse(pCmdLine, false))");
-    else
-        writeln(f, "  if (!commandLine.parse(argc, argv))");
-    writeln(f, "    return 1;");
-    writeln(f, "");
-
-    // profiling init
-    {
-		writeln(f, "  if (commandLine.hasParam(\"profile\"))");
-		writeln(f, "    potato::InitProfiling();");
-		writeln(f, "");
-    }
-
-    // task init
-    if (hasTasks)
-    {
-        writeln(f, "  if (!potato::InitTaskThreads(commandLine)) {");
-        writeln(f, "    potato::CloseProfiling();");
-        writeln(f, "    return 1;");
-        writeln(f, "  }");
-        writeln(f, "");
-    }
-
     // app init
     if (!project->appClassName.empty())
     {
         writeln(f, "  {");
-        writelnf(f, "    %hs app;", project->appClassName.c_str());
-        writelnf(f, "    if (app.init(commandLine)) {");
-        writelnf(f, "      while (app.update()) {};");
-        writeln (f, "    } else {" );
-        writelnf(f, "      ret = 1;");
-        writeln (f, "    }");
+		writelnf(f, "    %hs::CommandLine commandLine;", project->globalNamespace.c_str());
+		if (windowsCommandLine)
+			writeln(f, "    if (commandLine.parse(pCmdLine, false))");
+		else
+			writeln(f, "    if (commandLine.parse(argc, argv))");
+		writeln(f, "");
+
+        writeln(f, "    {");
+        writelnf(f, "      %hs app;", project->appClassName.c_str());
+        writelnf(f, "      if (app.init(commandLine)) {");
+        writelnf(f, "        while (app.update()) {};");
+        writeln (f, "      } else {" );
+        writelnf(f, "        ret = 1;");
+        writeln (f, "      }");
+        writeln(f, "    } else {");
+        writelnf(f, "        ret = 2;"); 
+        writeln(f, "    }");
         writeln(f, "  }");
         writeln(f, "");
     }
     else
     {
-        writelnf(f, "    ret = ms_main(commandLine);");
-    }
-
-    // close task system
-	if (hasTasks)
-	{
-		writeln(f, "  potato::CloseTaskThreads();");
-		writeln(f, "");
-	}
-
-    // close profiling
-    {
-        writeln(f, "  potato::CloseProfiling();");
-        writeln(f, "");
+        writelnf(f, "    ret = %hs_main(commandLine);", project->globalNamespace.c_str());
     }
 
     // exit
@@ -933,13 +915,8 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
 
     writeln(f, "#include \"build.h\"");
 
-    const auto hasTasks = HasDependency(project, "core_task");
-    const auto hasSystem = HasDependency(project, "core_system");
-    const auto hasContainers = HasDependency(project, "core_containers");
     const auto hasPreMain = project->optionUsePreMain;
 
-    if (hasContainers)
-        writelnf(f, "#include \"core/containers/include/commandLine.h\"");
     writeln(f, "");
 
     if (project->optionUseGtest)
@@ -964,81 +941,21 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
     writeln(f, "  int ret = 0;");
     writeln(f, "");
 
-    if (hasContainers)
+	if (hasPreMain)
+		writeln(f, "  if (!pre_main(argc, argv, &ret)) {");
+
+    if (project->optionUseGtest)
     {
-        writeln(f, "  potato::CommandLine commandLine;");
-        writeln(f, "  commandLine.parse(argc, argv);");
-        writeln(f, "");
-
-		writeln(f, "  if (commandLine.hasParam(\"profile\"))");
-		writeln(f, "    potato::InitProfiling();");
-		writeln(f, "");
-
-        if (hasTasks)
-        {
-            writeln(f, "  if (!potato::InitTaskThreads(commandLine)) {");
-            writeln(f, "    potato::CloseProfiling();");
-            writeln(f, "    return -1;");
-            writeln(f, "  }");
-            writeln(f, "");
-        }
-
-        {
-            writeln(f, "  if (!commandLine.hasParam(\"interactive\")) {");
-            writeln(f, "    #ifdef PLATFORM_LINUX");
-            writeln(f, "      signal(SIGPIPE, SIG_IGN);");
-            writeln(f, "    #endif");
-            writeln(f, "");
-
-            if (hasPreMain)
-                writeln(f, "  if (!pre_main(argc, argv, &ret)) {");
-
-            if (project->optionUseGtest)
-            {
-                writeln(f, "    testing::InitGoogleTest(&argc, argv);");
-                writeln(f, "    ret = RUN_ALL_TESTS();");
-            }
-            else
-            {
-                writeln(f, "    ret = Catch::Session().run(argc, argv);");
-            }
-
-            if (hasPreMain)
-				writeln(f, "  }");
-
-            writeln(f, "  }");
-            writeln(f, "");
-        }
-
-        if (hasTasks)
-        {
-            writeln(f, "  potato::CloseTaskThreads();");
-            writeln(f, "");
-        }
-
-		writeln(f, "  potato::CloseProfiling();");
-		writeln(f, "");
+        writeln(f, "  testing::InitGoogleTest(&argc, argv);");
+        writeln(f, "  ret = RUN_ALL_TESTS();");
     }
     else
     {
-		if (hasPreMain)
-			writeln(f, "  if (!pre_main(argc, argv, &ret)) {");
+		writeln(f, "  ret = Catch::Session().run(argc, argv);");
+	}
 
-        if (project->optionUseGtest)
-        {
-            writeln(f, "  testing::InitGoogleTest(&argc, argv);");
-            writeln(f, "  ret = RUN_ALL_TESTS();");
-        }
-        else
-        {
-			writeln(f, "  ret = Catch::Session().run(argc, argv);");
-		}
-
-		if (hasPreMain)
-			writeln(f, "  }");
-
-        writeln(f, "");
-    }
+	if (hasPreMain)
+		writeln(f, "  }");
 
     writeln(f, "  return ret;");
     writeln(f, "}");
@@ -1172,13 +1089,7 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
 		writelnf(f, "extern void PreInit_%hs();", project->name.c_str());
 		writeln(f, "");
     }
-    else
-    {
-		writeln(f, "// Dummy pre-init");
-		writelnf(f, "void PreInit_%hs() {}", project->name.c_str());
-		writeln(f, "");
-    }
-
+    
     // reflection initialization methods
     if (project->optionUseReflection)
     {
@@ -1186,27 +1097,15 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
         writelnf(f, "extern void InitializeReflection_%hs();", project->name.c_str());
         writeln(f, "");
     }
-    else
-    {
-        writeln(f, "// Dummy initialization for reflection");
-        writelnf(f, "void InitializeReflection_%hs() {}", project->name.c_str());
-        writeln(f, "");
-    }
-
+    
 	// init
-	if (project->optionHasPreInit)
+	if (project->optionHasInit)
 	{
 		writeln(f, "// Module Initialization");
 		writelnf(f, "extern void Init_%hs();", project->name.c_str());
 		writeln(f, "");
 	}
-	else
-	{
-		writeln(f, "// Dummy pre-init");
-		writelnf(f, "void Init_%hs() {}", project->name.c_str());
-		writeln(f, "");
-	}
-
+	
     // embedded files initialization
     if (project->optionUseEmbeddedFiles)
     {
@@ -1238,20 +1137,15 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
                 const auto symbolCoreName = symbolPrefix + std::string(PartAfter(MakeSymbolName(file->projectRelativePath), "media_"));
 
 				// virtual void registerFile(const char* path, const void* data, uint32_t size, uint64_t crc, const char* sourcePath, TimeStamp sourceTimeStamp) = 0;
-				writelnf(f, "potato::EmbeddedFiles().registerFile(%hs_PATH, %hs_DATA, %hs_SIZE, %hs_CRC, %hs_SPATH, potato::TimeStamp(%hs_TS));",
+				writelnf(f, "%hs::EmbeddedFiles().registerFile(%hs_PATH, %hs_DATA, %hs_SIZE, %hs_CRC, %hs_SPATH, %hs::TimeStamp(%hs_TS));",
+                    project->globalNamespace.c_str(),
 					symbolCoreName.c_str(), symbolCoreName.c_str(), symbolCoreName.c_str(),
-					symbolCoreName.c_str(), symbolCoreName.c_str(), symbolCoreName.c_str());
+					symbolCoreName.c_str(), symbolCoreName.c_str(), project->globalNamespace.c_str(), symbolCoreName.c_str());
 			}
 		}
 
 		writeln(f, "}");
 		writeln(f, "");
-    }
-    else
-    {
-        writeln(f, "// Dummy initialization for embedded files");
-        writelnf(f, "void InitializeEmbeddedFiles_%hs() {}", project->name.c_str());
-        writeln(f, "");
     }
 
     // module handle
@@ -1286,7 +1180,7 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
                 }
                 else
                 {
-                    writelnf(f, "    potato::modules::LoadDynamicModule(\"%s\");", dep.project->name.c_str());
+                    writelnf(f, "    %hs::modules::LoadDynamicModule(\"%s\");", project->globalNamespace.c_str(), dep.project->name.c_str());
                 }
 			}
 		}
@@ -1312,9 +1206,23 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
 
             writelnf(f, "    const char* deps = \"%s\";", dependenciesString.str().c_str());
 
-            writelnf(f, "    potato::modules::TModuleInitializationFunc initFunc = []() { PreInit_%hs(); InitializeReflection_%hs(); InitializeEmbeddedFiles_%hs(); Init_%hs(); };", project->name.c_str(), project->name.c_str(), project->name.c_str(), project->name.c_str(), project->name.c_str());
-            writelnf(f, "    potato::modules::RegisterModule(\"%hs\", __DATE__, __TIME__, _MSC_FULL_VER, initFunc, deps);", project->name.c_str());
-            writelnf(f, "    potato::modules::InitializePendingModules();");
+            std::stringstream initFunctions;
+
+            if (project->optionHasPreInit)
+                initFunctions << "PreInit_" << project->name << "(); ";
+
+            if (project->optionUseReflection && project->name != "core_reflection")
+                initFunctions << "InitializeReflection_" << project->name << "(); ";
+
+            if (project->optionUseEmbeddedFiles)
+				initFunctions << "InitializeEmbeddedFiles_" << project->name << "(); ";
+
+			if (project->optionHasInit)
+				initFunctions << "Init_" << project->name << "(); ";
+
+            writelnf(f, "    %hs::modules::TModuleInitializationFunc initFunc = []() { %hs; };", project->globalNamespace.c_str(), initFunctions.str().c_str());
+            writelnf(f, "    %hs::modules::RegisterModule(\"%hs\", __DATE__, __TIME__, _MSC_FULL_VER, initFunc, deps);", project->globalNamespace.c_str(), project->name.c_str());
+            writelnf(f, "    %hs::modules::InitializePendingModules();", project->globalNamespace.c_str());
         }
         writeln(f, "}");
         writeln(f, "");
@@ -1535,6 +1443,7 @@ bool SolutionGenerator::generateSolutionReflectionFileProcessingList(std::string
 
             writelnf(f, "PROJECT");
             writelnf(f, "%hs", proj->name.c_str());
+            writelnf(f, "%hs", proj->globalNamespace.c_str());
             writelnf(f, "%hs", projectFilePath.u8string().c_str());
 			writelnf(f, "%hs", projectSourceDirectory.u8string().c_str());
             writelnf(f, "%hs", proj->localReflectionFile.u8string().c_str());

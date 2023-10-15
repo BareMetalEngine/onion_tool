@@ -143,6 +143,7 @@ bool ProjectReflection::LoadCompactProjectsFromFileList(const fs::path& inputFil
             {
                 CompactProjectInfo info;
                 std::getline(file, info.name);
+                std::getline(file, info.globalNamespace);
                 std::getline(file, info.vxprojFilePath);
                 std::getline(file, info.sourceDirectoryPath);
                 std::getline(file, info.reflectionFilePath);
@@ -211,6 +212,7 @@ void ProjectReflection::PrintExpandedFileList(std::stringstream& f, const std::v
 	{
         writeln(f, "PROJECT");
         writeln(f, proj.name);
+        writeln(f, proj.globalNamespace);
         writeln(f, fs::path(proj.reflectionFilePath).u8string());
 		for (const auto& filePath : proj.sourceFiles)
 			writeln(f, filePath.u8string().c_str());
@@ -253,6 +255,7 @@ bool ProjectReflection::extractFromExpandedList(const fs::path& fileList)
                 projects.push_back(project);
 
                 std::getline(file, project->mergedName);
+                std::getline(file, project->globalNamespace);
                 std::getline(file, str);
                 project->reflectionFilePath = fs::path(str).make_preferred();
                 continue;
@@ -262,6 +265,7 @@ bool ProjectReflection::extractFromExpandedList(const fs::path& fileList)
             {
                 auto* file = new RefelctionFile();
                 file->absolutePath = str;
+                file->globalNamespace = project->globalNamespace;
                 file->tokenized.contextPath = str;
                 project->files.push_back(file);
 
@@ -374,14 +378,18 @@ bool ProjectReflection::extractFromFileList(const std::vector<fs::path>& filePat
     {
         const auto fileName = path.filename().u8string();
 
-        if (fileName == "reflection.cpp" || fileName == "main.cpp")
+        if (fileName == "reflection.cpp" || fileName == "main.cpp" || fileName == "init.cpp" || fileName == "build.cpp")
             continue;
 
-        if (EndsWith(fileName.c_str(), ".cpp"))
+        const auto sourceFile = EndsWith(fileName.c_str(), ".cpp");
+        const auto headerFile = EndsWith(fileName.c_str(), ".h");
+
+        if (sourceFile || headerFile)
         {
             auto* file = new RefelctionFile();
             file->absolutePath = path;
             file->tokenized.contextPath = path;
+            file->sourceFile = sourceFile;
             project->files.push_back(file);
         }
 	}
@@ -449,7 +457,7 @@ bool ProjectReflection::parseDeclarations()
     for (int i = 0; i < files.size(); ++i)
     {
         auto* file = files[i];
-        if (!file->tokenized.process())
+        if (!file->tokenized.process(file->globalNamespace))
         {
             LogError() << "[BREKAING] Failed to process declaration from " << file->absolutePath;
             valid = 0;
@@ -571,8 +579,8 @@ bool ProjectReflection::generateReflectionForProject(const RefelctionProject& p,
         else
         {
             writelnf(f, "namespace %s { extern void CreateType_%s(); }", d.declaration->scope.c_str(), d.declaration->name.c_str());
-            writelnf(f, "namespace %s { extern void InitType_%s(); }", d.declaration->scope.c_str(), d.declaration->name.c_str());
-            writelnf(f, "namespace %s { extern void FinishType_%s(); }", d.declaration->scope.c_str(), d.declaration->name.c_str());
+            writelnf(f, "namespace %s { extern void InitType_%s(int phase); }", d.declaration->scope.c_str(), d.declaration->name.c_str());
+            writelnf(f, "namespace %s { extern void FinishType_%s(int phase); }", d.declaration->scope.c_str(), d.declaration->name.c_str());
         }
     }
 
@@ -582,31 +590,35 @@ bool ProjectReflection::generateReflectionForProject(const RefelctionProject& p,
 
     writelnf(f, "void InitializeReflection_%s()", p.mergedName.c_str());
     writeln(f, "{");
+
     for (const auto& d : declarations)
     {
-		if (d.declaration->type == CodeTokenizer::DeclarationType::LOG_CHANNEL || d.declaration->type == CodeTokenizer::DeclarationType::GLOBAL_FUNC || d.declaration->type == CodeTokenizer::DeclarationType::STRINGID)
-			continue;
-
-        //const auto typeName = ReplaceAll(d.declaration->typeName, "::", ".");
-        writelnf(f, "%s::CreateType_%s();", d.declaration->scope.c_str(), d.declaration->name.c_str());// , typeName.c_str());
+        if (d.declaration->type == CodeTokenizer::DeclarationType::LOG_CHANNEL)
+        {
+            if (uniqueLogChannels.insert(d.declaration->name).second)
+            {
+                writelnf(f, "TRACE_DEFINE_LOG_CHANNEL(%s::%s);", d.declaration->scope.c_str(), d.declaration->name.c_str());
+            }
+        }
+        else if (d.declaration->type == CodeTokenizer::DeclarationType::STRINGID)
+        {
+            writelnf(f, "%s::InitStringID_%s();", d.declaration->scope.c_str(), d.declaration->name.c_str());
+        }
     }
 
     for (const auto& d : declarations)
     {
-		if (d.declaration->type == CodeTokenizer::DeclarationType::LOG_CHANNEL || d.declaration->type == CodeTokenizer::DeclarationType::STRINGID)
-			continue;
-
-        if (d.declaration->type == CodeTokenizer::DeclarationType::GLOBAL_FUNC)
+        if (d.declaration->type == CodeTokenizer::DeclarationType::CLASS || d.declaration->type == CodeTokenizer::DeclarationType::CUSTOM_TYPE || d.declaration->type == CodeTokenizer::DeclarationType::ENUM || d.declaration->type == CodeTokenizer::DeclarationType::BITFIELD)
         {
-            writelnf(f, "%s::RegisterGlobalFunc_%s();",
-                d.declaration->scope.c_str(), d.declaration->name.c_str());
+            writelnf(f, "%s::CreateType_%s();", d.declaration->scope.c_str(), d.declaration->name.c_str());// , typeName.c_str());
         }
-        else
+    }
+
+    for (const auto& d : declarations)
+    {
+        if (d.declaration->type == CodeTokenizer::DeclarationType::CLASS || d.declaration->type == CodeTokenizer::DeclarationType::CUSTOM_TYPE || d.declaration->type == CodeTokenizer::DeclarationType::ENUM || d.declaration->type == CodeTokenizer::DeclarationType::BITFIELD)
         {
-            /*writelnf(f, "%s::RegisterType_%s(\"%s::%s\"); }",
-                d.declaration->scope.c_str(), d.declaration->name.c_str(),
-                d.declaration->scope.c_str(), d.declaration->name.c_str());*/
-            writelnf(f, "%s::InitType_%s();",
+            writelnf(f, "%s::InitType_%s(0);",
                 d.declaration->scope.c_str(), d.declaration->name.c_str());
         }
     }
@@ -614,7 +626,31 @@ bool ProjectReflection::generateReflectionForProject(const RefelctionProject& p,
     for (const auto& d : declarations)
     {
         if (d.declaration->type == CodeTokenizer::DeclarationType::CLASS || d.declaration->type == CodeTokenizer::DeclarationType::ENUM || d.declaration->type == CodeTokenizer::DeclarationType::BITFIELD || d.declaration->type == CodeTokenizer::DeclarationType::CUSTOM_TYPE)
-            writelnf(f, "%s::FinishType_%s();", d.declaration->scope.c_str(), d.declaration->name.c_str());
+            writelnf(f, "%s::FinishType_%s(0);", d.declaration->scope.c_str(), d.declaration->name.c_str());
+    }
+
+	for (const auto& d : declarations)
+	{
+		if (d.declaration->type == CodeTokenizer::DeclarationType::CLASS)
+		{
+			writelnf(f, "%s::InitType_%s(1);",
+				d.declaration->scope.c_str(), d.declaration->name.c_str());
+		}
+	}
+
+	for (const auto& d : declarations)
+	{
+		if (d.declaration->type == CodeTokenizer::DeclarationType::CLASS)
+			writelnf(f, "%s::FinishType_%s(1);", d.declaration->scope.c_str(), d.declaration->name.c_str());
+	}
+
+    for (const auto& d : declarations)
+    {
+        if (d.declaration->type == CodeTokenizer::DeclarationType::GLOBAL_FUNC)
+        {
+            writelnf(f, "%s::RegisterGlobalFunc_%s();",
+                d.declaration->scope.c_str(), d.declaration->name.c_str());
+        }
     }
 
     writeln(f, "}");

@@ -70,6 +70,7 @@ struct SolutionProject
     SolutionGroup* group = nullptr;
 
 	std::string name; // final project name 
+	std::string globalNamespace; // global namespace in the project
 
 	fs::path rootPath; // original path to project files
 	fs::path generatedPath; // generated/base_math/

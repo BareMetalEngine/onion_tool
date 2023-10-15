@@ -4,12 +4,10 @@
 //--
 
 CodeTokenizer::CodeTokenizer()
-{
-}
+{}
 
 CodeTokenizer::~CodeTokenizer()
-{
-}
+{}
 
 struct CodeParserState
 {
@@ -428,7 +426,7 @@ bool CodeTokenizer::ExtractIdentName(TokenStream& s, std::string& outName)
     return false;
 }
 
-bool CodeTokenizer::process()
+bool CodeTokenizer::process(std::string globalNamespace)
 {
     TokenStream s(tokens);
 
@@ -462,7 +460,7 @@ bool CodeTokenizer::process()
                 return false;
             }
 
-            activeNamespace = "ms";
+            activeNamespace = globalNamespace;
         }
         else if (token.text == "BEGIN_NAMESPACE_EX")
         {
@@ -483,7 +481,7 @@ bool CodeTokenizer::process()
                 return false;
             }
 
-            activeNamespace = "potato::" + name;
+            activeNamespace = globalNamespace + "::" + name;
         }
         else if (token.text == "END_NAMESPACE")
         {
@@ -521,7 +519,7 @@ bool CodeTokenizer::process()
                 return false;
             }
 
-            name = "potato::" + name;
+            name = globalNamespace + "::" + name;
 
             if (name != activeNamespace)
             {
@@ -555,7 +553,7 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::ENUM;
 
-            decl.typeName = PartAfter(activeNamespace, "potato::");
+            decl.typeName = PartAfter(activeNamespace, globalNamespace + "::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;
@@ -586,7 +584,7 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::BITFIELD;
             
-            decl.typeName = PartAfter(activeNamespace, "potato::");
+            decl.typeName = PartAfter(activeNamespace, globalNamespace + "::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;
@@ -620,7 +618,7 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::CLASS;
             
-            decl.typeName = PartAfter(activeNamespace, "potato::");
+            decl.typeName = PartAfter(activeNamespace, globalNamespace + "::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;
@@ -651,7 +649,7 @@ bool CodeTokenizer::process()
             decl.scope = activeNamespace;
             decl.type = DeclarationType::CUSTOM_TYPE;
             
-            decl.typeName = PartAfter(activeNamespace, "potato::");
+            decl.typeName = PartAfter(activeNamespace, globalNamespace + "::");
             if (!decl.typeName.empty())
                 decl.typeName += "::";
             decl.typeName += name;

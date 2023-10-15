@@ -49,6 +49,7 @@ struct ProjectInfo
 	std::string name; // bm/core/math
 	std::string groupName;
 	fs::path rootPath; // directory with "build.xml"
+	std::string globalNamespace;
 
     const ProjectManifest* manifest = nullptr; // original manifest
 	const ModuleManifest* parentModule = nullptr; // module this project is from (may be null for generated projects)

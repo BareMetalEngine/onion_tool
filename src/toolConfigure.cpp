@@ -101,6 +101,16 @@ bool ModuleResolver::exportToManifest(ModuleConfigurationManifest& cfg) const
 {
 	assert(!cfg.rootPath.empty());
 
+	// we must have a valid solution name
+	if (m_solutionName.empty())
+	{
+		LogError() << "No solution name specified. At least one module must speiciy the <GlobalSolutionName>xxx</GlobalSolutionName>";
+		return false;
+	}
+
+	// use the defined solution name
+	cfg.solutionName = m_solutionName;
+
 	// gather projects and modules
 	std::unordered_map<std::string, const ProjectManifest*> projectsByName;
 
@@ -221,12 +231,16 @@ bool ModuleResolver::processSingleModuleFile(const fs::path& moduleManifestPath,
 		return false;
 	}
 
-	auto* manifest = ModuleManifest::Load(moduleManifestPath, localFile ? "" : "Extenral");
+	auto* manifest = ModuleManifest::Load(moduleManifestPath, localFile ? "" : "External");
 	if (!manifest)
 	{
 		LogError() << "File " << moduleManifestPath << " or one of the included files cannot be loaded";
 		return false;
 	}
+
+	// use the solution name from the first loaded module
+	if (m_solutionName.empty())
+		m_solutionName = manifest->globalSolutionName;
 
 	// it's legal for a local module to override a remote one
 	{

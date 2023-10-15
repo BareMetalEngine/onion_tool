@@ -62,7 +62,7 @@ struct CodeTokenizer
 
     bool tokenize(std::string_view txt);
 
-    bool process();
+    bool process(std::string globalNamespace);
 
 private:
     std::string code;

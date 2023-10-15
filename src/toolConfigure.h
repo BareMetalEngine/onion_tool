@@ -64,6 +64,8 @@ private:
 
     fs::path m_cachePath;
 
+    std::string m_solutionName;
+
     std::vector<fs::path> m_globalIncludePaths;
 
     std::unordered_map<std::string, ModuleInfo*> m_modulesByGuid;

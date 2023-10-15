@@ -23,7 +23,7 @@ struct ModuleLibraryEntry
 struct ModuleConfigurationManifest
 {
     fs::path rootPath; // file path
-    std::string name;
+    std::string solutionName; // name of the solution to generate
     PlatformType platform; // platform we are configuring for
     std::vector<ModuleConfigurationEntry> modules; // configured modules
     std::vector<ModuleLibraryEntry> libraries; // configured libraries

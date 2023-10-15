@@ -106,7 +106,7 @@ static bool IsValidProjectTag(std::string_view tag)
 	return false;
 }
 
-ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_view projectGroup)
+ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_view projectGroup, bool topLevel)
 {
 	std::string txt;
 	if (!LoadFileToString(manifestPath, txt))
@@ -161,7 +161,7 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 
 					if (fs::is_regular_file(includeManifestPath))
 					{
-						if (auto* included = ModuleManifest::Load(includeManifestPath, localProjectGroup))
+						if (auto* included = ModuleManifest::Load(includeManifestPath, localProjectGroup, false))
 						{
 							ret->moduleData.insert(ret->moduleData.end(), included->moduleData.begin(), included->moduleData.end());
 							ret->moduleDependencies.insert(ret->moduleDependencies.end(), included->moduleDependencies.begin(), included->moduleDependencies.end());
@@ -309,6 +309,18 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 				}
 			}
 
+			// Namespace for all of the
+			else if (name == "GlobalNamespace")
+			{
+				ret->globalNamespace = std::string(XMLNodeValue(node));;
+			}
+
+			// Project namespace
+			else if (name == "GlobalSolutionName")
+			{
+				ret->globalSolutionName = std::string(XMLNodeValue(node));;
+			}
+
 			// Project template
 			else if (IsValidProjectTag(name))
 			{
@@ -337,6 +349,15 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 		if (!recursiveError)
 			LogError() << "Module manifest XML at '" << manifestPath << "' is invalid and could not be loaded";
 		return nullptr;
+	}
+
+	if (topLevel)
+	{
+		if (ret->globalNamespace.empty())
+			LogError() << "Module manifest XML at '" << manifestPath << "' should specify the global namespace via <GlobalNamespace>name</GlobalNamespace>";
+
+		if (ret->globalSolutionName.empty())
+			LogError() << "Module manifest XML at '" << manifestPath << "' should specify the solution name via <GlobalSolutionName>name</GlobalSolutionName>";
 	}
 
 	return ret.release();

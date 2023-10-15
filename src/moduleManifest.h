@@ -32,6 +32,9 @@ struct ModuleManifest
 {
     std::string guid;
 
+    std::string globalNamespace;
+    std::string globalSolutionName;
+
     std::vector<ProjectManifest*> projects; // local projects in the module
 
     std::vector<ModuleDepdencencyInfo> moduleDependencies; // other modules we depend on
@@ -46,7 +49,7 @@ struct ModuleManifest
     ModuleManifest();
     ~ModuleManifest();
 
-    static ModuleManifest* Load(const fs::path& manifestPath, std::string_view projectGroup);
+    static ModuleManifest* Load(const fs::path& manifestPath, std::string_view projectGroup, bool topLevel = true);
 
     //--  
 };

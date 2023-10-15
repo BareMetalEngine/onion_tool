@@ -7,13 +7,10 @@
 //--
 
 ModuleConfigurationManifest::ModuleConfigurationManifest()
-{
-	name = "onion";
-}
+{}
 
 ModuleConfigurationManifest::~ModuleConfigurationManifest()
-{
-}
+{}
 
 //--
 
@@ -22,6 +19,9 @@ bool ModuleConfigurationManifest::save(const fs::path& manifestPath)
 	std::stringstream f;
 	writeln(f, "<?xml version=\"1.0\" encoding=\"utf-8\"?>");
 	writelnf(f, "<ModuleConfiguration>");
+
+	if (!solutionName.empty())
+		writelnf(f, "  <SolutionName>%hs</SolutionName>", solutionName.c_str());
 
 	const auto manifestDirectory = manifestPath.parent_path();
 
@@ -139,6 +139,10 @@ ModuleConfigurationManifest* ModuleConfigurationManifest::Load(const fs::path& m
 					ret->libraries.push_back(dep);
 				else
 					valid = false;
+			}
+			else if (option == "SolutionName")
+			{
+				ret->solutionName = std::string(XMLNodeValue(node));
 			}
 			else
 			{

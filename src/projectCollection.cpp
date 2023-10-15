@@ -31,6 +31,9 @@ bool ProjectCollection::populateFromModules(const std::vector<const ModuleManife
 
 	for (const auto* mod : modules)
 	{
+		if (m_solutionName.empty() && !mod->globalSolutionName.empty())
+			m_solutionName = mod->globalSolutionName;
+
 		for (const auto& path : mod->globalIncludePaths)
 			PushBackUnique(m_rootIncludePaths, path);
 
@@ -46,6 +49,7 @@ bool ProjectCollection::populateFromModules(const std::vector<const ModuleManife
 			info->rootPath = proj->rootPath;
 			info->name = proj->name;
 			info->groupName = proj->groupName;
+			info->globalNamespace = mod->globalNamespace;
 
 			// HACK!
 			if (proj->type == ProjectType::AutoLibrary)

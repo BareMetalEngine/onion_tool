@@ -144,9 +144,12 @@ int ToolMake::run(const Commandline& cmdline)
 
     //--
 
-    auto mainModuleName = moduleConfig->name;
-    if (mainModuleName.empty())
-        mainModuleName = "onion";
+    auto mainModuleName = moduleConfig->solutionName;
+	if (mainModuleName.empty())
+	{
+		LogError() << "No solution name specified";
+		return 1;
+	}
 
     auto codeGenerator = CreateSolutionGenerator(fileRepository, config, mainModuleName);
     if (!codeGenerator)
