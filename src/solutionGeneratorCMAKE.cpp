@@ -28,8 +28,8 @@ static std::string EscapePath(fs::path path)
 
 bool SolutionGeneratorCMAKE::generateSolution(FileGenerator& gen)
 {
-    if (!CheckVersion("cmake", "cmake version", "", "3.22.0"))
-        return false;
+    //if (!CheckVersion("cmake", "cmake version", "", "3.22.0"))
+      //  return false;
 
     auto* file = gen.createFile(m_config.derivedSolutionPathBase / "CMakeLists.txt");
     auto& f = file->content;
