@@ -4,6 +4,6 @@
 		<Name>app_with_external_static_lib</Name>
 		<SourceRoot>.</SourceRoot>
 		<SelfTest>True</SelfTest>
-		<Dependency>static_lib</Dependency>
+		<Dependency>lib</Dependency>
 	</Application>
 </Module>

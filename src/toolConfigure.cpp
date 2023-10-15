@@ -387,7 +387,7 @@ bool ModuleResolver::processUnresolvedRemoteDepndencies(bool& hadUnresolvedDepen
 		fs::path cachedDownloadPath;
 		if (ensureRepositoryDownloaded(dep->gitRepository, cachedDownloadPath))
 		{
-			dep->localPath = fs::weakly_canonical((cachedDownloadPath / dep->gitRelativePath).make_preferred());
+			dep->localPath = fs::weakly_canonical((cachedDownloadPath / dep->gitRelativePath / "build.xml").make_preferred());
 			valid &= processSingleModuleFile(dep->localPath, false /*local*/);
 		}
 	}

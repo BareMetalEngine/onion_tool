@@ -22,8 +22,8 @@ if ERRORLEVEL 1 ( EXIT /B 1 )
 CALL :TEST_MODULE "tests\module_with_static_lib"
 if ERRORLEVEL 1 ( EXIT /B 1 )
 
-REM CALL :TEST_MODULE "tests\app_with_external_static_lib"
-REM if ERRORLEVEL 1 ( EXIT /B 1 )
+CALL :TEST_MODULE "tests\app_with_external_static_lib"
+if ERRORLEVEL 1 ( EXIT /B 1 )
 
 CALL :TEST_MODULE "tests\app_with_lib"
 if ERRORLEVEL 1 ( EXIT /B 1 )
