@@ -120,7 +120,7 @@ struct LogPrinter
     LogPrinter& operator<<(const std::filesystem::path& str);
     LogPrinter& operator<<(int val);
     LogPrinter& operator<<(uint32_t val);
-    LogPrinter& operator<<(size_t val);
+    LogPrinter& operator<<(uint64_t val);
     LogPrinter& operator<<(std::error_code val);    
 
 private:

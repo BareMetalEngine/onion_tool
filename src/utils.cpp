@@ -2897,6 +2897,16 @@ LogPrinter& LogPrinter::operator<<(uint32_t val)
 	return *this;
 }
 
+LogPrinter& LogPrinter::operator<<(uint64_t val)
+{
+	if (m_type == 0 || m_type == 1)
+		std::cout << val;
+	else
+		std::cerr << val;
+	return *this;
+}
+
+#if 0
 LogPrinter& LogPrinter::operator<<(size_t val)
 {
 	if (m_type == 0 || m_type == 1)
@@ -2905,6 +2915,7 @@ LogPrinter& LogPrinter::operator<<(size_t val)
 		std::cerr << val;
 	return *this;
 }
+#endif
 
 LogPrinter& LogPrinter::operator<<(std::error_code val)
 {

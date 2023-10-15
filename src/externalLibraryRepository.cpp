@@ -21,10 +21,7 @@ bool ExternalLibraryReposistory::determineLibraryRepositoryNameName(std::string_
 	outBranch = "main";
 
 	if (!SplitString(name, ":", outRepository, outName))
-	{
-		outRepository = DEFAULT_DEPENDENCIES_REPO;
-		outName = name;
-	}
+		return false;
 
 	return true;
 }

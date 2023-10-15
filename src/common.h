@@ -69,8 +69,8 @@ namespace fs = std::filesystem;
 
 #ifndef _WIN32
 #define _stricmp strcasecmp
-#define vsprintf_s(x, size, txt, args) vsprintf(x, txt, args)
-#define sprintf_s(x, size, txt, ...) sprintf(x, txt, __VA_ARGS__)
+#define vsprintf_s(x, size, txt, args) vsnprintf(x, size, txt, args)
+#define sprintf_s(x, size, txt, ...) snprintf(x, size, txt, __VA_ARGS__)
 #define sscanf_s(x, txt, ...) sscanf(x, txt, __VA_ARGS__)
 #endif
 
@@ -117,5 +117,3 @@ namespace fs = std::filesystem;
     #define BOLD(x) "\x1B[1m" x RST
     #define UNDL(x) "\x1B[4m" x RST
 #endif
-
-#define DEFAULT_DEPENDENCIES_REPO "https://github.com/BareMetalEngine/dependencies"

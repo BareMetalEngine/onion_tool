@@ -137,7 +137,6 @@ static bool EvalLibraryArtifact(LibraryManifest* manifest, const XMLNode* node, 
 static bool EvalLibraryDependency(LibraryManifest* manifest, const XMLNode* node, const LibraryFilters& filters)
 {
 	LibraryDependencyInfo info;
-	info.repo = DEFAULT_DEPENDENCIES_REPO;
 
 	bool valid = true;
 	XMLNodeIterate(node, [&valid, &info, &filters](const XMLNode* node, std::string_view option)
@@ -168,6 +167,12 @@ static bool EvalLibraryDependency(LibraryManifest* manifest, const XMLNode* node
 	if (info.name.empty())
 	{
 		LogError() << "Missing name of the library dependency in a library manifest from '" << manifest->loadPath;
+		return false;
+	}
+
+	if (info.repo.empty())
+	{
+		LogError() << "Missing repository of the library dependency in a library manifest from '" << manifest->loadPath;
 		return false;
 	}
 	
