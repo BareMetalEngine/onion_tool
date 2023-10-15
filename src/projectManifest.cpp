@@ -20,8 +20,13 @@ static bool EvalProjectType(ProjectManifest* manifest, const std::string_view va
 	else if (value == "SharedLibrary")
 	{
 		manifest->type = ProjectType::SharedLibrary;
-        manifest->optionDetached = true;
         return true;
+	}
+	else if (value == "DetachedSharedLibrary")
+	{
+		manifest->type = ProjectType::SharedLibrary;
+		manifest->optionDetached = true;
+		return true;
 	}
     else if (value == "Application")
     {

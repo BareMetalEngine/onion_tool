@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<Module>
+	<TestApplication>
+		<Name>tests</Name>
+		<SourceRoot>.</SourceRoot>
+		<Dependency>lib</Dependency>
+	</TestApplication>
+</Module>

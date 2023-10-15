@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<Module guid="b7f258bb-bf38-4250-ae38-4a9754751d92">
+	<GlobalNamespace>test</GlobalNamespace>		
+	<GlobalSolutionName>test</GlobalSolutionName>
+	<LibraryOnlineEndpoint>https://bare-metal-libs.s3.eu-central-1.amazonaws.com/</LibraryOnlineEndpoint>
+	<Include>code/app/build.xml</Include>
+</Module>

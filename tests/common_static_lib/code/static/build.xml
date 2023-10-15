@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<Module>
+	<StaticLibrary>
+		<Name>lib</Name>
+		<SourceRoot>.</SourceRoot>
+	</StaticLibrary>
+</Module>

@@ -985,7 +985,12 @@ static void CollectDirectlyLinkedProjects(const SolutionProject* project, std::u
 
     // check local dependencies
     for (const auto* dep : project->directDependencies)
-        CollectDirectlyLinkedProjects(dep, outVisited, outLinkedProjects, depth + 1);
+    {
+        if (dep->type == ProjectType::StaticLibrary)
+        {
+            CollectDirectlyLinkedProjects(dep, outVisited, outLinkedProjects, depth + 1);
+        }
+    }
 }
 
 bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* project, std::stringstream& f)
@@ -998,6 +1003,9 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
 
     writeln(f, "#include \"build.h\"");
     writeln(f, "");
+
+	const auto hasSystem = HasDependency(project, "core_system");
+    const auto hasFileSystem = HasDependency(project, "core_file");
 
     // embedded files header
     if (project->optionUseEmbeddedFiles)
@@ -1136,11 +1144,14 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
 				const auto symbolPrefix = std::string("EMBED_") + std::string(project->name) + "_";
                 const auto symbolCoreName = symbolPrefix + std::string(PartAfter(MakeSymbolName(file->projectRelativePath), "media_"));
 
-				// virtual void registerFile(const char* path, const void* data, uint32_t size, uint64_t crc, const char* sourcePath, TimeStamp sourceTimeStamp) = 0;
-				writelnf(f, "%hs::EmbeddedFiles().registerFile(%hs_PATH, %hs_DATA, %hs_SIZE, %hs_CRC, %hs_SPATH, %hs::TimeStamp(%hs_TS));",
-                    project->globalNamespace.c_str(),
-					symbolCoreName.c_str(), symbolCoreName.c_str(), symbolCoreName.c_str(),
-					symbolCoreName.c_str(), symbolCoreName.c_str(), project->globalNamespace.c_str(), symbolCoreName.c_str());
+                if (hasFileSystem)
+                {
+                    // virtual void registerFile(const char* path, const void* data, uint32_t size, uint64_t crc, const char* sourcePath, TimeStamp sourceTimeStamp) = 0;
+                    writelnf(f, "%hs::EmbeddedFiles().registerFile(%hs_PATH, %hs_DATA, %hs_SIZE, %hs_CRC, %hs_SPATH, %hs::TimeStamp(%hs_TS));",
+                        project->globalNamespace.c_str(),
+                        symbolCoreName.c_str(), symbolCoreName.c_str(), symbolCoreName.c_str(),
+                        symbolCoreName.c_str(), symbolCoreName.c_str(), project->globalNamespace.c_str(), symbolCoreName.c_str());
+                }
 			}
 		}
 
@@ -1178,7 +1189,7 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
                     writelnf(f, "    extern void InitModule_%s(void*);", dep.project->name.c_str());
                     writelnf(f, "    InitModule_%s(handle);", dep.project->name.c_str());
                 }
-                else
+                else if (hasSystem)
                 {
                     writelnf(f, "    %hs::modules::LoadDynamicModule(\"%s\");", project->globalNamespace.c_str(), dep.project->name.c_str());
                 }
@@ -1186,7 +1197,7 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
 		}
 
         // initialize self
-        if (project->optionUseStaticInit)
+        if (project->optionUseStaticInit && hasSystem)
         {
             std::stringstream dependenciesString;
             bool first = true;

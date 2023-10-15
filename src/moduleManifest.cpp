@@ -97,6 +97,8 @@ static bool IsValidProjectTag(std::string_view tag)
 		return true;
 	else if (tag == "SharedLibrary")
 		return true;
+	else if (tag == "DetachedSharedLibrary")
+		return true;
 	else if (tag == "Application")
 		return true;
 	else if (tag == "TestApplication")

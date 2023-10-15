@@ -95,11 +95,14 @@ static bool BuildConfigurationVS(const Configuration& cfg, const Commandline& cm
 		LogSuccess() << "Solution found at " << solutionFilePath;
 	}
 
+	// configuration
+	std::string config(cmdLine.get("config", "Release"));
+
 	// compile the solution
 	std::stringstream args;
 	args << EscapeArgument(msBuildPath.u8string());
-	args << "/p:Platform=x64";
-	args << " ";
+	args << "/p:Platform=x64 ";
+	args << "/p:Configuration=" << config << " ";
 	args << EscapeArgument(solutionFilePath.u8string());
 	const auto cmd = args.str();
 	LogInfo() << "Running: '" << cmd << "'";
@@ -186,6 +189,7 @@ void ToolBuild::printUsage()
 	LogInfo() << "";
 	LogInfo() << "General options:";
 	LogInfo() << "  -module=<module to build>";
+	LogInfo() << "  -config=<Release|Debug|Final|Profile|Checked> - configuration to build (defaults to Release)";
 	LogInfo() << "  -platform=" << str.str() << "";
 	LogInfo() << "";
 }

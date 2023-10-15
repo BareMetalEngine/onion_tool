@@ -2,4 +2,4 @@
 
 #include <stdint.h>
 
-extern STATIC_API int64_t GetCommonValue();
+extern LIB_API int64_t GetCommonValue();

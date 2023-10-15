@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<Module guid="268fd737-b496-434e-8219-93fe82d33ae9">	
+	<GlobalNamespace>test</GlobalNamespace>		
+	<GlobalSolutionName>test</GlobalSolutionName>
+	<GlobalIncludePath>code/</GlobalIncludePath>
+	<Include>code/lib/build.xml</Include>
+</Module>

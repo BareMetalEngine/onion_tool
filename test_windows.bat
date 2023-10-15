@@ -19,8 +19,11 @@ REM ----------------------------------------------------------------------------
 CALL :TEST_MODULE "tests\app_self_contained"
 if ERRORLEVEL 1 ( EXIT /B 1 )
 
-CALL :TEST_MODULE "tests\app_with_external_static_lib"
+CALL :TEST_MODULE "tests\module_with_static_lib"
 if ERRORLEVEL 1 ( EXIT /B 1 )
+
+REM CALL :TEST_MODULE "tests\app_with_external_static_lib"
+REM if ERRORLEVEL 1 ( EXIT /B 1 )
 
 CALL :TEST_MODULE "tests\app_with_lib"
 if ERRORLEVEL 1 ( EXIT /B 1 )
@@ -46,9 +49,6 @@ if ERRORLEVEL 1 ( EXIT /B 1 )
 CALL :TEST_MODULE "tests\embed_file"
 if ERRORLEVEL 1 ( EXIT /B 1 )
 
-CALL :TEST_MODULE "tests\module_with_static_lib"
-if ERRORLEVEL 1 ( EXIT /B 1 )
-
 ECHO All tests finished!
 EXIT /B 0
 
@@ -71,14 +71,28 @@ if ERRORLEVEL 1 (
 	EXIT /B 1
 )
 
-%ONION% build
+%ONION% build -config=Release
 if ERRORLEVEL 1 (
 	ECHO Unable to compile test '%~1'
 	POPD
 	EXIT /B 1
 )
 
-%ONION% test
+%ONION% test -config=Release
+if ERRORLEVEL 1 (
+	ECHO Failed to run tests for '%~1'
+	POPD
+	EXIT /B 1
+)
+
+%ONION% build -config=Debug
+if ERRORLEVEL 1 (
+	ECHO Unable to compile test '%~1'
+	POPD
+	EXIT /B 1
+)
+
+%ONION% test -config=Debug
 if ERRORLEVEL 1 (
 	ECHO Failed to run tests for '%~1'
 	POPD

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<Module>
+	<Application>
+		<Name>app_with_common_static_lib</Name>
+		<SourceRoot>.</SourceRoot>
+		<SelfTest>True</SelfTest>
+		<Dependency>dyn1</Dependency>
+		<Dependency>dyn2</Dependency>
+	</Application>
+</Module>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<Module>
+	<Application>
+		<Name>app_with_thirdparty_dep</Name>
+		<SourceRoot>.</SourceRoot>
+		<SelfTest>True</SelfTest>
+		<LibraryDependency>zlib</LibraryDependency>
+	</Application>
+</Module>

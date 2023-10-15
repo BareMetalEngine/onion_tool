@@ -21,6 +21,7 @@ void ToolTest::printUsage()
 	LogInfo() << "  -module=<path to module to configure>";
 	LogInfo() << "  -parallel - run all tests in parallel";
 	LogInfo() << "  -fastfail - stop after first failure";
+	LogInfo() << "  -config=<Release|Debug|Final|Profile|Checked> - configuration to run (defaults to Release)";
 	LogInfo() << "";
 }
 
@@ -65,19 +66,21 @@ bool ProjectBinaryName(const ProjectInfo* project, std::string& outName)
 	return false;
 }
 
-static bool ProjectBinaryPath(const ProjectInfo* project, const Configuration& config, fs::path& outPath)
+static bool ProjectBinaryPath(const ProjectInfo* project, const Configuration& config, const std::string& runtimeConfig, fs::path& outPath)
 {
 	std::string executableName;
 	if (!ProjectBinaryName(project, executableName))
 		return false;
 
-	outPath = (config.derivedBinaryPathBase / executableName).make_preferred();
+	outPath = (config.derivedBinaryPathBase / runtimeConfig / executableName).make_preferred();
 	return true;
 }
 
 static bool RunTestsForConfiguration(const ModuleRepository& modules, const Configuration& config, const Commandline& cmdLine)
 {
-	LogInfo() << "Running tests for configuration '" << config.mergedName() << "'";
+	// configuration
+	std::string runtimeConfig(cmdLine.get("config", "Release"));
+	LogInfo() << "Running tests for configuration '" << config.mergedName() << "' at runtime config '" << runtimeConfig << "'";
 
 	// populate project structure
 	ProjectCollection structure;
@@ -110,7 +113,7 @@ static bool RunTestsForConfiguration(const ModuleRepository& modules, const Conf
 	for (const auto* proj : testProjects)
 	{
 		fs::path binaryPath;
-		if (ProjectBinaryPath(proj, config, binaryPath))
+		if (ProjectBinaryPath(proj, config, runtimeConfig, binaryPath))
 		{
 			const auto binaryDirectory = binaryPath.parent_path();
 
@@ -134,6 +137,10 @@ static bool RunTestsForConfiguration(const ModuleRepository& modules, const Conf
 				LogError() << "Test for project '" << proj->name << "' failed!";
 				valid = false;
 				continue;
+			}
+			else
+			{
+				LogSuccess() << "Test for project '" << proj->name << "' succeeded!";
 			}
 		}
 	}

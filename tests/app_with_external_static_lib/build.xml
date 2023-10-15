@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<Module guid="b7f258bb-bf38-4250-ae38-4a9754751d92">
+	<GlobalNamespace>test</GlobalNamespace>		
+	<GlobalSolutionName>test</GlobalSolutionName>
+
+	<ModuleDependency repo="https://github.com/BareMetalEngine/onion_tool.git" path="tests/module_with_static_lib"/>
+
+	<Include>code/app/build.xml</Include>
+</Module>
