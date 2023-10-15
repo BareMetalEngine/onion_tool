@@ -53,13 +53,17 @@ bool SolutionGeneratorCMAKE::generateSolution(FileGenerator& gen)
     writeln(f, "set(CMAKE_VERBOSE_MAKEFILE ON)");
     writeln(f, "set(CMAKE_COLOR_MAKEFILE ON)");
     writelnf(f, "set(CMAKE_CONFIGURATION_TYPES \"Debug;Checked;Release;Profile;Final\")");
+    writelnf(f, "if (NOT CMAKE_BUILD_TYPE)");
+    writelnf(f, "  message(\"Defaulting to release build.\")");
+    writelnf(f, "  set(CMAKE_BUILD_TYPE Release CACHE STRING \"Choose the type of build, options are: ${CMAKE_CONFIGURATION_TYPES}.\" FORCE)");
+    writelnf(f, "endif()");
 	writeln(f, "string(TOUPPER \"${CMAKE_BUILD_TYPE}\" uppercase_CMAKE_BUILD_TYPE)");
 	writeln(f, "string(TOLOWER \"${CMAKE_BUILD_TYPE}\" lowercase_CMAKE_BUILD_TYPE)");
     writeln(f, "set(OpenGL_GL_PREFERENCE \"GLVND\")");
     writelnf(f, "set(CMAKE_MODULE_PATH %s)", EscapePath(m_cmakeScriptsPath).c_str());
-    writelnf(f, "set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPathBase / "lib" / "${CMAKE_BUILD_TYPE}").c_str());
-    writelnf(f, "set(CMAKE_LIBRARY_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPathBase / "lib" / "${CMAKE_BUILD_TYPE}").c_str());
-    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedBinaryPathBase / "${CMAKE_BUILD_TYPE}").c_str());
+    writelnf(f, "set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPathBase / "lib" / "${lowercase_CMAKE_BUILD_TYPE}").c_str());
+    writelnf(f, "set(CMAKE_LIBRARY_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPathBase / "lib" / "${lowercase_CMAKE_BUILD_TYPE}").c_str());
+    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedBinaryPathBase / "${lowercase_CMAKE_BUILD_TYPE}").c_str());
 
     //if (solution.platformType == PlatformType.WINDOWS)
     writeln(f, "set_property(GLOBAL PROPERTY USE_FOLDERS ON)");

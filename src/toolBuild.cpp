@@ -14,18 +14,30 @@ static bool BuildConfigurationCmake(const Configuration& cfg, const Commandline&
 		return false;
 	}
 
+	// configuration
+	const auto configurationName = cmdLine.get("config", "Release");
+
 	// generate cmake file
-	if (0 != std::system("cmake ."))
 	{
-		LogError() << "Could not run CMAKE config";
-		return false;
+		std::stringstream cmd;
+		cmd << "cmake . -DCMAKE_BUILD_TYPE=" << configurationName;
+		if (0 != std::system(cmd.str().c_str()))
+		{
+			LogError() << "Could not run CMAKE config";
+			return false;
+		}
 	}
 
 	// build cmake file
-	if (0 != std::system("cmake --build . -- -j`nproc`"))
 	{
-		LogError() << "Could not run CMAKE config";
-		return false;
+		std::stringstream cmd;
+		cmd << "cmake --build . --config " << configurationName;
+		cmd << " -- -j`nproc`";
+		if (0 != std::system(cmd.str().c_str()))
+		{
+			LogError() << "Could not run CMAKE config";
+			return false;
+		}
 	}
 
 	// built

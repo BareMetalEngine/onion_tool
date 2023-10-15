@@ -1732,11 +1732,11 @@ std::string_view NameEnumOption(ConfigurationType type)
 {
 	switch (type)
 	{
-	case ConfigurationType::Checked: return "checked";
-	case ConfigurationType::Release: return "release";
-	case ConfigurationType::Debug: return "debug";
-	case ConfigurationType::Profile: return "profile";
-	case ConfigurationType::Final: return "final";
+	case ConfigurationType::Checked: return "Checked";
+	case ConfigurationType::Release: return "Release";
+	case ConfigurationType::Debug: return "Debug";
+	case ConfigurationType::Profile: return "Profile";
+	case ConfigurationType::Final: return "Final";
 	default: break;
 	}
 
