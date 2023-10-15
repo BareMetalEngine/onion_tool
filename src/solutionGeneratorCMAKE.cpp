@@ -53,15 +53,13 @@ bool SolutionGeneratorCMAKE::generateSolution(FileGenerator& gen)
     writeln(f, "set(CMAKE_VERBOSE_MAKEFILE ON)");
     writeln(f, "set(CMAKE_COLOR_MAKEFILE ON)");
     writelnf(f, "set(CMAKE_CONFIGURATION_TYPES \"Debug;Checked;Release;Profile;Final\")");
+	writeln(f, "string(TOUPPER \"${CMAKE_BUILD_TYPE}\" uppercase_CMAKE_BUILD_TYPE)");
+	writeln(f, "string(TOLOWER \"${CMAKE_BUILD_TYPE}\" lowercase_CMAKE_BUILD_TYPE)");
     writeln(f, "set(OpenGL_GL_PREFERENCE \"GLVND\")");
     writelnf(f, "set(CMAKE_MODULE_PATH %s)", EscapePath(m_cmakeScriptsPath).c_str());
-    writelnf(f, "set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPathBase / "lib").c_str());
-    writelnf(f, "set(CMAKE_LIBRARY_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPathBase / "lib").c_str());
-    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG %s)", EscapePath(m_config.derivedBinaryPathBase / "debug").c_str());
-    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE %s)", EscapePath(m_config.derivedBinaryPathBase / "release").c_str());
-    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_CHECKED %s)", EscapePath(m_config.derivedBinaryPathBase / "checked").c_str());
-    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_PROFILE %s)", EscapePath(m_config.derivedBinaryPathBase / "profile").c_str());
-    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_FINAL %s)", EscapePath(m_config.derivedBinaryPathBase / "final").c_str());
+    writelnf(f, "set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPathBase / "lib" / "${CMAKE_BUILD_TYPE}").c_str());
+    writelnf(f, "set(CMAKE_LIBRARY_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedSolutionPathBase / "lib" / "${CMAKE_BUILD_TYPE}").c_str());
+    writelnf(f, "set(CMAKE_RUNTIME_OUTPUT_DIRECTORY %s)", EscapePath(m_config.derivedBinaryPathBase / "${CMAKE_BUILD_TYPE}").c_str());
 
     //if (solution.platformType == PlatformType.WINDOWS)
     writeln(f, "set_property(GLOBAL PROPERTY USE_FOLDERS ON)");
@@ -141,9 +139,7 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
     writeln(f, "set(CMAKE_CONFIGURATION_TYPES \"Debug;Release;Profile;Checked;Final\")");
     writeln(f, "set(CMAKE_CONFIGURATION_TYPES \"${CMAKE_CONFIGURATION_TYPES}\" CACHE STRING \"List of supported configurations.\")");
     
-
     writelnf(f, "add_definitions(-DPROJECT_NAME=%s)", p->name.c_str());
-    writeln(f, "string(TOUPPER \"${CMAKE_BUILD_TYPE}\" uppercase_CMAKE_BUILD_TYPE)");
 
     const bool staticLink = (p->type == ProjectType::StaticLibrary);
     if (staticLink)
