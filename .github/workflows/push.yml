@@ -114,7 +114,7 @@ jobs:
                 ~/onion/onion_mac builde -config=${{matrix.configuration}}
                 ~/onion/onion_mac teste -config=${{matrix.configuration}}
   TestMacM1:
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: macos-latest-large
     needs: BuildMacM1
     strategy:
       matrix:
@@ -127,7 +127,7 @@ jobs:
       - run: |
                 git clone https://github.com/BareMetalEngine/onion.git ~/onion/
                 pushd ${{matrix.test}}
-                ~/onion/onion_mac configure
-                ~/onion/onion_mac make -libs=${{matrix.libs}}
-                ~/onion/onion_mac build -config=${{matrix.configuration}}
-                ~/onion/onion_mac test -config=${{matrix.configuration}}
+                ~/onion/onion_arm configure
+                ~/onion/onion_arm make -libs=${{matrix.libs}}
+                ~/onion/onion_arm build -config=${{matrix.configuration}}
+                ~/onion/onion_arm test -config=${{matrix.configuration}}

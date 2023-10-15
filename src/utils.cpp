@@ -2906,7 +2906,7 @@ LogPrinter& LogPrinter::operator<<(uint64_t val)
 	return *this;
 }
 
-#if 0
+#if defined (__APPLE__)
 LogPrinter& LogPrinter::operator<<(size_t val)
 {
 	if (m_type == 0 || m_type == 1)

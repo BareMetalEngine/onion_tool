@@ -121,6 +121,9 @@ struct LogPrinter
     LogPrinter& operator<<(int val);
     LogPrinter& operator<<(uint32_t val);
     LogPrinter& operator<<(uint64_t val);
+#if defined (__APPLE__)
+    LogPrinter& operator<<(size_t val);
+#endif
     LogPrinter& operator<<(std::error_code val);    
 
 private:
