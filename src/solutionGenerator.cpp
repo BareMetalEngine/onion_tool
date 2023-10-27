@@ -584,7 +584,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
                         sourceFiles.push_back(file->absolutePath);
 
                 ToolReflection tool;
-                if (!tool.runStatic(fileGenerator, sourceFiles, project->name, reflectionFilePath))
+                if (!tool.runStatic(fileGenerator, sourceFiles, project->name, project->globalNamespace, reflectionFilePath))
                 {
                     LogError() << "Failed to generate static reflection for project '" << project->name << "'";
                     valid = false;
@@ -793,7 +793,7 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 
     writeln(f, "#include \"build.h\"");
 
-    const auto hasSystem = HasDependency(project, "core_system");
+    const auto hasSystem = HasDependency(project, "core_system") || (project->name == "core_system");
 	const auto hasPreMain = project->optionUsePreMain;
 
     if (!project->appHeaderName.empty())
@@ -969,7 +969,7 @@ struct LinkedProject
     bool staticallyLinked = false;
 };
 
-static void CollectDirectlyLinkedProjects(const SolutionProject* project, std::unordered_set< const SolutionProject*>& outVisited, std::vector<LinkedProject>& outLinkedProjects, int depth)
+static void CollectDirectlyLinkedProjects(const SolutionProject* project, std::unordered_set< const SolutionProject*>& outVisited, std::vector<LinkedProject>& outLinkedProjects, int depth, bool isDynamicallyLinked)
 {
     if (!outVisited.insert(project).second)
         return;
@@ -986,9 +986,13 @@ static void CollectDirectlyLinkedProjects(const SolutionProject* project, std::u
     // check local dependencies
     for (const auto* dep : project->directDependencies)
     {
-        if (dep->type == ProjectType::StaticLibrary)
+        if (isDynamicallyLinked)
         {
-            CollectDirectlyLinkedProjects(dep, outVisited, outLinkedProjects, depth + 1);
+            CollectDirectlyLinkedProjects(dep, outVisited, outLinkedProjects, depth + 1, true);
+        }
+        else if (dep->type == ProjectType::StaticLibrary)
+        {
+            CollectDirectlyLinkedProjects(dep, outVisited, outLinkedProjects, depth + 1, false);
         }
     }
 }
@@ -1004,7 +1008,7 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
     writeln(f, "#include \"build.h\"");
     writeln(f, "");
 
-	const auto hasSystem = HasDependency(project, "core_system");
+	const auto hasSystem = HasDependency(project, "core_system") || (project->name == "core_system");
     const auto hasFileSystem = HasDependency(project, "core_file");
 
     // embedded files header
@@ -1017,7 +1021,7 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
     std::vector<LinkedProject> staticallyLinkedProjects, orderedStaticallyLinkedProjects;
     {
         std::unordered_set< const SolutionProject*> visited;
-        CollectDirectlyLinkedProjects(project, visited, staticallyLinkedProjects, 0);
+        CollectDirectlyLinkedProjects(project, visited, staticallyLinkedProjects, 0, true);
 
         // collect in right order!
         for (const auto* dep : project->allDependencies)
@@ -1209,9 +1213,22 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
                     if (dep->name == "core_system")
                         continue;
 
-                    if (!first) dependenciesString << ";";
-                    first = false;
-                    dependenciesString << dep->name;
+                    bool hasSystemDependency = false;
+                    for (const auto* subDep : dep->allDependencies)
+                    {
+                        if (subDep->name == "core_system")
+                        {
+                            hasSystemDependency = true;
+                            break;
+                        }
+                    }
+
+                    if (hasSystemDependency)
+                    {
+                        if (!first) dependenciesString << ";";
+                        first = false;
+                        dependenciesString << dep->name;
+                    }
                 }
             }
 

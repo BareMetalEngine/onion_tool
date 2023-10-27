@@ -8,6 +8,8 @@
 #include <stdarg.h>
 #include "lz4/lz4.h"
 #include "lz4/lz4hc.h"
+#include <cctype>    // std::tolower
+#include <algorithm> // std::equal
 
 #ifndef _WIN32
 #define localtime_s(res, timep) localtime_r(timep, res)
@@ -1643,6 +1645,93 @@ bool ParseEnumValue(std::string_view txt, T& outType)
     }
 
     return false;
+}
+
+bool ichar_equals(char a, char b)
+{
+	return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b));
+}
+
+bool iequals(const std::string_view& a, const std::string_view& b)
+{
+	return std::equal(a.begin(), a.end(), b.begin(), b.end(), ichar_equals);
+}
+
+bool MatchesPlatform(PlatformType platform, std::string_view view)
+{
+    if (view == "*")
+        return true;
+
+    switch (platform)
+    {
+        case PlatformType::Windows:
+			if (0 == iequals(view, "WinBase")) return true;
+			if (0 == iequals(view, "Windows")) return true;
+			if (0 == iequals(view, "Desktop")) return true;
+            if (0 == iequals(view, "DirectX")) return true;
+			return false;
+
+		case PlatformType::UWP:
+            if (0 == iequals(view, "WinBase")) return true;
+            if (0 == iequals(view, "UWP")) return true;
+            if (0 == iequals(view, "Desktop")) return true;
+            if (0 == iequals(view, "DirectX")) return true;
+            return false;
+
+		case PlatformType::Linux:
+			if (0 == iequals(view, "Linux")) return true;
+			if (0 == iequals(view, "Posix")) return true;
+			if (0 == iequals(view, "Vulkan")) return true;
+            if (0 == iequals(view, "Desktop")) return true;
+            return false;
+
+		case PlatformType::Scarlett:
+            if (0 == iequals(view, "Scarlett")) return true;
+            if (0 == iequals(view, "Console")) return true;
+            if (0 == iequals(view, "WinBase")) return true;
+            if (0 == iequals(view, "DirectX")) return true;
+            return false;
+
+		case PlatformType::Prospero:
+			if (0 == iequals(view, "Prospero")) return true;
+			if (0 == iequals(view, "Console")) return true;
+			if (0 == iequals(view, "WinBase")) return true;
+			if (0 == iequals(view, "DirectX")) return true;
+            return false;
+
+		case PlatformType::iOS:
+			if (0 == iequals(view, "Ios")) return true;
+			if (0 == iequals(view, "Mobile")) return true;
+			if (0 == iequals(view, "AppleBase")) return true;
+			if (0 == iequals(view, "Metal")) return true;
+            return false;
+
+		case PlatformType::Android:
+			if (0 == iequals(view, "Android")) return true;
+			if (0 == iequals(view, "Mobile")) return true;
+			if (0 == iequals(view, "Posix")) return true;
+			if (0 == iequals(view, "Vulkan")) return true;
+			return false;
+
+		case PlatformType::Darwin:
+			if (0 == iequals(view, "Darwin")) return true;
+            if (0 == iequals(view, "DarwinIntel")) return true;
+			if (0 == iequals(view, "Desktop")) return true;
+			if (0 == iequals(view, "AppleBase")) return true;
+			if (0 == iequals(view, "Metal")) return true;
+			return false;
+
+		case PlatformType::DarwinArm:
+			if (0 == iequals(view, "Darwin")) return true;
+            if (0 == iequals(view, "DarwinArm")) return true;
+			if (0 == iequals(view, "Desktop")) return true;
+			if (0 == iequals(view, "AppleBase")) return true;
+			if (0 == iequals(view, "Metal")) return true;
+			return false;
+
+    default:
+        return false;
+    }
 }
 
 std::string_view DefaultPlatformStr()

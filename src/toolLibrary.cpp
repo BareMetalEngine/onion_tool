@@ -279,7 +279,7 @@ static bool LibraryCloneRepo_GitHub(const LibraryManifest& lib, ToolLibraryConfi
 	{
 		LogInfo() << "Source directory " << config.srcPath << " already exists, syncing only";
 
-		if (!lib.sourceBuild)
+		if (!lib.config.sourceBuild)
 		{
 			RunWithArgsInDirectory(config.srcPath, "git reset --hard");
 			RunWithArgsInDirectory(config.srcPath, "git clean -xfd");
@@ -288,11 +288,11 @@ static bool LibraryCloneRepo_GitHub(const LibraryManifest& lib, ToolLibraryConfi
 			{
 				if (config.ignorePullErrors)
 				{
-					LogWarning() << "Failed to update library '" << lib.name << "' from repository " << lib.sourceURL << ", using existing code";
+					LogWarning() << "Failed to update library '" << lib.name << "' from repository " << lib.config.sourceURL << ", using existing code";
 				}
 				else
 				{
-					LogError() << "Failed to update library '" << lib.name << "' from repository " << lib.sourceURL;
+					LogError() << "Failed to update library '" << lib.name << "' from repository " << lib.config.sourceURL;
 					return false;
 				}
 			}
@@ -302,27 +302,27 @@ static bool LibraryCloneRepo_GitHub(const LibraryManifest& lib, ToolLibraryConfi
 	{
 		std::stringstream command;
 		command << "git clone --depth 1 --single-branch --recurse-submodules ";
-		if (!lib.sourceBranch.empty())
-			command << "--branch " << lib.sourceBranch << " ";
-		command << lib.sourceURL;
+		if (!lib.config.sourceBranch.empty())
+			command << "--branch " << lib.config.sourceBranch << " ";
+		command << lib.config.sourceURL;
 		command << " ";
 		command << lib.name;
 
 		if (!RunWithArgsInDirectory(config.srcRootPath, command.str()))
 		{
-			LogError() << "Failed to clone library '" << lib.name << "' from repository " << lib.sourceURL << "'";
+			LogError() << "Failed to clone library '" << lib.name << "' from repository " << lib.config.sourceURL << "'";
 			return false;
 		}
 	}
 
 	// cloned
-	LogInfo() << "Source directory " << config.srcPath << " cloned from '" << lib.sourceURL << "'";
+	LogInfo() << "Source directory " << config.srcPath << " cloned from '" << lib.config.sourceURL << "'";
 
 	// verify repository
 	{
 		if (!RunWithArgsInDirectory(config.srcPath, "git fsck --full"))
 		{
-			LogError() << "Failed to verify library '" << lib.name << "' fetched from repository " << lib.sourceURL << "'";
+			LogError() << "Failed to verify library '" << lib.name << "' fetched from repository " << lib.config.sourceURL << "'";
 			return false;
 		}
 	}
@@ -332,7 +332,7 @@ static bool LibraryCloneRepo_GitHub(const LibraryManifest& lib, ToolLibraryConfi
 		std::stringstream hash;
 		if (!RunWithArgsInDirectoryAndCaptureOutput(config.srcPath, "git rev-parse --verify HEAD", hash))
 		{
-			LogError() << "Failed to fetch root hash from library '" << lib.name << "' fetched from repository " << lib.sourceURL << "'";
+			LogError() << "Failed to fetch root hash from library '" << lib.name << "' fetched from repository " << lib.config.sourceURL << "'";
 			return false;
 		}
 
@@ -354,16 +354,16 @@ static bool LibraryCloneRepo_GitHub(const LibraryManifest& lib, ToolLibraryConfi
 		LogWarning() << "Applied " << numCopied << " hack files to library '" << lib.name << "'";
 	}
 
-	LogSuccess() << "Fetched library '" << lib.name << "' from repository " << lib.sourceURL << "' at hash " << lib.rootHash;
+	LogSuccess() << "Fetched library '" << lib.name << "' from repository " << lib.config.sourceURL << "' at hash " << lib.rootHash;
 	return true;
 }
 
 static bool LibraryCloneRepo_URL(const LibraryManifest& lib, ToolLibraryConfig& config)
 {
-	const auto downloadPathName = PartAfterLast(lib.sourceURL, "/");
+	const auto downloadPathName = PartAfterLast(lib.config.sourceURL, "/");
 	if (downloadPathName.empty())
 	{
-		LogError() << "Download URL '" << lib.sourceURL << "' does not contain valid file name";
+		LogError() << "Download URL '" << lib.config.sourceURL << "' does not contain valid file name";
 		return false;
 	}
 
@@ -376,13 +376,13 @@ static bool LibraryCloneRepo_URL(const LibraryManifest& lib, ToolLibraryConfig& 
 		cmd << " -L -o ";
 		cmd << downloadFileName;
 		cmd << " ";
-		cmd << lib.sourceURL;
+		cmd << lib.config.sourceURL;
 
 		LogInfo() << cmd.str();
 
 		if (!RunWithArgs(cmd.str()))
 		{
-			LogError() << "Failed to download file from '" << lib.sourceURL;
+			LogError() << "Failed to download file from '" << lib.config.sourceURL;
 			return false;
 		}
 
@@ -407,7 +407,7 @@ static bool LibraryCloneRepo_URL(const LibraryManifest& lib, ToolLibraryConfig& 
 
 		if (!RunWithArgs(cmd.str()))
 		{
-			LogError() << "Failed to download file from '" << lib.sourceURL;
+			LogError() << "Failed to download file from '" << lib.config.sourceURL;
 			return false;
 		}
 	}
@@ -417,9 +417,9 @@ static bool LibraryCloneRepo_URL(const LibraryManifest& lib, ToolLibraryConfig& 
 
 static bool LibraryCloneRepo(const LibraryManifest& lib, ToolLibraryConfig& config)
 {
-	if (lib.sourceType == LibrarySourceType::GitHub)
+	if (lib.config.sourceType == LibrarySourceType::GitHub)
 		return LibraryCloneRepo_GitHub(lib, config);
-	else if (lib.sourceType == LibrarySourceType::FileOnTheInternet)
+	else if (lib.config.sourceType == LibrarySourceType::FileOnTheInternet)
 		return LibraryCloneRepo_URL(lib, config);
 	else
 		return false;
@@ -459,13 +459,13 @@ static bool LibraryConfigure(const Commandline& cmdLine, const LibraryManifest& 
 
 	// install dependencies
 	std::vector<DependencySymbol> additionalDefines;
-	if (!lib.dependencies.empty())
+	if (!lib.config.dependencies.empty())
 	{
 		LibraryInstaller libraryInstaller(config.platform, config.dependenciesRootPath);
 		if (!libraryInstaller.installOfflinePackedDirectory(config.packageRootPath))
 			return false;
 
-		for (const auto& dep : lib.dependencies)
+		for (const auto& dep : lib.config.dependencies)
 		{
 			std::string verison;
 			fs::path manifestPath;
@@ -562,13 +562,13 @@ static bool LibraryConfigure(const Commandline& cmdLine, const LibraryManifest& 
 	}
 	
 	// run the config command in the build directory
-	const auto runDirectory = fs::weakly_canonical((config.buildPath / lib.configRelativePath).make_preferred());
+	const auto runDirectory = fs::weakly_canonical((config.buildPath / lib.config.configRelativePath).make_preferred());
 
 	// determine the relative path
 	const auto sourceRelativeToBuild = fs::relative(config.srcPath, runDirectory).make_preferred();
 
 	// replace some stuff in the command
-	auto command = lib.configCommand;
+	auto command = lib.config.configCommand;
 	command = ReplaceAll(command, "${SourcePath}", sourceRelativeToBuild.u8string());
 	command = ReplaceAll(command, "${SourceAbsPath}", config.srcPath.u8string());
 	command = ReplaceAll(command, "${AdditionalDefines}", FormatAdditionalDefines(additionalDefines));
@@ -594,14 +594,14 @@ static bool LibraryBuild(const LibraryManifest& lib, ToolLibraryConfig& config)
 		return false;
 
 	// run the config command in the build directory
-	const auto runDirectory = fs::weakly_canonical((config.buildPath / lib.buildRelativePath).make_preferred());
+	const auto runDirectory = fs::weakly_canonical((config.buildPath / lib.config.buildRelativePath).make_preferred());
 
 	// determine the relative path
 	const auto buildRelativeToRun = fs::relative(config.buildPath, runDirectory).make_preferred();
 	const auto sourceRelativeToRun = fs::relative(config.srcPath, runDirectory).make_preferred();
 
 	// replace some stuff in the command
-	auto command = lib.buildCommand;
+	auto command = lib.config.buildCommand;
 	command = ReplaceAll(command, "${SourcePath}", sourceRelativeToRun.u8string());
 	command = ReplaceAll(command, "${SourceAbsPath}", config.srcPath.u8string());
 	command = ReplaceAll(command, "${BuildPath}", buildRelativeToRun.u8string());
@@ -714,7 +714,7 @@ static bool LibraryCollectArtifacts(const LibraryManifest& lib, ToolLibraryConfi
 {
 	bool valid = true;
 
-	for (const auto& info : lib.artifacts)
+	for (const auto& info : lib.config.artifacts)
 	{
 		const auto baseSourcePath = (info.location == LibraryArtifactLocation::Build) ? config.buildPath : config.srcPath;
 
@@ -789,11 +789,11 @@ static void LibraryBuildManifest(const LibraryManifest& lib, ToolLibraryConfig& 
 			writelnf(f, "<File>%hs</File>", relativePath.c_str());
 	}
 
-    for (const auto& name : lib.additionalSystemLibraries)
+    for (const auto& name : lib.config.additionalSystemLibraries)
         writelnf(f, "<AdditionalSystemLibrary>%hs</AdditionalSystemLibrary>", name.c_str());
-    for (const auto& name : lib.additionalSystemPackages)
+    for (const auto& name : lib.config.additionalSystemPackages)
         writelnf(f, "<AdditionalSystemPackage>%hs</AdditionalSystemPackage>", name.c_str());
-    for (const auto& name : lib.additionalSystemFrameworks)
+    for (const auto& name : lib.config.additionalSystemFrameworks)
         writelnf(f, "<AdditionalSystemFramework>%hs</AdditionalSystemFramework>", name.c_str());
 
 	writeln(f, "</ExternalLibrary>");
@@ -1216,11 +1216,11 @@ int ToolLibrary::run(const Commandline& cmdline)
 		return 1;
 	}
 
-	if (library->sourceRelativePath.empty())
+	if (library->config.sourceRelativePath.empty())
 		config.srcPath = (config.srcRootPath / library->name).make_preferred();
 	else
-		config.srcPath = (config.srcRootPath / library->name / library->sourceRelativePath).make_preferred();
-	if (library->sourceBuild)
+		config.srcPath = (config.srcRootPath / library->name / library->config.sourceRelativePath).make_preferred();
+	if (library->config.sourceBuild)
 		config.buildPath = config.srcPath;
 	else
 		config.buildPath = (config.buildRootPath / library->name).make_preferred();

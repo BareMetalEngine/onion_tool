@@ -255,6 +255,8 @@ extern bool ParseGeneratorType(std::string_view txt, GeneratorType& outType);
 extern PlatformType DefaultPlatform();
 extern std::string_view DefaultPlatformStr();
 
+extern bool MatchesPlatform(PlatformType platform, std::string_view view);
+
 template< typename T >
 struct PrintEnumOptions
 {

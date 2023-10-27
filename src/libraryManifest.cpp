@@ -7,35 +7,40 @@
 
 static bool EvalFilters(const XMLNode* node, const LibraryFilters& filters)
 {
-	const auto txt = XMLNodeAttrbiute(node, "platform");
-	if (txt.empty())
-		return true;
-
-	std::vector<std::string_view> options;
-	SplitString(txt, ",", options);
-
-	for (const auto option : options)
 	{
-		if (option == "*")
-			return true;
-		if (option == "windows" && filters.platform == PlatformType::Windows)
-			return true;
-		else if (option == "linux" && filters.platform == PlatformType::Linux)
-			return true;
-        else if (option == "darwin" && (filters.platform == PlatformType::Darwin || filters.platform == PlatformType::DarwinArm))
-            return true;
-        else if (option == "darwin_arm" && filters.platform == PlatformType::DarwinArm)
-            return true;
-        else if (option == "darwin_x86" && filters.platform == PlatformType::Darwin)
-            return true;
+		const auto txt = XMLNodeAttrbiute(node, "include");
+		if (!txt.empty())
+		{
+			std::vector<std::string_view> options;
+			SplitString(txt, ",", options);
 
-		// TODO: rest
+			for (const auto& txt : options)
+				if (MatchesPlatform(filters.platform, txt))
+					return true;
+
+			return false;
+		}
 	}
 
-	return false;
+	{
+		const auto txt = XMLNodeAttrbiute(node, "exclude");
+		if (!txt.empty())
+		{
+			std::vector<std::string_view> options;
+			SplitString(txt, ",", options);
+
+			for (const auto& txt : options)
+				if (MatchesPlatform(filters.platform, txt))
+					return false;
+
+			return true;
+		}
+	}
+
+	return true;
 }
 
-static bool EvalLibrarySourceType(LibraryManifest* manifest, const XMLNode* node)
+static bool EvalLibrarySourceType(LibraryManifestConfig* manifest, const XMLNode* node)
 {
 	const auto value = XMLNodeValue(node);
 
@@ -97,16 +102,13 @@ static bool EvalLibraryArtifactLocation(LibraryArtifactInfo& info, const XMLNode
 	return false;
 }
 
-static bool EvalLibraryArtifact(LibraryManifest* manifest, const XMLNode* node, const LibraryFilters& filters)
+static bool EvalLibraryArtifact(const std::string& loadPath, LibraryManifestConfig* manifest, const XMLNode* node)
 {
 	LibraryArtifactInfo info;
 
 	bool valid = true;
-	XMLNodeIterate(node, [&valid, &info, &filters](const XMLNode* node, std::string_view option)
+	XMLNodeIterate(node, [&valid, &info](const XMLNode* node, std::string_view option)
 		{
-			if (!EvalFilters(node, filters))
-				return;
-
 			if (option == "Type")
 				valid &= EvalLibraryArtifactType(info, node);
 			else if (option == "Location")
@@ -126,7 +128,7 @@ static bool EvalLibraryArtifact(LibraryManifest* manifest, const XMLNode* node, 
 
 	if (!valid)
 	{
-		LogError() << "There were errors parsing artifact definition in a library manifest from '" << manifest->loadPath;
+		LogError() << "There were errors parsing artifact definition in a library manifest at '" << loadPath << "'";
 		return false;
 	}
 
@@ -134,16 +136,13 @@ static bool EvalLibraryArtifact(LibraryManifest* manifest, const XMLNode* node, 
 	return true;
 }
 
-static bool EvalLibraryDependency(LibraryManifest* manifest, const XMLNode* node, const LibraryFilters& filters)
+static bool EvalLibraryDependency(const std::string& loadPath, LibraryManifestConfig* manifest, const XMLNode* node)
 {
 	LibraryDependencyInfo info;
 
 	bool valid = true;
-	XMLNodeIterate(node, [&valid, &info, &filters](const XMLNode* node, std::string_view option)
+	XMLNodeIterate(node, [&valid, &info](const XMLNode* node, std::string_view option)
 		{
-			if (!EvalFilters(node, filters))
-				return;
-
 			if (option == "Library")
 				info.name = XMLNodeValue(node);
 			else if (option == "Repository")
@@ -166,19 +165,19 @@ static bool EvalLibraryDependency(LibraryManifest* manifest, const XMLNode* node
 
 	if (info.name.empty())
 	{
-		LogError() << "Missing name of the library dependency in a library manifest from '" << manifest->loadPath;
+		LogError() << "Missing name of the library dependency in a library manifest from '" << loadPath;
 		return false;
 	}
 
 	if (info.repo.empty())
 	{
-		LogError() << "Missing repository of the library dependency in a library manifest from '" << manifest->loadPath;
+		LogError() << "Missing repository of the library dependency in a library manifest from '" << loadPath;
 		return false;
 	}
 	
 	if (!valid)
 	{
-		LogError() << "There were errors parsing artifact definition in a library manifest from '" << manifest->loadPath;
+		LogError() << "There were errors parsing artifact definition in a library manifest from '" << loadPath;
 		return false;
 	}
 
@@ -191,6 +190,55 @@ static bool EvalLibraryDependency(LibraryManifest* manifest, const XMLNode* node
 LibraryFilters::LibraryFilters()
 {
 	platform = DefaultPlatform();
+}
+
+//--
+
+bool LibraryManifestConfig::LoadOption(const std::string& loadPath, const void* nodePtr, std::string_view option, LibraryManifestConfig* ret)
+{
+	const XMLNode* node = (const XMLNode*)nodePtr;
+
+	if (option == "SourceType")
+		return EvalLibrarySourceType(ret, node);
+	else if (option == "SourceURL")
+		ret->sourceURL = XMLNodeValue(node);
+	else if (option == "SourceBranch")
+		ret->sourceBranch = XMLNodeValue(node);
+	else if (option == "SourceRelativePath")
+		ret->sourceRelativePath = XMLNodeValue(node);
+	else if (option == "ConfigCommand")
+		ret->configCommand = XMLNodeValue(node);
+	else if (option == "BuildCommand")
+		ret->buildCommand = XMLNodeValue(node);
+	else if (option == "SourceBuild")
+		ret->sourceBuild = XMLNodeValueBool(node);
+	else if (option == "Artifact")
+		return EvalLibraryArtifact(loadPath, ret, node);
+	else if (option == "Dependency")
+		return EvalLibraryDependency(loadPath, ret, node);
+	else if (option == "AdditionalSystemLibrary")
+		ret->additionalSystemLibraries.emplace_back(XMLNodeValue(node));
+	else if (option == "AdditionalSystemPackage")
+		ret->additionalSystemPackages.emplace_back(XMLNodeValue(node));
+	else if (option == "AdditionalSystemFramework")
+		ret->additionalSystemFrameworks.emplace_back(XMLNodeValue(node));
+	else
+		return false;
+
+	return true;
+}
+
+bool LibraryManifestConfig::LoadCollection(const std::string& loadPath, const void* nodePtr, LibraryManifestConfig* ret)
+{
+	const XMLNode* node = (const XMLNode*)nodePtr;
+
+	bool valid = true;
+	XMLNodeIterate(node, [&loadPath, &valid, &ret](const XMLNode* node, std::string_view option)
+		{
+			valid &= LoadOption(loadPath, node, option, ret);
+		});
+
+	return valid;
 }
 
 //--
@@ -239,37 +287,16 @@ std::unique_ptr<LibraryManifest> LibraryManifest::Load(const fs::path& manifestP
 	bool valid = true;
 	XMLNodeIterate(root, [&valid, &ret, &filters](const XMLNode* node, std::string_view option)
 		{
-			if (!EvalFilters(node, filters))
-				return;
-
-			if (option == "SourceType")
-				valid &= EvalLibrarySourceType(ret.get(), node);
-			else if (option == "SourceURL")
-				ret->sourceURL = XMLNodeValue(node);
-			else if (option == "SourceBranch")
-				ret->sourceBranch = XMLNodeValue(node);
-            else if (option == "SourceRelativePath")
-                ret->sourceRelativePath = XMLNodeValue(node);
-			else if (option == "ConfigCommand")
-				ret->configCommand = XMLNodeValue(node);
-			else if (option == "BuildCommand")
-				ret->buildCommand = XMLNodeValue(node);
-			else if (option == "SourceBuild")
-				ret->sourceBuild = XMLNodeValueBool(node);
-			else if (option == "Artifact")
-				valid &= EvalLibraryArtifact(ret.get(), node, filters);
-			else if (option == "Dependency")
-				valid &= EvalLibraryDependency(ret.get(), node, filters);
-            else if (option == "AdditionalSystemLibrary")
-                ret->additionalSystemLibraries.emplace_back(XMLNodeValue(node));
-            else if (option == "AdditionalSystemPackage")
-                ret->additionalSystemPackages.emplace_back(XMLNodeValue(node));
-            else if (option == "AdditionalSystemFramework")
-                ret->additionalSystemFrameworks.emplace_back(XMLNodeValue(node));
+			if (option == "Platform")
+			{
+				if (EvalFilters(node, filters))
+				{
+					valid &= LibraryManifestConfig::LoadCollection(ret->loadPath.u8string(), node, &ret->config);
+				}
+			}
 			else
 			{
-				LogError() << "Unknown library's manifest option '" << option << "'";
-				valid = false;
+				valid &= LibraryManifestConfig::LoadOption(ret->loadPath.u8string(), node, option, &ret->config);
 			}
 		});
 

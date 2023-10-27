@@ -430,6 +430,14 @@ bool CodeTokenizer::process(std::string globalNamespace)
 {
     TokenStream s(tokens);
 
+    if (globalNamespace.empty())
+    {
+        std::stringstream txt;
+		txt << contextPath.u8string() << "(" << 1 << "): error: Project has no global namespace to work with";
+		LogError() << txt.str();
+		return false;
+    }
+
     bool print = false;// EndsWith(contextPath.u8string(), "vector2.cpp");
 
     std::string activeNamespace = "";

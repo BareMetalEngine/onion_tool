@@ -90,6 +90,30 @@ struct LibraryFilters
 	LibraryFilters();
 };
 
+struct LibraryManifestConfig
+{
+	LibrarySourceType sourceType = LibrarySourceType::Invalid;
+	std::string sourceURL; // github/wget URL (if zip then it's unzipped)
+	std::string sourceRelativePath; // relative path inside the repo/archive we treat as the library root
+	std::string sourceBranch; // branch to pull
+	bool sourceBuild = false; // building happens in source :(
+
+	std::string configRelativePath;
+	std::string configCommand;
+
+	std::string buildRelativePath;
+	std::string buildCommand;
+
+	std::vector<LibraryArtifactInfo> artifacts;
+	std::vector<LibraryDependencyInfo> dependencies;
+	std::vector<std::string> additionalSystemLibraries;
+	std::vector<std::string> additionalSystemPackages;
+	std::vector<std::string> additionalSystemFrameworks;
+
+	static bool LoadOption(const std::string& loadPath, const void* node, std::string_view option, LibraryManifestConfig* ret);
+	static bool LoadCollection(const std::string& loadPath, const void* node, LibraryManifestConfig* ret);
+};
+
 struct LibraryManifest
 {
 	std::string name; // "curl" - directory name
@@ -97,35 +121,9 @@ struct LibraryManifest
 	fs::path loadPath; // file path (set on load)
 	PlatformType loadPlatform; // platform this manifest was compiled for
 
-	mutable std::string rootHash;
+	mutable std::string rootHash; // version hash (from GIT)
 
-	//--
-
-	LibrarySourceType sourceType = LibrarySourceType::Invalid;
-	std::string sourceURL; // github/wget URL (if zip then it's unzipped)
-	std::string sourceRelativePath; // relative path inside the repo/archive we treat as the library root
-	std::string sourceBranch; // branch to pull
-	bool sourceBuild = false; // building happens in source :(
-
-	//--
-
-	std::string configRelativePath;
-	std::string configCommand;
-
-	//--
-
-	std::string buildRelativePath;
-	std::string buildCommand;
-
-	//--
-
-	std::vector<LibraryArtifactInfo> artifacts;
-	std::vector<LibraryDependencyInfo> dependencies;
-    std::vector<std::string> additionalSystemLibraries;
-    std::vector<std::string> additionalSystemPackages;
-    std::vector<std::string> additionalSystemFrameworks;
-
-	//--
+	LibraryManifestConfig config; // merged/parsed config (assembled from all the <Platform> blocks)
 
 	LibraryManifest();
 

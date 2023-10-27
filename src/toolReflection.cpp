@@ -367,11 +367,12 @@ bool ProjectReflection::extractFromArgs(const std::string& fileList, const std::
 }
 #endif
 
-bool ProjectReflection::extractFromFileList(const std::vector<fs::path>& filePaths, const std::string& projectName, const fs::path& outputFile)
+bool ProjectReflection::extractFromFileList(const std::vector<fs::path>& filePaths, const std::string& projectName, const std::string& globalNamespace, const fs::path& outputFile)
 {
 	auto* project = new RefelctionProject();
     project->mergedName = projectName;
     project->reflectionFilePath = outputFile;
+    project->globalNamespace = globalNamespace;
 	projects.push_back(project);
 
     for (const auto& path : filePaths)
@@ -390,6 +391,7 @@ bool ProjectReflection::extractFromFileList(const std::vector<fs::path>& filePat
             file->absolutePath = path;
             file->tokenized.contextPath = path;
             file->sourceFile = sourceFile;
+            file->globalNamespace = globalNamespace;
             project->files.push_back(file);
         }
 	}
@@ -674,10 +676,10 @@ bool ProjectReflection::generateReflectionForProject(const RefelctionProject& p,
 ToolReflection::ToolReflection()
 {}
 
-bool ToolReflection::runStatic(FileGenerator& fileGenerator, const std::vector<fs::path>& fileList, const std::string& projectName, const fs::path& outputFile)
+bool ToolReflection::runStatic(FileGenerator& fileGenerator, const std::vector<fs::path>& fileList, const std::string& projectName, const std::string& globalNamespace, const fs::path& outputFile)
 {
 	ProjectReflection reflection;
-	if (!reflection.extractFromFileList(fileList, projectName, outputFile))
+	if (!reflection.extractFromFileList(fileList, projectName, globalNamespace, outputFile))
 		return false;
 
 	if (!reflection.filterProjects())
