@@ -742,15 +742,18 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
     }
 	else if (project->type == ProjectType::TestApplication)
 	{
-		auto* info = new SolutionProjectFile;
-		info->absolutePath = project->generatedPath / "main.cpp";
-		info->type = ProjectFileType::CppSource;
-		info->filterPath = "_generated";
-		info->name = "main.cpp";
-		project->files.push_back(info);
+        if (project->optionGenerateMain)
+        {
+            auto* info = new SolutionProjectFile;
+            info->absolutePath = project->generatedPath / "main.cpp";
+            info->type = ProjectFileType::CppSource;
+            info->filterPath = "_generated";
+            info->name = "main.cpp";
+            project->files.push_back(info);
 
-        auto generatedFile = fileGenerator.createFile(info->absolutePath);
-		valid &= generateProjectTestMainSourceFile(project, generatedFile->content);
+            auto generatedFile = fileGenerator.createFile(info->absolutePath);
+            valid &= generateProjectTestMainSourceFile(project, generatedFile->content);
+        }
 	}
 
     // process additional file types
