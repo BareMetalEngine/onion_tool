@@ -156,6 +156,12 @@
 			<!--ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName-->
 
 			<!-- Custom Prospero settings  -->
+			<AdditionalOptions Condition="'$(Platform)'=='x64'">
+				/bigobj
+				%(AdditionalOptions)
+			</AdditionalOptions>
+			
+			<!-- Custom Prospero settings  -->
 			<AdditionalOptions Condition="'$(Platform)'=='Prospero'">
 				-Wno-unknown-warning-option
 				-Wno-deprecated-declarations
@@ -164,6 +170,10 @@
 				-Wno-error-pessimizing-move
 				-Wno-delete-non-virtual-dtor
 				-Wno-null-dereference
+				-Wno-unused-variable
+				-Wno-unused-but-set-variable
+				-Wno-unneeded-internal-declaration
+				-Wno-unused-function
 				-fstack-protector-strong
 				-fexceptions
 				-frtti
@@ -172,7 +182,6 @@
 
 			<AdditionalOptions Condition="'$(Platform)'=='Prospero' and '$(ProjectWarningLevel)'!='Level4'">
 				-Wno-reorder-ctor
-				-Wno-unused-variable
 				-Wno-unused-function
 				-Wno-unused-value
 				-Wno-null-conversion

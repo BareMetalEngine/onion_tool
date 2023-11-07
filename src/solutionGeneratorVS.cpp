@@ -449,7 +449,7 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
             writeln(f, " 	<SubSystem>Console</SubSystem>");
         }
     }
-    else if (project->type == ProjectType::StaticLibrary)
+    else if (project->type == ProjectType::StaticLibrary || project->type == ProjectType::HeaderLibrary || project->type == ProjectType::RttiGenerator)
     {
         writeln(f, " 	<ConfigurationType>StaticLibrary</ConfigurationType>");
     }
@@ -978,10 +978,16 @@ bool SolutionGeneratorVS::generateRTTIGenProjectFile(const SolutionProject* proj
     writeln(f,  "  <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>");
     writeln(f,  "  <ModuleType>Empty</ModuleType>");
     writeln(f,   " <SolutionType>SharedLibraries</SolutionType>");
+    writeln(f, " 	<ConfigurationType>StaticLibrary</ConfigurationType>");
     writelnf(f, "  <ProjectGuid>%s</ProjectGuid>", project->assignedVSGuid.c_str());
     writeln(f,  "  <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>");
-    writelnf(f, " 	<ProjectOutputPath>%s\\</ProjectOutputPath>", project->outputPath.u8string().c_str());
-    writelnf(f, " 	<ProjectPublishRootPath>%s\\</ProjectPublishRootPath>", m_config.derivedBinaryPathBase.u8string().c_str());
+    //writelnf(f, " 	<ProjectOutputPath>%s\\</ProjectOutputPath>", project->outputPath.u8string().c_str());
+    //writelnf(f, " 	<ProjectPublishRootPath>%s\\</ProjectPublishRootPath>", m_config.derivedBinaryPathBase.u8string().c_str());
+	writelnf(f, " 	<ProjectOutputPath>%s\\$(Configuration)\\</ProjectOutputPath>", project->outputPath.u8string().c_str());
+	writelnf(f, " 	<ProjectPublishPath>%s\\$(Configuration)\\</ProjectPublishPath>", m_config.derivedBinaryPathBase.u8string().c_str());
+	writelnf(f, " 	<ProjectGeneratedPath>%s\\</ProjectGeneratedPath>", project->generatedPath.u8string().c_str());
+	writelnf(f, " 	<ProjectSourceRoot>%s\\</ProjectSourceRoot>", project->rootPath.u8string().c_str());
+	writelnf(f, " 	<ProjectMediaRoot>%s\\</ProjectMediaRoot>", (project->rootPath / "media").u8string().c_str());
     writeln(f,  "</PropertyGroup>");
     writeln(f,  "  <PropertyGroup>");
     writeln(f,  "    <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>");
@@ -1003,8 +1009,12 @@ bool SolutionGeneratorVS::generateRTTIGenProjectFile(const SolutionProject* proj
     writeln(f, "    </PreBuildEvent>");
     writeln(f, "  </ItemDefinitionGroup>");
     writelnf(f, "<Import Project=\"%s\\SharedItemGroups.props\"/>", m_visualStudioScriptsPath.u8string().c_str());
-    writeln(f, "  <ItemGroup>");
-    writeln(f, "  </ItemGroup>");
+
+	writeln(f, "<ItemGroup>");
+	for (const auto* pf : project->files)
+		generateSourcesProjectFileEntry(project, pf, f);
+	writeln(f, "</ItemGroup>");
+
     writeln(f, "  <ItemGroup>");
     writeln(f, "  </ItemGroup>");
     writelnf(f, " <Import Project=\"%s\\Shared.targets\"/>", m_visualStudioScriptsPath.u8string().c_str());

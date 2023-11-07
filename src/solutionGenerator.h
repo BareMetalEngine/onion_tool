@@ -172,6 +172,7 @@ protected:
 	bool generateProjectGlueHeaderFile(const SolutionProject* project, std::stringstream& outContent);
     bool generateProjectBuildSourceFile(const SolutionProject* project, std::stringstream& outContent);
     bool generateProjectBuildHeaderFile(const SolutionProject* project, std::stringstream& outContent);
+	bool generateProjectModuleSourceFile(const SolutionProject* project, std::stringstream& outContent);
 	bool generateProjectAppMainSourceFile(const SolutionProject* project, std::stringstream& outContent);
 	bool generateProjectTestMainSourceFile(const SolutionProject* project, std::stringstream& outContent);
 

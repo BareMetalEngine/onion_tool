@@ -53,7 +53,8 @@ bool ProjectCollection::populateFromModules(const std::vector<const ModuleManife
 			// HACK!
 			if (proj->type == ProjectType::AutoLibrary)
 			{
-				bool makeShared = (config.linking == LinkingType::Shared);
+				bool supportsShared = (config.platform == PlatformType::Windows);
+				bool makeShared = (config.linking == LinkingType::Shared) && supportsShared;
 
 				// HACK! Third party libraries without the proper macro definition can't compile as shared libs
 				if (proj->optionThirdParty && proj->thirdPartySharedLocalBuildDefine.empty())

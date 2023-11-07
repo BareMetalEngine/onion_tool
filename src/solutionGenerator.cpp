@@ -361,6 +361,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
 			generatorProject->optionDetached = false;
 			generatorProject->optionExportApplicataion = false;
 			generatorProject->optionUseEmbeddedFiles = false;
+            generatorProject->optionUseReflection = false;
             generatorProject->assignedVSGuid = GuidFromText("_rtti_generator");
 
             // make sure all projects depend on the RTTI generator
@@ -467,11 +468,26 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
 {
     bool valid = true;
 
-    // Third party libraries don't generate code
-    if (project->optionThirdParty)
-        return true;
+    // HACK
+    if (project->name == "_rtti_generator" && m_config.platform == PlatformType::Prospero)// || (project->type == ProjectType::HeaderLibrary && m_config.platform == PlatformType::Prospero))
+    {
+		auto info = new SolutionProjectFile();
+        info->absolutePath = (project->generatedPath / "dummy.cpp").make_preferred();
+        info->name = "dummy.cpp";
+        info->filterPath = "_generated";
+		info->type = ProjectFileType::CppSource;
+        project->files.push_back(info);
 
-    // Header only project's don't generate code either
+		auto generatedFile = fileGenerator.createFile(info->absolutePath);
+        auto& f = generatedFile->content;
+        writelnf(f, "int dummy_%hs() { return 0; }", project->name.c_str());
+    }
+
+	// Third party libraries don't generate code
+	if (project->optionThirdParty)
+		return true;
+
+	// Header only project's don't generate code either
 	if (project->type == ProjectType::HeaderLibrary)
 		return true;
 
@@ -733,6 +749,22 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
 					valid = false;
                 }
             }
+
+			{
+				auto* info = new SolutionProjectFile;
+				info->absolutePath = project->generatedPath / "module.cpp";
+				info->type = ProjectFileType::CppSource;
+				info->filterPath = "_generated";
+				info->name = "module.cpp";
+				project->files.push_back(info);
+
+				auto generatedFile = fileGenerator.createFile(info->absolutePath);
+				if (!generateProjectModuleSourceFile(project, generatedFile->content))
+				{
+					LogError() << "Failed to generate build.cpp for project '" << project->name << "'";
+					valid = false;
+				}
+			}
         }
     }
 
@@ -1029,6 +1061,20 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
 {
     writeln(f, "/***");
     writeln(f, "* Precompiled Header");
+    writeln(f, "* Auto generated, do not modify");
+    writeln(f, "***/");
+    writeln(f, "");
+
+    writeln(f, "#include \"build.h\"");
+    writeln(f, "");
+
+    return true;
+}
+
+bool SolutionGenerator::generateProjectModuleSourceFile(const SolutionProject* project, std::stringstream& f)
+{
+    writeln(f, "/***");
+    writeln(f, "* Module definition file");
     writeln(f, "* Auto generated, do not modify");
     writeln(f, "***/");
     writeln(f, "");

@@ -38,6 +38,8 @@
 // Determines the platform on which Google Test is compiled.
 #ifdef __CYGWIN__
 #define GTEST_OS_CYGWIN 1
+#elif defined(__PROSPERO__)
+#define GTEST_OS_PROSPERO 1
 #elif defined(__MINGW__) || defined(__MINGW32__) || defined(__MINGW64__)
 #define GTEST_OS_WINDOWS_MINGW 1
 #define GTEST_OS_WINDOWS 1

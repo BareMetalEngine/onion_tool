@@ -100,6 +100,8 @@ FilePath FilePath::GetCurrentDir() {
   // These platforms do not have a current directory, so we just return
   // something reasonable.
   return FilePath(kCurrentDirectoryString);
+#elif GTEST_OS_PROSPERO
+    return FilePath("/app/");
 #elif GTEST_OS_WINDOWS
   char cwd[GTEST_PATH_MAX_ + 1] = {'\0'};
   return FilePath(_getcwd(cwd, sizeof(cwd)) == nullptr ? "" : cwd);

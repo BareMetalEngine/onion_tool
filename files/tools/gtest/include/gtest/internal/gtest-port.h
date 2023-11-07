@@ -390,6 +390,11 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #if GTEST_USES_PCRE
 // The appropriate headers have already been included.
 
+#elif defined(__PROSPERO__)
+
+// <regex.h> is not available
+#define GTEST_USES_SIMPLE_RE 1
+
 #elif GTEST_HAS_POSIX_RE
 
 // On some platforms, <regex.h> needs someone to define size_t, and
@@ -397,7 +402,6 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 // included <stdlib.h>, which is guaranteed to define size_t through
 // <stddef.h>.
 #include <regex.h>  // NOLINT
-
 #define GTEST_USES_POSIX_RE 1
 
 #elif GTEST_OS_WINDOWS
@@ -591,7 +595,7 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 // By default, we assume that stream redirection is supported on all
 // platforms except known mobile ones.
 #if GTEST_OS_WINDOWS_MOBILE || GTEST_OS_WINDOWS_PHONE || \
-    GTEST_OS_WINDOWS_RT || GTEST_OS_ESP8266 || GTEST_OS_XTENSA
+    GTEST_OS_WINDOWS_RT || GTEST_OS_ESP8266 || GTEST_OS_XTENSA || GTEST_OS_PROSPERO
 #define GTEST_HAS_STREAM_REDIRECTION 0
 #else
 #define GTEST_HAS_STREAM_REDIRECTION 1
@@ -625,7 +629,9 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
   (GTEST_OS_WINDOWS || GTEST_OS_CYGWIN || GTEST_OS_AIX || GTEST_OS_OS2)
 
 // Determines whether test results can be streamed to a socket.
-#if GTEST_OS_LINUX || GTEST_OS_GNU_KFREEBSD || GTEST_OS_DRAGONFLY || \
+#if defined(__PROSPERO__)
+#define GTEST_CAN_STREAM_RESULTS_ 0
+#elif GTEST_OS_LINUX || GTEST_OS_GNU_KFREEBSD || GTEST_OS_DRAGONFLY || \
     GTEST_OS_FREEBSD || GTEST_OS_NETBSD || GTEST_OS_OPENBSD ||       \
     GTEST_OS_GNU_HURD
 #define GTEST_CAN_STREAM_RESULTS_ 1
@@ -1992,6 +1998,20 @@ inline char* StrDup(const char* src) { return strdup(src); }
 inline int RmDir(const char* dir) { return rmdir(dir); }
 inline bool IsDir(const StatStruct& st) { return S_ISDIR(st.st_mode); }
 
+#elif defined(__PROSPERO__)
+
+typedef struct stat StatStruct;
+
+inline int FileNo(FILE* file) { return fileno(file); }
+inline int DoIsATTY(int fd) { return 0; }
+inline int Stat(const char* path, StatStruct* buf) { return stat(path, buf); }
+inline int StrCaseCmp(const char* s1, const char* s2) {
+	return strcasecmp(s1, s2);
+}
+inline char* StrDup(const char* src) { return strdup(src); }
+inline int RmDir(const char* dir) { return rmdir(dir); }
+inline bool IsDir(const StatStruct& st) { return S_ISDIR(st.st_mode); }
+
 #else
 
 typedef struct stat StatStruct;
@@ -2027,7 +2047,9 @@ GTEST_DISABLE_MSC_DEPRECATED_PUSH_()
 // StrError() aren't needed on Windows CE at this time and thus not
 // defined there.
 
-#if !GTEST_OS_WINDOWS_MOBILE && !GTEST_OS_WINDOWS_PHONE && \
+#if defined(__PROSPERO__)
+inline int ChDir(const char* dir) { return -1; }
+#elif !GTEST_OS_WINDOWS_MOBILE && !GTEST_OS_WINDOWS_PHONE && \
     !GTEST_OS_WINDOWS_RT && !GTEST_OS_ESP8266 && !GTEST_OS_XTENSA
 inline int ChDir(const char* dir) { return chdir(dir); }
 #endif
@@ -2070,6 +2092,8 @@ inline const char* GetEnv(const char* name) {
   // empty string rather than unset (NULL).  Handle that case.
   const char* const env = getenv(name);
   return (env != nullptr && env[0] != '\0') ? env : nullptr;
+#elif defined(__PROSPERO__)
+  return "";
 #else
   return getenv(name);
 #endif
