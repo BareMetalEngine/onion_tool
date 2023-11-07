@@ -181,7 +181,8 @@ static bool EvalThirdPartySourceFile(std::string_view text, const fs::path& modu
 			if (BeginsWith(name, "#"))
 				continue; // ignored
 
-			const auto filePath = (moduleDirectory / name).make_preferred();
+            const auto convertedName = ReplaceAll(name, "\\", "/");
+			const auto filePath = (moduleDirectory / convertedName).make_preferred();
 
 			if (!fs::is_regular_file(filePath))
 			{
@@ -448,7 +449,8 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
 
     for (const std::string& relativePath : ret->_temp_localIncludePaths)
     {
-		const fs::path globalIncludePath = fs::weakly_canonical((modulePath / relativePath).make_preferred());
+        const auto fixedRelativePath = ReplaceAll(relativePath, "\\", "/");
+		const fs::path globalIncludePath = fs::weakly_canonical((modulePath / fixedRelativePath).make_preferred());
 		LogInfo() << "Found project local include path " << globalIncludePath;
 
 		if (fs::is_directory(globalIncludePath))
@@ -464,7 +466,8 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
 
 	for (const std::string& relativePath : ret->_temp_exportedIncludePaths)
 	{
-		const fs::path globalIncludePath = fs::weakly_canonical((modulePath / relativePath).make_preferred());
+        const auto fixedRelativePath = ReplaceAll(relativePath, "\\", "/");
+		const fs::path globalIncludePath = fs::weakly_canonical((modulePath / fixedRelativePath).make_preferred());
 		LogInfo() << "Found project export include path " << globalIncludePath;
 
 		if (fs::is_directory(globalIncludePath))
