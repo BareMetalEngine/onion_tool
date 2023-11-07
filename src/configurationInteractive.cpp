@@ -176,9 +176,13 @@ bool RunInteractiveConfig(Configuration& cfg, const fs::path& configPath)
 
 bool OpenDefaultFileEditor(const fs::path& path)
 {
+#ifdef _WIN32
     auto txt = path.wstring();
     HINSTANCE hInstance = ShellExecuteW(NULL, L"OPEN", txt.c_str(), L"", L"", SW_SHOW);
     return hInstance != NULL;
+#else
+    return false;
+#endif
 }
 
 //--
