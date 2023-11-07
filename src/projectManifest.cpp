@@ -166,6 +166,7 @@ static bool EvalThirdPartySourceFile(std::string_view text, const fs::path& modu
 	std::vector<std::string_view> lines;
 	SplitString(text, "\n", lines);
 
+    bool valid = true;
 	for (const auto line : lines)
 	{
 		std::vector<std::string_view> fileNames;
@@ -187,14 +188,15 @@ static bool EvalThirdPartySourceFile(std::string_view text, const fs::path& modu
 			if (!fs::is_regular_file(filePath))
 			{
 				LogError() << "File " << filePath << " does not exist";
-				return false;
+                valid = false;
+                continue;
 			}
 
 			outFilePaths->push_back(filePath);
 		}
 	}
 
-	return true;
+	return valid;
 }
 
 static bool EvalAdvancedInstructionSet(std::string& ret, const XMLNode* node)
