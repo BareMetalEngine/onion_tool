@@ -12,7 +12,7 @@ struct ModuleConfigurationManifest;
 class ModuleRepository
 {
 public:
-	ModuleRepository();
+	ModuleRepository(const Configuration& config);
     ~ModuleRepository();
 
 	inline const std::vector<const ModuleManifest*>& modules() const { return (const std::vector<const ModuleManifest*>&) m_modules; }
@@ -22,6 +22,7 @@ public:
 
 private:
 	std::vector<ModuleManifest*> m_modules; // selected modules for compilation
+	const Configuration& m_config;
 };
 
 //--

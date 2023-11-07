@@ -13,6 +13,7 @@ enum class ProjectFileType : uint8_t
 	MediaFile,
 	TextFile,
 	NatVis,
+	NasmAssembly,
 	LocalStaticLibrary,
 };
 
@@ -47,7 +48,6 @@ struct ProjectFileInfo
 struct ProjectInfo
 {
 	std::string name; // bm/core/math
-	std::string groupName;
 	fs::path rootPath; // directory with "build.xml"
 	std::string globalNamespace;
 
@@ -60,6 +60,7 @@ struct ProjectInfo
 	std::vector<const ExternalLibraryManifest*> resolvedLibraryDependencies; // resolved dependencies on libraries
 
 	std::vector<ProjectFileInfo*> files; // discovered FINAL project files
+	std::unordered_set<fs::path> filesPaths;
 
 	//--
 

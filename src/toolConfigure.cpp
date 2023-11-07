@@ -18,8 +18,9 @@ ModuleResolver::ModuleInfo::~ModuleInfo()
 
 //--
 
-ModuleResolver::ModuleResolver(const fs::path& cachePath)
+ModuleResolver::ModuleResolver(const Configuration& config, const fs::path& cachePath)
 	: m_cachePath(cachePath)
+	, m_config(config)
 {
 }
 
@@ -231,7 +232,7 @@ bool ModuleResolver::processSingleModuleFile(const fs::path& moduleManifestPath,
 		return false;
 	}
 
-	auto* manifest = ModuleManifest::Load(moduleManifestPath, localFile ? "" : "External");
+	auto* manifest = ModuleManifest::Load(moduleManifestPath, localFile ? "" : "External", m_config);
 	if (!manifest)
 	{
 		LogError() << "File " << moduleManifestPath << " or one of the included files cannot be loaded";
@@ -719,7 +720,7 @@ int ToolConfigure::run(const Commandline& cmdline)
 	//--
 
 	// resolve all modules, download dependencies and libraries
-	ModuleResolver resolver(config.cachePath);
+	ModuleResolver resolver(config, config.cachePath);
 	if (!resolver.processModuleFile(config.moduleFilePath, true))
 	{
 		LogError() << "Configuration failed";

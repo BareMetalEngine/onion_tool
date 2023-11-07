@@ -31,9 +31,11 @@ struct ModuleLibrarySource
 struct ModuleManifest
 {
     std::string guid;
+    fs::path path;
 
     std::string globalNamespace;
     std::string globalSolutionName;
+    std::string localProjectGroup;
 
     std::vector<ProjectManifest*> projects; // local projects in the module
 
@@ -49,9 +51,12 @@ struct ModuleManifest
     ModuleManifest();
     ~ModuleManifest();
 
-    static ModuleManifest* Load(const fs::path& manifestPath, std::string_view projectGroup, bool topLevel = true);
+    static ModuleManifest* Load(const fs::path& manifestPath, std::string_view projectGroup, const Configuration& config, bool topLevel = true);
 
     //--  
+
+private:
+    static bool LoadKeySet(ModuleManifest* ret, const void* nodePtr, const Configuration& config, bool topLevel);
 };
 
 //--

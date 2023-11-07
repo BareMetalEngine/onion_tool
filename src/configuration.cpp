@@ -12,12 +12,12 @@ Configuration::Configuration()
     if (platform == PlatformType::Windows)
     {
         generator = GeneratorType::VisualStudio22;
-        libs = LibraryType::Shared;
+        linking = LinkingType::Shared;
     }
     else
     {
         generator = GeneratorType::CMake;
-		libs = LibraryType::Static;
+        linking = LinkingType::Static;
     }
 }
 
@@ -29,7 +29,7 @@ std::string Configuration::mergedName() const
     ret += ".";
     ret += NameEnumOption(generator);
     ret += ".";
-    ret += NameEnumOption(libs);
+    ret += NameEnumOption(linking);
 
     if (flagDevBuild)
         ret += ".dev";
@@ -61,7 +61,7 @@ bool Configuration::load(const fs::path& path)
 
 	bool valid = ParsePlatformType(parts[0], platform);
 	valid &= ParseGeneratorType(parts[1], generator);
-	valid &= ParseLibraryType(parts[2], libs);
+	valid &= ParseLinkingType(parts[2], linking);
 
     //if (parts.size() == 5 && parts[4] == "shipment")
       //  flagShipmentBuild = true;
@@ -98,15 +98,13 @@ bool Configuration::Parse(const Commandline& cmd, Configuration& cfg)
 
 bool Configuration::ParseOptions(const Commandline& cmd, Configuration& cfg)
 {
-    // -build=windows
-    // -build=windows.release
-    // -build=windows.release.static
-    // -build=windows.release.static.shipment
-    // -build=windows.release.static.shipment
+    // -config=windows[.nodev]
+    // -config=windows.static[.nodev]
+    // -config=windows.static.cmake[.nodev]
 
     bool hasGeneratorType = false;
 
-    const auto& buildString = cmd.get("build");
+    const auto& buildString = cmd.get("config");
     if (!buildString.empty())
     {
         std::vector<std::string_view> buildParts;
@@ -128,7 +126,7 @@ bool Configuration::ParseOptions(const Commandline& cmd, Configuration& cfg)
 
                 hasPlatform = true;
             }
-            else if (ParseLibraryType(part, cfg.libs))
+            else if (ParseLinkingType(part, cfg.linking))
             {
                 if (hasLibsType)
                 {

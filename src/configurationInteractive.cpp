@@ -112,8 +112,7 @@ static void PrintConfig(const Configuration& cfg)
 {
     LogInfo() << "  Platform  : " << NameEnumOption(cfg.platform);
     LogInfo() << "  Generator : " << NameEnumOption(cfg.generator);
-    LogInfo() << "  Libraries : " << NameEnumOption(cfg.libs);
-    //LogInfo() << "  Config    : " << NameEnumOption(cfg.configuration);
+    LogInfo() << "  Linking   : " << NameEnumOption(cfg.linking);
 }
 
 bool RunInteractiveConfig(Configuration& cfg, const fs::path& configPath)
@@ -151,7 +150,7 @@ bool RunInteractiveConfig(Configuration& cfg, const fs::path& configPath)
     }
     else if (cfg.platform == PlatformType::Prospero || cfg.platform == PlatformType::Scarlett)
     {
-        cfg.generator = GeneratorType::VisualStudio19;
+        cfg.generator = GeneratorType::VisualStudio22;
     }
     else
     {
@@ -159,12 +158,8 @@ bool RunInteractiveConfig(Configuration& cfg, const fs::path& configPath)
     }
 
     ClearConsole();
-    if (!ConfigEnum(cfg.libs, "Select libraries type:"))
+    if (!ConfigEnum(cfg.linking, "Select libraries type:"))
         return false;
-
-    //ClearConsole();
-    //if (!ConfigEnum(cfg.configuration, "Select configuration type:"))
-      //  return false;
 
     ClearConsole();
 
@@ -175,6 +170,15 @@ bool RunInteractiveConfig(Configuration& cfg, const fs::path& configPath)
     PrintConfig(cfg);
 
     return true;
+}
+
+//--
+
+bool OpenDefaultFileEditor(const fs::path& path)
+{
+    auto txt = path.wstring();
+    HINSTANCE hInstance = ShellExecuteW(NULL, L"OPEN", txt.c_str(), L"", L"", SW_SHOW);
+    return hInstance != NULL;
 }
 
 //--

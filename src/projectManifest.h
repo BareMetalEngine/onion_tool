@@ -10,6 +10,7 @@ enum class ProjectType : uint8_t
     StaticLibrary, // statically linked library
     SharedLibrary, // dynamically linked library
     AutoLibrary, // automatic library
+    HeaderLibrary, // library that has only headers, does not produce any likable content
     RttiGenerator, // hack project to generate RTTI
 };
 
@@ -45,8 +46,10 @@ struct ProjectManifest
 {
     std::string name;
 	std::string guid; // project GUID - generated based on project name or manually assigned
-    std::string groupName; // name of the group we should place the project at
+    std::string solutionGroupName; // name of the top-level group we should place the project at
+    std::string localGroupName; // name of the sub-group in the top level group we should be at
 
+    fs::path loadPath; // path this manifest was loaded from
     fs::path rootPath; // full project's directory
 
     ProjectType type = ProjectType::Disabled; // type of the project
@@ -67,9 +70,12 @@ struct ProjectManifest
     bool optionSelfTest = false; // project is a self-test project (without gtest)
     bool optionHasPreMain = false; // project has additional pre_main than can override default behavior
     bool optionLegacy = false; // legacy project without the src/include structure
+    bool optionThirdParty = false; // third party library
+    bool optionFrozen = false; // project is frozen - a precompiled dll/lib is used instead of compiling it but appears as if it's there
     bool optionEngineOnly = false; // project is "engine only" - included only when building raw engine (not the game)
 	bool optionHasInit = false; // project has the initialization function called after reflection was established
 	bool optionHasPreInit = false; // project has the initialization function called before reflection was established
+    std::string optionAdvancedInstructionSet;
 
     std::vector<std::string> dependencies; // dependencies on another projects
     std::vector<std::string> optionalDependencies; // soft dependencies on another projects (we may continue if projects is NOT available)
@@ -78,8 +84,18 @@ struct ProjectManifest
     std::vector<fs::path> localIncludePaths; // additional include path just for the project
     std::vector<std::string> legacySourceDirectories; // directories with the source code (legacy only)
 
+    std::vector<fs::path> exportedIncludePaths; // additional include path just for the project
+
     std::vector<std::pair<std::string, std::string>> localDefines; // local defines to add when compiling this project alone
     std::vector<std::pair<std::string, std::string>> globalDefines; // global defines to add for the whole solution (usually stuff like HAS_EDITOR, HAS_PHYSX4, etc)
+
+	std::vector<fs::path> frozenDeployFiles; // files to deploy to the binary directory for this project
+	std::vector<fs::path> frozenLibraryFiles; // files to link with for this project
+
+	//std::vector<fs::path> thirdPartyIncludeDirectories; // additional include path just for the project
+	std::vector<fs::path> thirdPartySourceFiles; // source files to compile (manual list)
+    std::string thirdPartySharedLocalBuildDefine; // defined globally when building third party lib as DLL
+    std::string thirdPartySharedGlobalExportDefine; // defined globally when third party is going to be built as DLL
 
     std::string appClassName; // for automatically generated main with application interfaces - this is the app class name
     std::string appHeaderName; // for automatically generated main with application interfaces - this is the app header file 
@@ -89,9 +105,14 @@ struct ProjectManifest
 
     // load project manifest, NOTE: loading is configuration dependent due to conditions
     //static ProjectManifest* Load(const fs::path& path, const Configuration& config);
-    static ProjectManifest* Load(const void* node, const fs::path& modulePath);
+    static ProjectManifest* Load(const void* node, const fs::path& modulePath, const Configuration& config);
 
-    //--
+private:
+    static bool LoadKey(const void* node, const fs::path& modulePath, ProjectManifest* ret);
+    static bool LoadKeySet(const void* node, const fs::path& modulePath, ProjectManifest* ret, const Configuration& config);
+
+    std::vector<std::string> _temp_localIncludePaths;
+    std::vector<std::string> _temp_exportedIncludePaths;
 };
 
 //--

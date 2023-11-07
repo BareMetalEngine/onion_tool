@@ -8,7 +8,7 @@ struct Configuration
 {
 	PlatformType platform; // target platform (windows, linux, etc)
 	GeneratorType generator; // code generator (cmake, vs2022, etc)
-    LibraryType libs;
+    LinkingType linking;
 
     fs::path executablePath; // path to onion.exe
 

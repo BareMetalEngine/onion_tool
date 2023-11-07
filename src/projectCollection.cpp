@@ -48,13 +48,18 @@ bool ProjectCollection::populateFromModules(const std::vector<const ModuleManife
 			info->manifest = proj;
 			info->rootPath = proj->rootPath;
 			info->name = proj->name;
-			info->groupName = proj->groupName;
 			info->globalNamespace = mod->globalNamespace;
 
 			// HACK!
 			if (proj->type == ProjectType::AutoLibrary)
 			{
-				if (config.libs == LibraryType::Shared)
+				bool makeShared = (config.linking == LinkingType::Shared);
+
+				// HACK! Third party libraries without the proper macro definition can't compile as shared libs
+				if (proj->optionThirdParty && proj->thirdPartySharedLocalBuildDefine.empty())
+					makeShared = false;
+
+				if (makeShared)
 					const_cast<ProjectManifest*>(proj)->type = ProjectType::SharedLibrary;
 				else
 					const_cast<ProjectManifest*>(proj)->type = ProjectType::StaticLibrary;
@@ -127,6 +132,11 @@ bool ProjectCollection::resolveDependency(const std::string_view name, std::vect
 		{
 			if (proj->manifest->type == ProjectType::SharedLibrary || proj->manifest->type == ProjectType::StaticLibrary)
 			{
+				PushBackUnique(outProjects, proj);
+			}
+			else if (proj->manifest->type == ProjectType::HeaderLibrary)
+			{
+				// allowed
 				PushBackUnique(outProjects, proj);
 			}
 			else

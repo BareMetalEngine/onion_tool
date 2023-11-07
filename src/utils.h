@@ -172,6 +172,8 @@ extern bool RunWithArgsAndCaptureOutputIntoLines(std::string_view cmd, std::vect
 
 extern bool CheckVersion(std::string_view app, std::string_view prefix, std::string_view postfix, std::string_view minVersion);
 
+extern bool OpenDefaultFileEditor(const fs::path& path);
+
 //--
 
 extern bool EndsWith(std::string_view txt, std::string_view end);
@@ -243,12 +245,12 @@ extern LogPrinter LogSuccess();
 //--
 
 extern std::string_view NameEnumOption(ConfigurationType type);
-extern std::string_view NameEnumOption(LibraryType type);
+extern std::string_view NameEnumOption(LinkingType type);
 extern std::string_view NameEnumOption(PlatformType type);
 extern std::string_view NameEnumOption(GeneratorType type);
 
 //extern bool ParseConfigurationType(std::string_view txt, ConfigurationType& outType);
-extern bool ParseLibraryType(std::string_view txt, LibraryType& outType);
+extern bool ParseLinkingType(std::string_view txt, LinkingType& outType);
 extern bool ParsePlatformType(std::string_view txt, PlatformType& outType);
 extern bool ParseGeneratorType(std::string_view txt, GeneratorType& outType);
 
@@ -256,6 +258,7 @@ extern PlatformType DefaultPlatform();
 extern std::string_view DefaultPlatformStr();
 
 extern bool MatchesPlatform(PlatformType platform, std::string_view view);
+extern bool MatchesLinking(LinkingType type, std::string_view view);
 
 template< typename T >
 struct PrintEnumOptions

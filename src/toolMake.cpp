@@ -67,7 +67,7 @@ int ToolMake::run(const Commandline& cmdline)
 
     const bool verifyVersions = !cmdline.has("noverify");
 
-    ModuleRepository modules;
+    ModuleRepository modules(config);
     if (!modules.installConfiguredModules(*moduleConfig, verifyVersions))
     {
         LogError() << "Failed to verify configured module at \"" << config.moduleFilePath << "\"";
@@ -110,16 +110,35 @@ int ToolMake::run(const Commandline& cmdline)
 		return 1;
 	}
 
-    for (const auto& configType : CONFIGURATIONS)
     {
-        const auto configurationName = NameEnumOption(configType);
-        const auto binaryFolder = (config.derivedBinaryPathBase / ToLower(configurationName)).make_preferred();
+        bool valid = true;
+        for (const auto& configType : CONFIGURATIONS)
+        {
+            const auto configurationName = NameEnumOption(configType);
+            const auto binaryFolder = (config.derivedBinaryPathBase / ToLower(configurationName)).make_preferred();
 
-		if (!libraries.deployFiles(configType, binaryFolder))
-		{
-			LogError() << "Failed to deploy library files";
-			return 1;
-		}
+            if (!libraries.deployFiles(configType, binaryFolder))
+            {
+                valid = false;
+                LogError() << "Failed to deploy library files";
+            }
+
+            for (auto project : structure.projects())
+            {
+                if (project->manifest->optionFrozen)
+                {
+                    for (const auto& absoluteSourcePath : project->manifest->frozenDeployFiles)
+                    {
+                        const auto relativeDeployPath = absoluteSourcePath.filename();
+                        const auto finalTargetPath = (binaryFolder / relativeDeployPath).make_preferred();
+                        valid &= CopyNewerFile(absoluteSourcePath, finalTargetPath);
+                    }
+                }
+            }
+        }
+
+        if (!valid)
+            return 1;
     }
 
     //--
@@ -173,7 +192,8 @@ int ToolMake::run(const Commandline& cmdline)
 		return 1;
     }
 
-	if (!codeGenerator->generateSolution(files))
+    fs::path solutionPath;
+	if (!codeGenerator->generateSolution(files, &solutionPath))
 	{
 		LogError() << "Failed to generate solution";
 		return 1;
@@ -195,7 +215,13 @@ int ToolMake::run(const Commandline& cmdline)
 
     //--
 
-    LogSuccess() << "Solution file generated";
+	LogInfo() << "-------------------------------------------------------------------------------------------\n";
+	LogInfo() << "-- SOLUTION FILE: " << solutionPath << "\n";
+	LogInfo() << "-------------------------------------------------------------------------------------------\n";
+
+    if (cmdline.has("open"))
+        OpenDefaultFileEditor(solutionPath);
+
     return 0;
 }
 

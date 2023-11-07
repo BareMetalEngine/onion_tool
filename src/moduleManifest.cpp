@@ -4,6 +4,7 @@
 #include "projectManifest.h"
 #include "xml/rapidxml.hpp"
 #include "xmlUtils.h"
+#include "configuration.h"
 
 //--
 
@@ -97,9 +98,15 @@ static bool IsValidProjectTag(std::string_view tag)
 		return true;
 	else if (tag == "SharedLibrary")
 		return true;
+	else if (tag == "HeaderLibrary")
+		return true;
+	else if (tag == "FrozenLibrary")
+		return true;
 	else if (tag == "DetachedSharedLibrary")
 		return true;
 	else if (tag == "Application")
+		return true;
+	else if (tag == "ThirdPartyLibrary")
 		return true;
 	else if (tag == "TestApplication")
 		return true;
@@ -108,45 +115,20 @@ static bool IsValidProjectTag(std::string_view tag)
 	return false;
 }
 
-ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_view projectGroup, bool topLevel)
+extern bool EvalPlatformFilters(const XMLNode* node, PlatformType platform);
+extern bool EvalLinkFilters(const XMLNode* node, LinkingType linking);
+
+bool ModuleManifest::LoadKeySet(ModuleManifest* ret, const void* nodePtr, const Configuration& config, bool topLevel)
 {
-	std::string txt;
-	if (!LoadFileToString(manifestPath, txt))
-		return nullptr;
-
-	XMLDoc doc;
-	try
-	{
-		doc.parse<0>((char*)txt.c_str());
-	}
-	catch (std::exception& e)
-	{
-		LogError() << "Error parsing XML '" << manifestPath << "': " << e.what();
-		return nullptr;
-	}
-
-	const auto* root = doc.first_node("Module");
-	if (!root)
-	{
-		LogError() << "Manifest XML at '" << manifestPath << "' is not a module manifest";
-		return nullptr;
-	}
-
-	auto ret = std::make_unique<ModuleManifest>();
-	ret->guid = GuidFromText(manifestPath.u8string());
+	XMLNode* root = (XMLNode*)nodePtr;
 
 	bool valid = true;
 	bool recursiveError = false;
 
-	// TODO: author string
-	// TODO: license string
-
-	std::string localProjectGroup = std::string(projectGroup);
-
 	XMLNodeIterate(root, [&](const XMLNode* node, std::string_view name)
 		{
 			// TODO: evaluate condition
-			
+
 			// Include directive
 			if (name == "Include")
 			{
@@ -158,12 +140,12 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 				}
 				else
 				{
-					const fs::path includeManifestPath = fs::weakly_canonical((manifestPath.parent_path() / relativePath).make_preferred());
+					const fs::path includeManifestPath = fs::weakly_canonical((ret->path.parent_path() / relativePath).make_preferred());
 					//LogInfo() << "Including module manifest at " << includeManifestPath;
 
 					if (fs::is_regular_file(includeManifestPath))
 					{
-						if (auto* included = ModuleManifest::Load(includeManifestPath, localProjectGroup, false))
+						if (auto* included = ModuleManifest::Load(includeManifestPath, ret->localProjectGroup, config, false))
 						{
 							ret->moduleData.insert(ret->moduleData.end(), included->moduleData.begin(), included->moduleData.end());
 							ret->moduleDependencies.insert(ret->moduleDependencies.end(), included->moduleDependencies.begin(), included->moduleDependencies.end());
@@ -186,6 +168,24 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 				}
 			}
 
+			// Filter by platform
+			else if (name == "FilterPlatform")
+			{
+				if (EvalPlatformFilters(node, config.platform))
+				{
+					valid &= LoadKeySet(ret, node, config, topLevel);
+				}
+			}
+
+			// Filter by lib type
+			else if (name == "FilterLinking")
+			{
+				if (EvalLinkFilters(node, config.linking))
+				{
+					valid &= LoadKeySet(ret, node, config, topLevel);
+				}
+			}
+
 			// Dependency on external module
 			else if (name == "ModuleDependency")
 			{
@@ -196,7 +196,7 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 				}
 				else
 				{
-					LogError() << "Module manifest XML at '" << manifestPath << "' has invalid dependency definition";
+					LogError() << "Module manifest XML at '" << ret->path << "' has invalid dependency definition";
 					valid = false;
 				}
 			}
@@ -205,13 +205,13 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 			else if (name == "Data")
 			{
 				ModuleDataInfo data;
-				if (ParseData(node, manifestPath.parent_path(), data))
+				if (ParseData(node, ret->path.parent_path(), data))
 				{
 					ret->moduleData.push_back(data);
 				}
 				else
 				{
-					LogError() << "Module manifest XML at '" << manifestPath << "' has invalid data definition";
+					LogError() << "Module manifest XML at '" << ret->path << "' has invalid data definition";
 					valid = false;
 				}
 			}
@@ -219,7 +219,7 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 			// Solution project group
 			else if (name == "ProjectGroupName")
 			{
-				localProjectGroup = std::string(XMLNodeValue(node));
+				ret->localProjectGroup = std::string(XMLNodeValue(node));
 			}
 
 			// Online (AWS) library endpoint
@@ -242,7 +242,7 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 				}
 				else
 				{
-					const fs::path path = fs::weakly_canonical((manifestPath.parent_path() / relativePath).make_preferred());
+					const fs::path path = fs::weakly_canonical((ret->path.parent_path() / relativePath).make_preferred());
 					if (fs::is_directory(path))
 					{
 						ModuleLibrarySource source;
@@ -269,7 +269,7 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 				}
 				else
 				{
-					const fs::path path = fs::weakly_canonical((manifestPath.parent_path() / relativePath).make_preferred());
+					const fs::path path = fs::weakly_canonical((ret->path.parent_path() / relativePath).make_preferred());
 					if (fs::is_directory(path))
 					{
 						ModuleLibrarySource source;
@@ -284,7 +284,7 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 					}
 				}
 			}
-			
+
 			// Global include directory
 			else if (name == "GlobalIncludePath")
 			{
@@ -296,7 +296,7 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 				}
 				else
 				{
-					const fs::path globalIncludePath = fs::weakly_canonical((manifestPath.parent_path() / relativePath).make_preferred());
+					const fs::path globalIncludePath = fs::weakly_canonical((ret->path.parent_path() / relativePath).make_preferred());
 					LogInfo() << "Found global include path " << globalIncludePath;
 
 					if (fs::is_directory(globalIncludePath))
@@ -326,14 +326,14 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 			// Project template
 			else if (IsValidProjectTag(name))
 			{
-				if (auto project = ProjectManifest::Load(node, manifestPath.parent_path()))
+				if (auto project = ProjectManifest::Load(node, ret->path.parent_path(), config))
 				{
-					project->groupName = localProjectGroup;
+					project->solutionGroupName = ret->localProjectGroup;
 					ret->projects.push_back(project);
 				}
 				else
 				{
-					LogError() << "Module manifest XML at '" << manifestPath << "' has invalid project definition";
+					LogError() << "Module manifest XML at '" << ret->path << "' has invalid project definition";
 					valid = false;
 				}
 			}
@@ -341,7 +341,7 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 			// Unknown tag
 			else
 			{
-				LogError() << "Module manifest XML at '" << manifestPath << "' has invalid tag '" << name << "'";
+				LogError() << "Module manifest XML at '" << ret->path << "' has invalid tag '" << name << "'";
 				valid = false;
 			}
 		});
@@ -349,9 +349,45 @@ ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_v
 	if (!valid)
 	{
 		if (!recursiveError)
-			LogError() << "Module manifest XML at '" << manifestPath << "' is invalid and could not be loaded";
+			LogError() << "Module manifest XML at '" << ret->path << "' is invalid and could not be loaded";
+		return false;
+	}
+
+	return valid;
+}
+
+ModuleManifest* ModuleManifest::Load(const fs::path& manifestPath, std::string_view projectGroup, const Configuration& config, bool topLevel)
+{
+	std::string txt;
+	if (!LoadFileToString(manifestPath, txt))
+		return nullptr;
+
+	XMLDoc doc;
+	try
+	{
+		doc.parse<0>((char*)txt.c_str());
+	}
+	catch (std::exception& e)
+	{
+		LogError() << "Error parsing XML '" << manifestPath << "': " << e.what();
 		return nullptr;
 	}
+
+	const auto* root = doc.first_node("Module");
+	if (!root)
+	{
+		LogError() << "Manifest XML at '" << manifestPath << "' is not a module manifest";
+		return nullptr;
+	}
+
+	auto ret = std::make_unique<ModuleManifest>();
+	ret->path = manifestPath;
+	ret->guid = GuidFromText(manifestPath.u8string());
+	ret->localProjectGroup = projectGroup;
+
+	if (!LoadKeySet(ret.get(), root, config, topLevel))
+		return nullptr;
+
 
 	if (topLevel)
 	{

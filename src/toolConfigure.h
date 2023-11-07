@@ -3,6 +3,7 @@
 //--
 
 class FileGenerator;
+struct Configuration;
 struct GeneratedFile;
 struct ModuleConfigurationManifest;
 struct ModuleDepdencencyInfo;
@@ -20,7 +21,7 @@ struct ModuleReferencedLibrary
 class ModuleResolver
 {
 public:
-    ModuleResolver(const fs::path& cachePath);
+    ModuleResolver(const Configuration& config, const fs::path& cachePath);
     ~ModuleResolver();
 
     inline const std::vector<fs::path>& globalIncludePaths() const { return m_globalIncludePaths; }
@@ -61,6 +62,8 @@ private:
         std::string repository;
         fs::path localPath;
     };
+
+    const Configuration& m_config;
 
     fs::path m_cachePath;
 

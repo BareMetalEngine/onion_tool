@@ -113,7 +113,12 @@ static bool BuildConfigurationVS(const Configuration& cfg, const Commandline& cm
 	// compile the solution
 	std::stringstream args;
 	args << EscapeArgument(msBuildPath.u8string());
-	args << "/p:Platform=x64 ";
+	if (cfg.platform == PlatformType::Windows)
+		args << "/p:Platform=x64 ";
+	else if (cfg.platform == PlatformType::Prospero)
+		args << "/p:Platform=Prospero ";
+	else if (cfg.platform == PlatformType::Scarlett)
+		args << "/p:Platform=Scarlett ";
 	args << "/p:Configuration=" << config << " ";
 	args << EscapeArgument(solutionFilePath.u8string());
 	const auto cmd = args.str();

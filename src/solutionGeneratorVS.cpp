@@ -113,7 +113,7 @@ static const char* NameVisualStudioPlatform(PlatformType config)
     return "x64";
 }
 
-bool SolutionGeneratorVS::generateSolution(FileGenerator& gen)
+bool SolutionGeneratorVS::generateSolution(FileGenerator& gen, fs::path* outSolutionPath)
 {
     const auto solutionCoreName = ToLower(m_rootGroup->name);
     const auto solutionFileName = solutionCoreName + "." + m_config.mergedName() + ".sln";
@@ -121,9 +121,8 @@ bool SolutionGeneratorVS::generateSolution(FileGenerator& gen)
     auto* file = gen.createFile(m_config.derivedSolutionPathBase / solutionFileName);
     auto& f = file->content;
 
-    LogInfo() << "-------------------------------------------------------------------------------------------\n";
-    LogInfo() << "-- SOLUTION FILE: " << file->absolutePath << "\n";
-    LogInfo() << "-------------------------------------------------------------------------------------------\n";
+    if (outSolutionPath)
+        *outSolutionPath = (m_config.derivedSolutionPathBase / solutionFileName).make_preferred();
 
     writeln(f, "Microsoft Visual Studio Solution File, Format Version 12.00");
     /*if (toolset.equals("v140")) {
@@ -204,7 +203,7 @@ bool SolutionGeneratorVS::generateProjects(FileGenerator& gen)
 
     for (const auto* p : m_projects)
     {
-        if (p->type == ProjectType::SharedLibrary || p->type == ProjectType::StaticLibrary || p->type == ProjectType::Application || p->type == ProjectType::TestApplication)
+        if (p->type == ProjectType::SharedLibrary || p->type == ProjectType::StaticLibrary || p->type == ProjectType::Application || p->type == ProjectType::TestApplication || p->type == ProjectType::HeaderLibrary)
         {
             {
                 auto projectFilePath = p->projectPath / p->name;
@@ -265,6 +264,10 @@ void SolutionGeneratorVS::extractSourceRoots(const SolutionProject* project, std
     for (const auto& sourceRoot : m_sourceRoots)
         outPaths.push_back(sourceRoot);
 
+	for (const auto* dep : project->allDependencies)
+		for (const auto& path : dep->exportedIncludePaths)
+			outPaths.push_back(path);
+
     // TODO: remove
     if (!project->rootPath.empty())
     {
@@ -272,6 +275,10 @@ void SolutionGeneratorVS::extractSourceRoots(const SolutionProject* project, std
         {
             outPaths.push_back(project->rootPath);
         }
+		else if (project->optionThirdParty)
+		{
+			outPaths.push_back(project->rootPath);
+		}
         else
         {
             outPaths.push_back(project->rootPath / "src");
@@ -312,6 +319,19 @@ static void CollectDefineStrings(std::vector<std::pair<std::string, std::string>
         CollectDefineString(ar, def.first, def.second);
 }
 
+static void CollectDefineStringsFromSimpleList(std::vector<std::pair<std::string, std::string>>& ar, std::string_view txt)
+{
+	std::vector<std::string_view> macros;
+	SplitString(txt, ";", macros);
+
+	for (auto part : macros)
+	{
+		part = Trim(part);
+		if (!part.empty())
+			ar.emplace_back(part, "1");
+	}
+}
+
 bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* project, std::stringstream& f) const
 {
     writeln(f, "<?xml version=\"1.0\" encoding=\"utf-8\"?>");
@@ -350,6 +370,7 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
         std::vector<fs::path> sourceRoots;
         extractSourceRoots(project, sourceRoots);
         std::sort(sourceRoots.begin(), sourceRoots.end());
+        sourceRoots.erase(std::unique(sourceRoots.begin(), sourceRoots.end()), sourceRoots.end());
 
         for (auto& root : sourceRoots)
             f << root.make_preferred().u8string() << "\\;";
@@ -402,7 +423,9 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
         writeln(f, "    <ProjectGenerateReflection>yes</ProjectGenerateReflection>");
     }
 
-	if (project->optionWarningLevel == 0)
+    if (project->optionThirdParty || project->optionThirdParty)
+        writeln(f, "    <ProjectWarningLevel>TurnOffAllWarnings</ProjectWarningLevel> ");
+	else if (project->optionWarningLevel == 0)
 		writeln(f, "    <ProjectWarningLevel>TurnOffAllWarnings</ProjectWarningLevel> ");
     else if (project->optionWarningLevel == 1)
         writeln(f, "    <ProjectWarningLevel>Level1</ProjectWarningLevel> ");
@@ -435,17 +458,13 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
         writeln(f, " 	<ConfigurationType>DynamicLibrary</ConfigurationType>");
     }
 
+    if (!project->optionAdvancedInstructionSet.empty())
+        writelnf(f, "    <ProjectEnhancedInstructionSet>%hs</ProjectEnhancedInstructionSet> ", project->optionAdvancedInstructionSet.c_str());
+
     f << " 	<ProjectPreprocessorDefines>$(ProjectPreprocessorDefines);";
 
     if (project->type == ProjectType::SharedLibrary)
-		f << ToUpper(project->name) << "_EXPORTS;";
-
-    /*if (m_config.libs == LibraryType::Shared)
-    {
-
-        if (project->type == ProjectType::SharedLibrary)
-            f << ToUpper(project->name) << "_DLL;";        
-    }*/
+		f << ToUpper(project->name) << "_EXPORTS;";    
 
     f << "PROJECT_NAME=" << project->name << ";";
 
@@ -465,7 +484,7 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
         if (dep->type == ProjectType::SharedLibrary)
             f << ToUpper(dep->name) << "_DLL;";
 
-    if (m_config.libs == LibraryType::Static || project->type == ProjectType::StaticLibrary)
+    if (m_config.linking == LinkingType::Static || project->type == ProjectType::StaticLibrary)
         f << "BUILD_AS_LIBS;";
 
     if (project->type == ProjectType::SharedLibrary)
@@ -485,7 +504,25 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
 
         for (const auto* dep : project->allDependencies)
             CollectDefineStrings(defs, dep->globalDefines);
+		CollectDefineStrings(defs, project->globalDefines);
         CollectDefineStrings(defs, project->localDefines);
+
+        for (const auto* dep : project->allDependencies)
+        {
+            if (project->type == ProjectType::StaticLibrary && dep->type == ProjectType::SharedLibrary)
+            {
+                LogWarning() << "Static library '" << project->name << " is using a shared library (DLL) '" << dep->name << "' this is not allowed and may not work!";
+            }
+
+            if (dep->optionThirdParty && dep->type == ProjectType::SharedLibrary)
+                CollectDefineStringsFromSimpleList(defs, dep->thirdPartySharedGlobalExportDefine);
+        }
+
+        if (project->type == ProjectType::SharedLibrary)
+        {
+            CollectDefineStringsFromSimpleList(defs, project->thirdPartySharedGlobalExportDefine);
+            CollectDefineStringsFromSimpleList(defs, project->thirdPartySharedLocalBuildDefine);
+        }
 
         for (const auto& def : defs)
         {
@@ -517,13 +554,18 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
     writeln(f, "</ItemGroup>");
 
     writeln(f, "<ItemGroup>");
-    if (m_config.libs == LibraryType::Static)
+    if (m_config.linking == LinkingType::Static)
     {
         // in lib mode only the application reports dependencies - this way ALL projects can be compiled at the same time
         if (project->type == ProjectType::Application || project->type == ProjectType::TestApplication)
         {
             for (const auto* dep : project->allDependencies)
             {
+				if (dep->type == ProjectType::HeaderLibrary) // headers libraries don't produce any artifacts
+					continue;
+				if (dep->optionFrozen) // frozen libraries are already built and also don't have any automatic artifacts and the frozen artifacts are linked manually
+					continue;
+
                 auto projectFilePath = dep->projectPath / dep->name;
                 projectFilePath += ".vcxproj";
 
@@ -535,11 +577,16 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
             }
         }
     }
-    else if (m_config.libs == LibraryType::Shared)
+    else if (m_config.linking == LinkingType::Shared)
     {
         // in DLL mode we reference DIRECT dependencies only
         for (const auto* dep : project->directDependencies)
         {
+			if (dep->type == ProjectType::HeaderLibrary) // headers libraries don't produce any artifacts
+				continue;
+			if (dep->optionFrozen) // frozen libraries are already built and also don't have any automatic artifacts and the frozen artifacts are linked manually
+				continue;
+
             auto projectFilePath = dep->projectPath / dep->name;
             projectFilePath += ".vcxproj";
 
@@ -685,6 +732,12 @@ bool SolutionGeneratorVS::generateSourcesProjectFileEntry(const SolutionProject*
             break;
         }
 
+		case ProjectFileType::NasmAssembly:
+		{
+			writelnf(f, "   <Nasm Include=\"%s\" />", file->absolutePath.u8string().c_str());
+			break;
+		}
+
         case ProjectFileType::WindowsResources:
         {
             writelnf(f, "   <ResourceCompile Include=\"%s\"/>", file->absolutePath.u8string().c_str());
@@ -772,6 +825,9 @@ bool SolutionGeneratorVS::generateSourcesProjectFilters(const SolutionProject* p
                     break;
 				case ProjectFileType::Bison:
 					filterType = m_config.flagStaticBuild ? "None" : "BisonScripts";
+					break;
+				case ProjectFileType::NasmAssembly:
+					filterType = "Nasm";
 					break;
                 case ProjectFileType::MediaFile:
                     filterType = m_config.flagStaticBuild ? "None" : "MediaFile";

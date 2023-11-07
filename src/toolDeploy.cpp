@@ -272,7 +272,7 @@ int ToolDeploy::run(const Commandline& cmdline)
 
     const bool verifyVersions = !cmdline.has("noverify");
 
-    ModuleRepository modules;
+    ModuleRepository modules(config);
     if (!modules.installConfiguredModules(*moduleConfig, verifyVersions))
     {
         LogError() << "Failed to verify configured module at \"" << config.moduleFilePath << "\"";

@@ -7,7 +7,8 @@
 
 //--
 
-ModuleRepository::ModuleRepository()
+ModuleRepository::ModuleRepository(const Configuration& config)
+	: m_config(config)
 {}
 
 ModuleRepository::~ModuleRepository()
@@ -19,7 +20,7 @@ ModuleRepository::~ModuleRepository()
 bool ModuleRepository::installConfiguredModule(const fs::path& absoluteModuleFilePath, std::string_view hash, bool local, bool verifyVersions)
 {
 	// load the manifest
-	auto* manifest = ModuleManifest::Load(absoluteModuleFilePath, local ? "" : "External");
+	auto* manifest = ModuleManifest::Load(absoluteModuleFilePath, local ? "" : "External", m_config, true);
 	if (!manifest)
 	{
 		LogError() << "Failed to load module manifest from " << absoluteModuleFilePath;

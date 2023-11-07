@@ -166,7 +166,7 @@ int ToolTest::run(const Commandline& cmdline)
 		return 1;
 	}
 
-	ModuleRepository modules;
+	ModuleRepository modules(config);
 	if (!modules.installConfiguredModules(*moduleConfig, false))
 	{
 		LogError() << "Failed to verify configured module at \"" << moduleConfigPath << "\"";

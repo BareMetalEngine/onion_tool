@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <set>
 #include <unordered_map>
 #include <unordered_set>
 #include <iostream>
@@ -50,7 +51,7 @@ static const inline ConfigurationType CONFIGURATIONS[] = {
     ConfigurationType::Final,
 };
 
-enum class LibraryType : uint8_t {
+enum class LinkingType : uint8_t {
     Shared, // dlls
     Static, // static libs
 

@@ -62,14 +62,18 @@ struct SolutionProject
 	bool optionGenerateMain = false;
 	bool optionUsePreMain = false;
 	bool optionLegacy = false;
+	bool optionThirdParty = false;
 	bool optionHasInit = false;
 	bool optionHasPreInit = false;
 	bool optionUseGtest = false;
+	bool optionFrozen = false;
 	int optionWarningLevel = 4;
+	std::string optionAdvancedInstructionSet;
 
     SolutionGroup* group = nullptr;
 
 	std::string name; // final project name 
+	std::string localGroupName; // name of the project group
 	std::string globalNamespace; // global namespace in the project
 
 	fs::path rootPath; // original path to project files
@@ -89,6 +93,7 @@ struct SolutionProject
 
 	std::vector<SolutionProjectFile*> files; // may be empty
 	std::vector<fs::path> additionalIncludePaths;
+	std::vector<fs::path> exportedIncludePaths;
 	std::vector<std::string> legacySourceDirectories;
 
 	std::string assignedVSGuid;	
@@ -96,6 +101,12 @@ struct SolutionProject
 	std::string appHeaderName;
 	std::string appClassName;
 	bool appDisableLogOnStart = false;
+
+	std::string thirdPartySharedLocalBuildDefine;
+	std::string thirdPartySharedGlobalExportDefine;
+	std::vector<fs::path> thirdPartyDeployFiles;
+
+	std::vector<fs::path> frozenLibraryFiles;
 
 	std::vector<std::pair<std::string, std::string>> localDefines;
 	std::vector<std::pair<std::string, std::string>> globalDefines;
@@ -130,7 +141,7 @@ public:
     bool extractProjects(const ProjectCollection& collection);
     bool generateAutomaticCode(FileGenerator& fileGenerator);
 
-	virtual bool generateSolution(FileGenerator& gen) = 0;
+	virtual bool generateSolution(FileGenerator& gen, fs::path* outSolutionPath) = 0;
 	virtual bool generateProjects(FileGenerator& gen) = 0;
 
 protected:

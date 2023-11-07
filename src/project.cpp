@@ -18,8 +18,10 @@ static ProjectFileType FileTypeForExtension(std::string_view ext)
 {
 	if (ext == ".h" || ext == ".hpp" || ext == ".hxx" || ext == ".inl")
 		return ProjectFileType::CppHeader;
-	if (ext == ".c" || ext == ".cpp" || ext == ".cxx" || ext == ".crt")
+	if (ext == ".c" || ext == ".cpp" || ext == ".cxx" || ext == ".crt" || ext == ".cc")
 		return ProjectFileType::CppSource;
+	if (ext == ".s" || ext == ".S")
+		return ProjectFileType::NasmAssembly;
 	if (ext == ".bison")
 		return ProjectFileType::Bison;
 	if (ext == ".natvis")
@@ -48,7 +50,25 @@ bool ProjectInfo::scanContent()
 {
     bool valid = true;
 
-    if (manifest->optionLegacy)
+    if (manifest->optionThirdParty)
+    {
+        for (const auto& file : manifest->thirdPartySourceFiles)
+            valid &= internalTryAddFileFromPath(manifest->rootPath, file, ScanType::PrivateFiles);
+
+        const auto buildFilePath = (manifest->loadPath / "build.xml").make_preferred();
+        if (fs::is_regular_file(buildFilePath))
+        {
+			LogInfo() << "Found build.xml in third part library at " << buildFilePath;
+            valid &= internalTryAddFileFromPath(manifest->loadPath, buildFilePath, ScanType::PrivateFiles);
+        }
+
+        for (const auto& path : manifest->exportedIncludePaths)
+			valid &= scanFilesAtDir(manifest->loadPath, path, ScanType::PublicFiles, true);
+
+		for (const auto& path : manifest->localIncludePaths)
+			valid &= scanFilesAtDir(manifest->loadPath, path, ScanType::PublicFiles, true);
+    }
+    else if (manifest->optionLegacy)
     {
         if (manifest->legacySourceDirectories.empty())
         {
@@ -63,6 +83,11 @@ bool ProjectInfo::scanContent()
 				valid &= scanFilesAtDir(publicFilePath, publicFilePath, ScanType::PublicFiles, false);
             }
         }
+
+		if (fs::is_regular_file(manifest->loadPath))
+		{
+			valid &= internalTryAddFileFromPath(manifest->rootPath.parent_path(), manifest->loadPath, ScanType::PrivateFiles);
+		}
     }
     else
     {
@@ -104,7 +129,13 @@ bool ProjectInfo::internalTryAddFileFromPath(const fs::path& scanRootPath, const
 {
     const auto ext = absolutePath.extension().u8string();
 
+	if (filesPaths.find(absolutePath) != filesPaths.end())
+		return true; // already added
+
     auto type = (scanType == ProjectInfo::ScanType::MediaFiles) ? ProjectFileType::MediaFile : FileTypeForExtension(ext);
+
+	if (manifest->optionThirdParty && scanType == ScanType::PublicFiles && type != ProjectFileType::CppHeader)
+		return true; // silently ignore
 
     if (absolutePath.filename() == "build.xml")
         type = ProjectFileType::BuildScript;
@@ -134,6 +165,8 @@ bool ProjectInfo::internalTryAddFileFromPath(const fs::path& scanRootPath, const
     file->scanRelativePath = MakeGenericPathEx(fs::relative(absolutePath, scanRootPath));
     file->originalProject = this;
     files.push_back(file);
+
+    filesPaths.insert(absolutePath);
 
     return true;    
 }

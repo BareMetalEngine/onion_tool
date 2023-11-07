@@ -26,10 +26,13 @@ static std::string EscapePath(fs::path path)
     return ss.str();
 }
 
-bool SolutionGeneratorCMAKE::generateSolution(FileGenerator& gen)
+bool SolutionGeneratorCMAKE::generateSolution(FileGenerator& gen, fs::path* outSolutionPath)
 {
     //if (!CheckVersion("cmake", "cmake version", "", "3.22.0"))
       //  return false;
+
+    if (outSolutionPath)
+        *outSolutionPath = (m_config.derivedSolutionPathBase / "CMakeLists.txt").make_preferred();
 
     auto* file = gen.createFile(m_config.derivedSolutionPathBase / "CMakeLists.txt");
     auto& f = file->content;
@@ -107,9 +110,17 @@ void SolutionGeneratorCMAKE::extractSourceRoots(const SolutionProject* project, 
     for (const auto& sourceRoot : m_sourceRoots)
         outPaths.push_back(sourceRoot);
 
+    for (const auto* dep : project->allDependencies)
+        for (const auto& path : dep->exportedIncludePaths)
+            outPaths.push_back(path);
+
     if (!project->rootPath.empty())
     {
-        if (project->optionLegacy)
+		if (project->optionThirdParty)
+		{
+			outPaths.push_back(project->rootPath);
+		}
+        else if (project->optionLegacy)
         {
             outPaths.push_back(project->rootPath);
         }

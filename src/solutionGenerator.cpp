@@ -120,7 +120,7 @@ SolutionGroup* SolutionGenerator::findOrCreateGroup(std::string_view name, Solut
     group->name = name;
     group->mergedName = parent->mergedName + "_" + std::string(name);
     group->parent = parent;
-    group->assignedVSGuid = GuidFromText(group->mergedName);
+    group->assignedVSGuid = GuidFromText("GROUP" + group->mergedName);
     parent->children.push_back(group);
     return group;
 }
@@ -173,6 +173,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         auto* generatorProject = new SolutionProject;
         generatorProject->type = proj->manifest->type;
         generatorProject->name = ReplaceAll(proj->name, "/", "_");
+        generatorProject->localGroupName = proj->manifest->localGroupName;
 		generatorProject->globalNamespace = proj->globalNamespace;
 
         // paths
@@ -194,6 +195,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         generatorProject->optionExportApplicataion = proj->manifest->optionExportApplicataion;
         generatorProject->optionUseEmbeddedFiles = false;
         generatorProject->optionLegacy = proj->manifest->optionLegacy;
+        generatorProject->optionThirdParty = proj->manifest->optionThirdParty;
         generatorProject->appHeaderName = proj->manifest->appHeaderName;
         generatorProject->appClassName = proj->manifest->appClassName;
         generatorProject->appDisableLogOnStart = proj->manifest->appDisableLogOnStart;
@@ -204,6 +206,12 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         generatorProject->legacySourceDirectories = proj->manifest->legacySourceDirectories;
         generatorProject->optionHasInit = proj->manifest->optionHasInit;
         generatorProject->optionHasPreInit = proj->manifest->optionHasPreInit;
+        generatorProject->thirdPartySharedLocalBuildDefine = proj->manifest->thirdPartySharedLocalBuildDefine;
+        generatorProject->thirdPartySharedGlobalExportDefine = proj->manifest->thirdPartySharedGlobalExportDefine;
+        generatorProject->optionThirdParty = proj->manifest->optionThirdParty;
+        generatorProject->optionAdvancedInstructionSet = proj->manifest->optionAdvancedInstructionSet;
+        generatorProject->optionFrozen = proj->manifest->optionFrozen;
+		generatorProject->frozenLibraryFiles = proj->manifest->frozenLibraryFiles;
 
         // if we have the "init.cpp" file enable the init and pre-init automatically
         for (const auto* file : proj->files)
@@ -218,6 +226,8 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         // include paths
         for (const auto& path : proj->manifest->localIncludePaths)
             generatorProject->additionalIncludePaths.push_back(path);
+		for (const auto& path : proj->manifest->exportedIncludePaths)
+			generatorProject->exportedIncludePaths.push_back(path);
 
         // register in solution and map
         m_projects.push_back(generatorProject);
@@ -270,15 +280,16 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
             generatorProject->files.push_back(info);
         }
 
-        // determine root group
+        // assign project to solution group
         {
             const bool isLocalProject = proj->parentModule ? proj->parentModule->local : true;
-            const auto parentGroup = isLocalProject 
-                ? (proj->groupName.empty() ? m_rootGroup : createGroup(proj->groupName))
-                : createGroup("external");
-            const auto groupName = PartBeforeLast(generatorProject->name, "_");
+            const auto rootGroupName = isLocalProject ? (proj->manifest ? proj->manifest->solutionGroupName : "") : "external";
+            const auto rootGroup = rootGroupName.empty() ? m_rootGroup : createGroup(rootGroupName);
 
-            generatorProject->group = createGroup(groupName, parentGroup);
+            generatorProject->group = createGroup(generatorProject->localGroupName, rootGroup);
+            //LogInfo() << "Project '" << proj->name << "' (GUID: " << generatorProject->assignedVSGuid << ") assigned to group '" << generatorProject->localGroupName 
+                //<< "' in root group '" << rootGroup->mergedName << "', final group: '" << generatorProject->group->mergedName << "', GUID: " << generatorProject->group->assignedVSGuid;
+
             generatorProject->group->projects.push_back(generatorProject);
         }
     }
@@ -455,6 +466,14 @@ bool SolutionGenerator::generateAutomaticCode(FileGenerator& fileGenerator)
 bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project, FileGenerator& fileGenerator)
 {
     bool valid = true;
+
+    // Third party libraries don't generate code
+    if (project->optionThirdParty)
+        return true;
+
+    // Header only project's don't generate code either
+	if (project->type == ProjectType::HeaderLibrary)
+		return true;
 
     // Google test framework files
     if (project->type == ProjectType::TestApplication)
@@ -972,7 +991,7 @@ struct LinkedProject
     bool staticallyLinked = false;
 };
 
-static void CollectDirectlyLinkedProjects(const SolutionProject* project, std::unordered_set< const SolutionProject*>& outVisited, std::vector<LinkedProject>& outLinkedProjects, int depth, bool isDynamicallyLinked)
+static void CollectDirectlyLinkedProjects(const SolutionProject* project, std::unordered_set< const SolutionProject*>& outVisited, std::vector<LinkedProject>& outLinkedProjects, int depth, bool recurse)
 {
     if (!outVisited.insert(project).second)
         return;
@@ -987,15 +1006,21 @@ static void CollectDirectlyLinkedProjects(const SolutionProject* project, std::u
     }
 
     // check local dependencies
-    for (const auto* dep : project->directDependencies)
+    if (recurse)
     {
-        if (isDynamicallyLinked)
+        for (const auto* dep : project->directDependencies)
         {
-            CollectDirectlyLinkedProjects(dep, outVisited, outLinkedProjects, depth + 1, true);
-        }
-        else if (dep->type == ProjectType::StaticLibrary)
-        {
-            CollectDirectlyLinkedProjects(dep, outVisited, outLinkedProjects, depth + 1, false);
+			// Recurse on statically linked projects, but do not recurse on dynamically linked ones
+            if (dep->type == ProjectType::StaticLibrary)
+            {
+                // all static libraries must be linked together at the top module - dll, exe, etc
+                CollectDirectlyLinkedProjects(dep, outVisited, outLinkedProjects, depth + 1, true);
+            }
+            else if (dep->type == ProjectType::SharedLibrary && project->type != ProjectType::StaticLibrary)
+            {
+                // dynamic libaries dont have to propagate the static libraries to their parents
+                CollectDirectlyLinkedProjects(dep, outVisited, outLinkedProjects, depth + 1, false);
+            }
         }
     }
 }
@@ -1045,6 +1070,7 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
     if (m_config.generator == GeneratorType::VisualStudio19 || m_config.generator == GeneratorType::VisualStudio22)
     {
         // direct third party libraries used by this project
+        std::vector<fs::path> exportedLibraryFiles;
         std::unordered_set<const ExternalLibraryManifest*> exportedLibs;
         for (const auto& proj : staticallyLinkedProjects)
         {
@@ -1052,26 +1078,32 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
             {
                 for (const auto* dep : proj.project->libraryDependencies)
                     exportedLibs.insert(dep);
+
+                if (proj.project->optionFrozen)
+                {
+                    for (const auto& libraryPath : proj.project->frozenLibraryFiles)
+                        PushBackUnique(exportedLibraryFiles, libraryPath);
+                }
             }
         }
 
+        // our direct dependencies
 		for (const auto* dep : project->libraryDependencies)
 			exportedLibs.insert(dep);
 
-        if (!exportedLibs.empty())
+        // collect actual library files
+		for (const auto* dep : exportedLibs)
+			dep->collectLibraries(m_config.platform, &exportedLibraryFiles);
+
+        // print the libraries
+        if (!exportedLibraryFiles.empty())
         {
             writeln(f, "// Libraries");
-            for (const auto* dep : exportedLibs)
+            for (const auto& linkPath : exportedLibraryFiles)
             {
-                std::vector<fs::path> libraryFiles;
-                dep->collectLibraries(m_config.platform, &libraryFiles);
-
-                for (const auto& linkPath : libraryFiles)
-                {
-					std::stringstream ss;
-					ss << linkPath;
-					writelnf(f, "#pragma comment( lib, %s )", ss.str().c_str());
-                }
+				std::stringstream ss;
+				ss << linkPath;
+				writelnf(f, "#pragma comment( lib, %s )", ss.str().c_str());
             }
             writeln(f, "");
         }
@@ -1190,6 +1222,10 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
 		    {
                 if (dep.project->optionDetached || dep.project == project)
                     continue;
+                if (dep.project->optionLegacy || dep.project->optionThirdParty)
+                    continue;
+                if (dep.project->type == ProjectType::HeaderLibrary)
+                    continue;
 
                 if (dep.staticallyLinked)
                 {
@@ -1215,6 +1251,8 @@ bool SolutionGenerator::generateProjectBuildSourceFile(const SolutionProject* pr
                 {
                     if (dep->name == "core_system")
                         continue;
+					if (dep->type == ProjectType::HeaderLibrary)
+						continue;
 
                     bool hasSystemDependency = false;
                     for (const auto* subDep : dep->allDependencies)
@@ -1463,7 +1501,7 @@ bool SolutionGenerator::generateSolutionReflectionFileProcessingList(std::string
 {
     for (const auto* proj : m_projects)
     {
-        if (!proj->localReflectionFile.empty() && !proj->rootPath.empty() && !proj->optionLegacy)
+        if (!proj->localReflectionFile.empty() && !proj->rootPath.empty() && !proj->optionLegacy && !proj->optionThirdParty)
         {
             auto projectFilePath = (proj->projectPath / proj->name);
             projectFilePath += ".vcxproj";
