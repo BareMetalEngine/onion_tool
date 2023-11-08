@@ -977,8 +977,9 @@ bool SolutionGeneratorVS::generateRTTIGenProjectFile(const SolutionProject* proj
     writelnf(f, "  <VCProjectVersion>%s</VCProjectVersion>", m_projectVersion);
     writeln(f,  "  <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>");
     writeln(f,  "  <ModuleType>Empty</ModuleType>");
-    writeln(f,   " <SolutionType>SharedLibraries</SolutionType>");
-    writeln(f, " 	<ConfigurationType>StaticLibrary</ConfigurationType>");
+    writeln(f,  "  <SolutionType>SharedLibraries</SolutionType>");
+    if (m_config.platform == PlatformType::Prospero)
+        writeln(f,  "  <ConfigurationType>StaticLibrary</ConfigurationType>");
     writelnf(f, "  <ProjectGuid>%s</ProjectGuid>", project->assignedVSGuid.c_str());
     writeln(f,  "  <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>");
     //writelnf(f, " 	<ProjectOutputPath>%s\\</ProjectOutputPath>", project->outputPath.u8string().c_str());
