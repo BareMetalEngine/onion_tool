@@ -45,7 +45,7 @@ struct ProjectReflection
 
     bool extractFromExpandedList(const fs::path& fileList);
     bool extractFromCompactList(const fs::path& fileList, const fs::path& outputReadTlog, const fs::path& outputWriteTlog);
-    bool extractFromFileList(const std::vector<fs::path>& fileList, const std::string& projectName, const std::string& globalNamespace, const fs::path& outputFile);
+    bool extractFromFileList(const std::vector<fs::path>& fileList, const std::string& projectName, const std::string& globalNamespace, const std::vector<std::string>& appSystemClassNames, const fs::path& outputFile);
     bool filterProjects();
     bool tokenizeFiles();
     bool parseDeclarations();
@@ -72,7 +72,7 @@ public:
     ToolReflection();
 
     int run(const Commandline& cmdline);
-    bool runStatic(FileGenerator& fileGenerator, const std::vector<fs::path>& fileList, const std::string& projectName, const std::string& globalNamespace, const fs::path& outputFile);
+    bool runStatic(FileGenerator& fileGenerator, const std::vector<fs::path>& fileList, const std::string& projectName, const std::string& globalNamespace, const std::vector<std::string>& appSystemClassNames, const fs::path& outputFile);
 };
 
 //--

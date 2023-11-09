@@ -643,7 +643,7 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
                         sourceFiles.push_back(file->absolutePath);
 
                 ToolReflection tool;
-                if (!tool.runStatic(fileGenerator, sourceFiles, project->name, project->globalNamespace, reflectionFilePath))
+                if (!tool.runStatic(fileGenerator, sourceFiles, project->name, project->globalNamespace, project->appSystemClasses, reflectionFilePath))
                 {
                     LogError() << "Failed to generate static reflection for project '" << project->name << "'";
                     valid = false;
