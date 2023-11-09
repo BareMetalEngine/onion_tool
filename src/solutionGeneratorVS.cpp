@@ -259,79 +259,6 @@ bool SolutionGeneratorVS::generateProjects(FileGenerator& gen)
     return true;
 }
 
-void SolutionGeneratorVS::extractSourceRoots(const SolutionProject* project, std::vector<fs::path>& outPaths) const
-{
-    for (const auto& sourceRoot : m_sourceRoots)
-        outPaths.push_back(sourceRoot);
-
-	for (const auto* dep : project->allDependencies)
-		for (const auto& path : dep->exportedIncludePaths)
-			outPaths.push_back(path);
-
-    // TODO: remove
-    if (!project->rootPath.empty())
-    {
-        if (project->optionLegacy)
-        {
-            outPaths.push_back(project->rootPath);
-        }
-		else if (project->optionThirdParty)
-		{
-			outPaths.push_back(project->rootPath);
-		}
-        else
-        {
-            outPaths.push_back(project->rootPath / "src");
-            outPaths.push_back(project->rootPath / "include");
-        }
-    }
-
-    outPaths.push_back(m_config.derivedSolutionPathBase / "generated/_shared");
-    outPaths.push_back(project->generatedPath);
-
-    for (const auto& path : project->additionalIncludePaths)
-        outPaths.push_back(path);
-
-    /*for (const auto& path : project->originalProject->localIncludeDirectories)
-    {
-        const auto fullPath = project->originalProject->rootPath / path;
-        outPaths.push_back(fullPath);
-    }*/
-}
-
-static void CollectDefineString(std::vector<std::pair<std::string, std::string>>& ar, std::string_view name, std::string_view value)
-{
-	for (auto& entry : ar)
-	{
-		if (entry.first == name)
-		{
-			entry.second = value;
-			return;
-		}
-	}
-
-	ar.emplace_back(std::make_pair(name, value));
-}
-
-static void CollectDefineStrings(std::vector<std::pair<std::string, std::string>>& ar, const std::vector<std::pair<std::string, std::string>>& defs)
-{
-    for (const auto& def : defs)
-        CollectDefineString(ar, def.first, def.second);
-}
-
-static void CollectDefineStringsFromSimpleList(std::vector<std::pair<std::string, std::string>>& ar, std::string_view txt)
-{
-	std::vector<std::string_view> macros;
-	SplitString(txt, ";", macros);
-
-	for (auto part : macros)
-	{
-		part = Trim(part);
-		if (!part.empty())
-			ar.emplace_back(part, "1");
-	}
-}
-
 bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* project, std::stringstream& f) const
 {
     writeln(f, "<?xml version=\"1.0\" encoding=\"utf-8\"?>");
@@ -368,7 +295,7 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
     {
         f << "  <SourcesRoot>";
         std::vector<fs::path> sourceRoots;
-        extractSourceRoots(project, sourceRoots);
+        collectSourceRoots(project, &sourceRoots);
         std::sort(sourceRoots.begin(), sourceRoots.end());
         sourceRoots.erase(std::unique(sourceRoots.begin(), sourceRoots.end()), sourceRoots.end());
 
@@ -379,14 +306,6 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
     }
 
     {
-        /*for (const auto* lib : project->originalProject->resolvedDependencies)
-            if (lib->type == ProjectType::LocalLibrary && lib->optionGlobalInclude)
-                    f << (lib->rootPath / "include").u8string() << "\\;";*/
-
-        /*for (const auto* source : project->originalProject->moduleSourceProjects)
-            if (source->type == ProjectType::LocalLibrary)
-                f << (source->rootPath / "include").u8string() << "\\;";*/
-
         std::vector<fs::path> includePaths;
         for (const auto* lib : project->libraryDependencies)
             lib->collectIncludeDirectories(m_config.platform, &includePaths);
@@ -492,37 +411,10 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
     else if (project->type == ProjectType::StaticLibrary)
         f << "BUILD_LIB;";
 
-    /*if (project->originalProject->hasTestData)
-    {
-        const auto testFolderPath = (project->originalProject->rootPath / "test").make_preferred();
-        f << "TEST_DATA_PATH=\"" << testFolderPath.u8string() << "\";";
-    }*/
-
     // custom defines
     {
         std::vector<std::pair<std::string, std::string>> defs;
-
-        for (const auto* dep : project->allDependencies)
-            CollectDefineStrings(defs, dep->globalDefines);
-		CollectDefineStrings(defs, project->globalDefines);
-        CollectDefineStrings(defs, project->localDefines);
-
-        for (const auto* dep : project->allDependencies)
-        {
-            if (project->type == ProjectType::StaticLibrary && dep->type == ProjectType::SharedLibrary)
-            {
-                LogWarning() << "Static library '" << project->name << " is using a shared library (DLL) '" << dep->name << "' this is not allowed and may not work!";
-            }
-
-            if (dep->optionThirdParty && dep->type == ProjectType::SharedLibrary)
-                CollectDefineStringsFromSimpleList(defs, dep->thirdPartySharedGlobalExportDefine);
-        }
-
-        if (project->type == ProjectType::SharedLibrary)
-        {
-            CollectDefineStringsFromSimpleList(defs, project->thirdPartySharedGlobalExportDefine);
-            CollectDefineStringsFromSimpleList(defs, project->thirdPartySharedLocalBuildDefine);
-        }
+        collectCustomDefines(project, &defs);
 
         for (const auto& def : defs)
         {

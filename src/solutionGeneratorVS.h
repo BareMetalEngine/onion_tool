@@ -25,8 +25,6 @@ private:
     bool generateRTTIGenProjectFile(const SolutionProject* project, const fs::path& reflectionListPath, std::stringstream& outContent) const;
     //bool generateEmbeddedMediaProjectFile(const SolutionProject* project, std::stringstream& outContent) const;
 
-    void extractSourceRoots(const SolutionProject* project, std::vector<fs::path>& outPaths) const;
-
     void printSolutionDeclarations(std::stringstream& f, const SolutionGroup* g);
     void printSolutionParentLinks(std::stringstream& f, const SolutionGroup* g);
 };

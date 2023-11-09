@@ -166,6 +166,10 @@ protected:
 
 	//---
 
+    typedef std::vector<std::pair<std::string, std::string>> TDefines;
+    void collectCustomDefines(const SolutionProject* project, TDefines* outDefines) const;
+    void collectSourceRoots(const SolutionProject* project, std::vector<fs::path>* outPaths) const;
+
     bool generateAutomaticCodeForProject(SolutionProject* project, FileGenerator& fileGenerator);
 
     bool processBisonFile(SolutionProject* project, const SolutionProjectFile* file);

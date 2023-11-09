@@ -17,7 +17,6 @@ private:
 
     bool generateProjectFile(const SolutionProject* project, std::stringstream& outContent) const;
 
-    void extractSourceRoots(const SolutionProject* project, std::vector<fs::path>& outPaths) const;
     bool shouldStaticLinkProject(const SolutionProject* project) const;
 };
 

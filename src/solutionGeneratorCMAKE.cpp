@@ -105,39 +105,6 @@ bool SolutionGeneratorCMAKE::generateProjects(FileGenerator& gen)
     return valid;
 }
 
-void SolutionGeneratorCMAKE::extractSourceRoots(const SolutionProject* project, std::vector<fs::path>& outPaths) const
-{
-    for (const auto& sourceRoot : m_sourceRoots)
-        outPaths.push_back(sourceRoot);
-
-    for (const auto* dep : project->allDependencies)
-        for (const auto& path : dep->exportedIncludePaths)
-            outPaths.push_back(path);
-
-    if (!project->rootPath.empty())
-    {
-		if (project->optionThirdParty)
-		{
-			outPaths.push_back(project->rootPath);
-		}
-        else if (project->optionLegacy)
-        {
-            outPaths.push_back(project->rootPath);
-        }
-        else
-        {
-            outPaths.push_back(project->rootPath / "src");
-            outPaths.push_back(project->rootPath / "include");
-        }
-    }
-
-    outPaths.push_back(m_config.derivedSolutionPathBase / "generated/_shared");
-    outPaths.push_back(project->generatedPath);
-
-	for (const auto& path : project->additionalIncludePaths)
-		outPaths.push_back(path);
-}
-
 bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::stringstream& f) const
 {
     const auto windowsPlatform = (m_config.platform == PlatformType::Windows || m_config.platform == PlatformType::UWP);
@@ -176,6 +143,20 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
             writelnf(f, "add_definitions(-DHAS_%s)", ToUpper(dep->name).c_str());
     }
 
+    // custom defines
+    {
+        std::vector<std::pair<std::string, std::string>> defs;
+        collectCustomDefines(p, &defs);
+
+        for (const auto& def : defs)
+        {
+            if (def.second.empty())
+                writelnf(f, "add_definitions(-D%s)", def.first.c_str());
+            else
+                writelnf(f, "add_definitions(-D%s=%s)", def.first.c_str(), def.second.c_str());
+        }
+    }
+
     writelnf(f, "set(CMAKE_EXE_LINKER_FLAGS_CHECKED \"${CMAKE_EXE_LINKER_FLAGS_RELEASE}\")");
     writelnf(f, "set(CMAKE_SHARED_LINKER_FLAGS_CHECKED \"${CMAKE_SHARED_LINKER_FLAGS_CHECKED}\")");
 
@@ -205,6 +186,8 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
     else
     {
         writeln(f, "set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -pthread\")");
+        writeln(f, "set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -Wno-non-template-friend\")");
+        writeln(f, "set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mavx -mavx2 -mfma\")");
 
         if (p->optionUseExceptions)
             writeln(f, "set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -fexceptions\")");
@@ -226,7 +209,7 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
         writelnf(f, "add_definitions(-DBUILD_DEV)");*/
 
     std::vector<fs::path> paths;
-    extractSourceRoots(p, paths);
+    collectSourceRoots(p, &paths);
 
     writeln(f, "# Project include directories");
     for (const auto& path : paths)

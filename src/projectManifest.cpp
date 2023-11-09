@@ -460,6 +460,7 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
 		if (fs::is_directory(globalIncludePath))
 		{
 			ret->localIncludePaths.push_back(globalIncludePath);
+            LogWarning() << "Local include path " << globalIncludePath << " for project " << ret->name;
 		}
 		else
 		{
@@ -477,7 +478,8 @@ ProjectManifest* ProjectManifest::Load(const void* rootPtr, const fs::path& modu
 		if (fs::is_directory(globalIncludePath))
 		{
 			ret->exportedIncludePaths.push_back(globalIncludePath);
-		}
+            LogWarning() << "Global include path " << globalIncludePath << " for project " << ret->name;
+        }
 		else
 		{
 			LogError() << "Specified exported include path " << globalIncludePath << " does not point to a valid directory";
