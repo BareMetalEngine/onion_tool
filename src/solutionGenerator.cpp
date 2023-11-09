@@ -199,6 +199,7 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
         generatorProject->appHeaderName = proj->manifest->appHeaderName;
         generatorProject->appClassName = proj->manifest->appClassName;
         generatorProject->appDisableLogOnStart = proj->manifest->appDisableLogOnStart;
+        generatorProject->appSystemClasses = proj->manifest->appSystemClasses;
         generatorProject->assignedVSGuid = proj->manifest->guid;
         generatorProject->libraryDependencies = proj->resolvedLibraryDependencies;
         generatorProject->localDefines = proj->manifest->localDefines;
@@ -321,6 +322,27 @@ bool SolutionGenerator::extractProjects(const ProjectCollection& collection)
 			validDeps &= graph.insertProject(dep, 1, stack);
 		graph.extractOrderedList(proj->allDependencies);
 	}
+
+    // build "global" dependency graph for the whole solution
+    // this represents overall project dependencies
+    {
+		OrderedGraphBuilder graph;
+
+        for (auto* proj : m_projects)
+        {
+            std::vector<SolutionProject*> stack;
+            stack.push_back(proj);
+
+            for (auto* dep : proj->directDependencies)
+                validDeps &= graph.insertProject(dep, 1, stack);
+        }
+
+        // use the ordered list as project list, so we always have projects from most basic to most complicated
+		graph.extractOrderedList(this->m_projects);
+
+        for (const auto* proj : m_projects)
+            LogInfo() << proj->name;
+    }
 
 	// disable static initialization on projects that don't use the core
     for (auto* proj : m_projects)
@@ -852,12 +874,11 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 
     if (!project->appHeaderName.empty())
         writelnf(f, "#include \"%hs\"", project->appHeaderName.c_str());
-    writelnf(f, "#include \"core/app/include/commandLine.h\"");
     writeln(f, "");
 
     if (project->appHeaderName.empty())
     {
-        writelnf(f, "extern int %hs_main(const %hs::CommandLine& cmdLine);", project->globalNamespace.c_str(), project->globalNamespace.c_str());
+        writelnf(f, "extern int %hs_main(int argc, char** argv);", project->globalNamespace.c_str(), project->globalNamespace.c_str());
         writeln(f, "");
     }
 
@@ -927,29 +948,24 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
     if (!project->appClassName.empty())
     {
         writeln(f, "  {");
-		writelnf(f, "    %hs::CommandLine commandLine;", project->globalNamespace.c_str());
-		if (windowsCommandLine)
-			writeln(f, "    if (commandLine.parse(pCmdLine, false))");
-		else
-			writeln(f, "    if (commandLine.parse(argc, argv))");
-		writeln(f, "");
-
-        writeln(f, "    {");
         writelnf(f, "      %hs app;", project->appClassName.c_str());
-        writelnf(f, "      if (app.init(commandLine)) {");
-        writelnf(f, "        while (app.update()) {};");
+
+        if (m_config.platform == PlatformType::Windows && project->optionUseWindowSubsystem)
+            writelnf(f, "      if (app.init(__argc, __argv)) {");
+        else
+            writelnf(f, "      if (app.init(argc, argv)) {");
+
+        writelnf(f, "        while (app.update(&ret)) {};");
+        writelnf(f, "        app.close();");
         writeln (f, "      } else {" );
-        writelnf(f, "        ret = 1;");
+        writelnf(f, "        ret = -1;");
         writeln (f, "      }");
-        writeln(f, "    } else {");
-        writelnf(f, "        ret = 2;"); 
-        writeln(f, "    }");
         writeln(f, "  }");
         writeln(f, "");
     }
     else
     {
-        writelnf(f, "    ret = %hs_main(commandLine);", project->globalNamespace.c_str());
+        writelnf(f, "    ret = %hs_main(argc, argv);", project->globalNamespace.c_str());
     }
 
     // exit
@@ -1428,7 +1444,66 @@ bool SolutionGenerator::generateProjectGlueHeaderFile(const SolutionProject* pro
 		writeln(f, "");
     }
 
-	//if (project->type == ProjectType::Application || project->type == ProjectType::TestApplication)
+    // special handling of application systems
+    if (project->name == "runtime_app")
+    {
+        // generate the class mapping for each registered application system class
+        writeln(f, "// Application system classes forward declarations");
+        for (const auto* globalProject : m_projects)
+        {
+            // forward declarations
+            for (const auto className : globalProject->appSystemClasses)
+            {
+                std::vector<std::string_view> names;
+                SplitString(className, "::", names);
+
+                std::stringstream line;
+                for (uint32_t i = 0; i < names.size() - 1; ++i)
+                {
+                    line << "namespace ";
+                    line << names[i];
+                    line << " {";
+                }
+
+                line << "class " << names.back() << ";";
+
+                for (uint32_t i = 0; i < names.size() - 1; ++i)
+                    line << "} ";
+
+                writeln(f, line.str());
+            }
+        }
+        writeln(f, "");
+
+        // helper resolver
+        // TODO: move to actual header
+        writeln(f, "// Application system helper index resolver helper template");
+        writeln(f, "template< typename T > struct ApplicationSystemClassIndexResolver {};");
+        writeln(f, "");
+
+        writeln(f, "// Application system helper class registration");
+        writeln(f, "extern RUNTIME_APP_API void RegisterAppSystemClass(const char* className, int assignedIndex);");
+        writeln(f, "");
+
+        // map classes to indices
+		uint32_t index = 1;
+		writeln(f, "// Application system class index resolver");
+        for (const auto* globalProject : m_projects)
+        {
+            // forward declarations
+            for (const auto className : globalProject->appSystemClasses)
+            {
+                writelnf(f, "template<> struct ApplicationSystemClassIndexResolver<%hs> { static constexpr int CLASS_INDEX = %u; };", className.c_str(), index++);
+            }
+        }
+		writeln(f, "");
+
+		writeln(f, "// Helper function to get application system index based on compile-time class");
+		writeln(f, "template< typename T > static inline constexpr int GetApplicationSystemIndex() { return ApplicationSystemClassIndexResolver<T>::CLASS_INDEX; }");
+        writeln(f, "");
+    }
+
+    // include glue headers from all dependencies
 	if (!project->allDependencies.empty())
 	{
 		writeln(f, "// Glue header from project dependencies");
@@ -1559,6 +1634,22 @@ bool SolutionGenerator::generateSolutionReflectionFileProcessingList(std::string
             writelnf(f, "PROJECT");
             writelnf(f, "%hs", proj->name.c_str());
             writelnf(f, "%hs", proj->globalNamespace.c_str());
+
+            if (!proj->appSystemClasses.empty())
+            {
+                std::stringstream appSystemClassNames;
+                for (const auto& cls : proj->appSystemClasses)
+                {
+                    appSystemClassNames << cls;
+                    appSystemClassNames << ";";
+                }
+                writelnf(f, "%hs", appSystemClassNames.str().c_str());
+            }
+            else
+            {
+                writeln(f, ";");
+            }
+
             writelnf(f, "%hs", projectFilePath.u8string().c_str());
 			writelnf(f, "%hs", projectSourceDirectory.u8string().c_str());
             writelnf(f, "%hs", proj->localReflectionFile.u8string().c_str());

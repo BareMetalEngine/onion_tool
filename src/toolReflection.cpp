@@ -144,6 +144,7 @@ bool ProjectReflection::LoadCompactProjectsFromFileList(const fs::path& inputFil
                 CompactProjectInfo info;
                 std::getline(file, info.name);
                 std::getline(file, info.globalNamespace);
+                std::getline(file, info.applicationSystemClasses);
                 std::getline(file, info.vxprojFilePath);
                 std::getline(file, info.sourceDirectoryPath);
                 std::getline(file, info.reflectionFilePath);
@@ -213,6 +214,7 @@ void ProjectReflection::PrintExpandedFileList(std::stringstream& f, const std::v
         writeln(f, "PROJECT");
         writeln(f, proj.name);
         writeln(f, proj.globalNamespace);
+        writeln(f, proj.applicationSystemClasses);
         writeln(f, fs::path(proj.reflectionFilePath).u8string());
 		for (const auto& filePath : proj.sourceFiles)
 			writeln(f, filePath.u8string().c_str());
@@ -256,7 +258,8 @@ bool ProjectReflection::extractFromExpandedList(const fs::path& fileList)
 
                 std::getline(file, project->mergedName);
                 std::getline(file, project->globalNamespace);
-                std::getline(file, str);
+                std::getline(file, project->applicationSystemClasses);
+				std::getline(file, str);
                 project->reflectionFilePath = fs::path(str).make_preferred();
                 continue;
             }
@@ -571,13 +574,13 @@ bool ProjectReflection::generateReflectionForProject(const RefelctionProject& p,
                 writelnf(f, "namespace %s { TRACE_DEFINE_LOG_CHANNEL(%s); }", d.declaration->scope.c_str(), d.declaration->name.c_str());
             }
         }
-		else if (d.declaration->type == CodeTokenizer::DeclarationType::STRINGID)
-		{
+        else if (d.declaration->type == CodeTokenizer::DeclarationType::STRINGID)
+        {
             if (uniqueNames.insert(d.declaration->name).second)
             {
                 writelnf(f, "namespace %s { DEFINE_STRING_ID(%s); }", d.declaration->scope.c_str(), d.declaration->name.c_str());
             }
-		}
+        }
         else
         {
             writelnf(f, "namespace %s { extern void CreateType_%s(); }", d.declaration->scope.c_str(), d.declaration->name.c_str());
@@ -631,20 +634,20 @@ bool ProjectReflection::generateReflectionForProject(const RefelctionProject& p,
             writelnf(f, "%s::FinishType_%s(0);", d.declaration->scope.c_str(), d.declaration->name.c_str());
     }
 
-	for (const auto& d : declarations)
-	{
-		if (d.declaration->type == CodeTokenizer::DeclarationType::CLASS)
-		{
-			writelnf(f, "%s::InitType_%s(1);",
-				d.declaration->scope.c_str(), d.declaration->name.c_str());
-		}
-	}
+    for (const auto& d : declarations)
+    {
+        if (d.declaration->type == CodeTokenizer::DeclarationType::CLASS)
+        {
+            writelnf(f, "%s::InitType_%s(1);",
+                d.declaration->scope.c_str(), d.declaration->name.c_str());
+        }
+    }
 
-	for (const auto& d : declarations)
-	{
-		if (d.declaration->type == CodeTokenizer::DeclarationType::CLASS)
-			writelnf(f, "%s::FinishType_%s(1);", d.declaration->scope.c_str(), d.declaration->name.c_str());
-	}
+    for (const auto& d : declarations)
+    {
+        if (d.declaration->type == CodeTokenizer::DeclarationType::CLASS)
+            writelnf(f, "%s::FinishType_%s(1);", d.declaration->scope.c_str(), d.declaration->name.c_str());
+    }
 
     for (const auto& d : declarations)
     {
@@ -654,6 +657,23 @@ bool ProjectReflection::generateReflectionForProject(const RefelctionProject& p,
                 d.declaration->scope.c_str(), d.declaration->name.c_str());
         }
     }
+
+	if (!p.applicationSystemClasses.empty())
+	{
+		std::vector<std::string_view> systemClassNames;
+		SplitString(p.applicationSystemClasses, ";", systemClassNames);
+
+        for (auto cls : systemClassNames)
+        {
+            std::string clsStr(Trim(cls));
+
+            if (!clsStr.empty())
+            {
+                LogInfo() << "Found system class: '" << cls << "'";
+                writelnf(f, "RegisterAppSystemClass(\"%hs\", GetApplicationSystemIndex<%hs>());", clsStr.c_str(), clsStr.c_str());
+            }
+        }
+	}
 
     writeln(f, "}");
 

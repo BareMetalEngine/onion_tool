@@ -12,6 +12,7 @@ struct ProjectReflection
     {
 		std::string name;
         std::string globalNamespace;
+        std::string applicationSystemClasses;
         std::string vxprojFilePath; // input
         std::string sourceDirectoryPath; // input
         std::string reflectionFilePath; // output
@@ -32,6 +33,7 @@ struct ProjectReflection
         std::string mergedName;
         std::string globalNamespace;
         std::vector<RefelctionFile*> files;
+        std::string applicationSystemClasses;
         fs::path reflectionFilePath;
         fs::file_time_type reflectionFileTimstamp;
     };

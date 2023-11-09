@@ -99,6 +99,7 @@ struct ProjectManifest
 
     std::string appClassName; // for automatically generated main with application interfaces - this is the app class name
     std::string appHeaderName; // for automatically generated main with application interfaces - this is the app header file 
+	std::vector<std::string> appSystemClasses; // application system classes to auto initialize with this module
     bool appDisableLogOnStart; // start application without logging (silent output)
 
     //--

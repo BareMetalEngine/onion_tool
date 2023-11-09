@@ -295,6 +295,8 @@ bool ProjectManifest::LoadKey(const void* nodePtr, const fs::path& modulePath, P
 		ret->_temp_exportedIncludePaths.push_back(std::string(node->value()));
 	else if (option == "GroupName")
 		ret->localGroupName = XMLNodeValue(node);
+	else if (option == "AppSystemClass")
+		ret->appSystemClasses.push_back(std::string(XMLNodeValue(node)));
 	else if (option == "AdvancedInstructionSet")
 		valid &= EvalAdvancedInstructionSet(ret->optionAdvancedInstructionSet, node);
 	else
@@ -314,7 +316,7 @@ bool EvalPlatformFilters(const XMLNode* node, PlatformType platform)
 		if (!txt.empty())
 		{
 			std::vector<std::string_view> options;
-			SplitString(txt, ",", options);
+			SplitString(txt, ";", options);
 
 			for (const auto& opt : options)
 			{
@@ -335,7 +337,7 @@ bool EvalPlatformFilters(const XMLNode* node, PlatformType platform)
 		if (!txt.empty())
 		{
 			std::vector<std::string_view> options;
-			SplitString(txt, ",", options);
+			SplitString(txt, ";", options);
 
 			for (const auto& txt : options)
 				if (MatchesPlatform(platform, txt))

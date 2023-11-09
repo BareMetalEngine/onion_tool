@@ -101,6 +101,7 @@ struct SolutionProject
 	std::string appHeaderName;
 	std::string appClassName;
 	bool appDisableLogOnStart = false;
+	std::vector<std::string> appSystemClasses;
 
 	std::string thirdPartySharedLocalBuildDefine;
 	std::string thirdPartySharedGlobalExportDefine;
