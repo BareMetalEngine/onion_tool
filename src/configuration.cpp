@@ -12,12 +12,12 @@ Configuration::Configuration()
     if (platform == PlatformType::Windows)
     {
         generator = GeneratorType::VisualStudio22;
-        linking = LinkingType::Shared;
+        solutionType = SolutionType::DevelopmentShared;
     }
     else
     {
         generator = GeneratorType::CMake;
-        linking = LinkingType::Static;
+        solutionType = SolutionType::ShipmentStatic;
     }
 }
 
@@ -29,10 +29,7 @@ std::string Configuration::mergedName() const
     ret += ".";
     ret += NameEnumOption(generator);
     ret += ".";
-    ret += NameEnumOption(linking);
-
-    if (flagDevBuild)
-        ret += ".dev";
+    ret += NameEnumOption(solutionType);
 
     return ret;
 }
@@ -61,7 +58,7 @@ bool Configuration::load(const fs::path& path)
 
 	bool valid = ParsePlatformType(parts[0], platform);
 	valid &= ParseGeneratorType(parts[1], generator);
-	valid &= ParseLinkingType(parts[2], linking);
+	valid &= ParseLinkingType(parts[2], solutionType);
 
     //if (parts.size() == 5 && parts[4] == "shipment")
       //  flagShipmentBuild = true;
@@ -126,7 +123,7 @@ bool Configuration::ParseOptions(const Commandline& cmd, Configuration& cfg)
 
                 hasPlatform = true;
             }
-            else if (ParseLinkingType(part, cfg.linking))
+            else if (ParseLinkingType(part, cfg.solutionType))
             {
                 if (hasLibsType)
                 {
@@ -145,10 +142,6 @@ bool Configuration::ParseOptions(const Commandline& cmd, Configuration& cfg)
                 }
 
                 hasGeneratorType = true;
-            }
-            else if (part == "nodev")
-            {
-                cfg.flagDevBuild = false;
             }
             else
             {

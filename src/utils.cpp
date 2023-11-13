@@ -1661,21 +1661,25 @@ bool iequals(const std::string_view& a, const std::string_view& b)
 	return std::equal(a.begin(), a.end(), b.begin(), b.end(), ichar_equals);
 }
 
-bool MatchesLinking(LinkingType type, std::string_view view)
+bool MatchesSolutionType(SolutionType type, std::string_view view)
 {
     if (view == "*")
         return true;
 
     switch (type)
     {
-    case LinkingType::Shared:
-        if (iequals(view, "dll")) return true;
+    case SolutionType::DevelopmentShared:
         if (iequals(view, "shared")) return true;
+        if (iequals(view, "dev")) return true;
         return false;
-    case LinkingType::Static:
-        if (iequals(view, "lib")) return true;
+    case SolutionType::DevelopmentStatic:
         if (iequals(view, "static")) return true;
+		if (iequals(view, "dev")) return true;
         return false;
+	case SolutionType::ShipmentStatic:
+		if (iequals(view, "static")) return true;
+		if (iequals(view, "shipment")) return true;
+		return false;
     }
 
     return false;
@@ -1753,6 +1757,10 @@ bool MatchesPlatform(PlatformType platform, std::string_view view)
 			if (iequals(view, "Metal")) return true;
             return false;
 
+		case PlatformType::Wasm:
+			if (iequals(view, "Wasm")) return true;
+			return false;
+
     default:
         return false;
     }
@@ -1782,7 +1790,7 @@ PlatformType DefaultPlatform()
 #endif
 }
 
-bool ParseLinkingType(std::string_view txt, LinkingType& outType)
+bool ParseLinkingType(std::string_view txt, SolutionType& outType)
 {
     return ParseEnumValue(txt, outType);
 }
@@ -1800,12 +1808,13 @@ bool ParseGeneratorType(std::string_view txt, GeneratorType& outType)
 
 //--
 
-std::string_view NameEnumOption(LinkingType type)
+std::string_view NameEnumOption(SolutionType type)
 {
     switch (type)
     {
-    case LinkingType::Shared: return "shared";
-    case LinkingType::Static: return "static";
+    case SolutionType::DevelopmentShared: return "dev";
+    case SolutionType::DevelopmentStatic: return "dev_static";
+    case SolutionType::ShipmentStatic: return "shipping";
     default: break;
     }
     return "";
@@ -1824,6 +1833,7 @@ std::string_view NameEnumOption(PlatformType type)
     case PlatformType::Android: return "android";
     case PlatformType::Darwin: return "darwin";
     case PlatformType::DarwinArm: return "darwin_arm";
+    case PlatformType::Wasm: return "wasm";
     default: break;
     }
     return "";
@@ -2561,9 +2571,9 @@ void Sha256Initialise(Sha256Context* Context)
 	Context->state[7] = 0x5BE0CD19UL;
 }
 
-void Sha256Update(Sha256Context* Context, void const* Buffer, uint32_t BufferSize)
+void Sha256Update(Sha256Context* Context, void const* Buffer, uint64_t BufferSize)
 {
-	uint32_t n;
+    uint32_t n;
 
 	if (Context->curlen > sizeof(Context->buf)) {
 		return;
@@ -2577,7 +2587,7 @@ void Sha256Update(Sha256Context* Context, void const* Buffer, uint32_t BufferSiz
 			BufferSize -= SHA256_BLOCK_SIZE;
 		}
 		else {
-			n = SHA256_MIN(BufferSize, (SHA256_BLOCK_SIZE - Context->curlen));
+			n = (uint32_t)SHA256_MIN(BufferSize, (SHA256_BLOCK_SIZE - Context->curlen));
 			memcpy(Context->buf + Context->curlen, Buffer, (size_t)n);
 			Context->curlen += n;
 			Buffer = (uint8_t*)Buffer + n;
@@ -2620,7 +2630,7 @@ void Sha256Finalise(Sha256Context* Context, SHA256_HASH* Digest)
 	}
 }
 
-void Sha256Calculate(void const* Buffer, uint32_t BufferSize, SHA256_HASH* Digest)
+void Sha256Calculate(void const* Buffer, uint64_t BufferSize, SHA256_HASH* Digest)
 {
 	Sha256Context context;
 
@@ -2744,7 +2754,7 @@ const char* HexTable =
 "e0\000e1\000e2\000e3\000e4\000e5\000e6\000e7\000e8\000e9\000ea\000eb\000ec\000ed\000ee\000ef\000"
 "f0\000f1\000f2\000f3\000f4\000f5\000f6\000f7\000f8\000f9\000fa\000fb\000fc\000fd\000fe\000ff\000";
 
-void BytesToHexString(std::stringstream& str, const uint8_t* data, uint32_t length)
+void BytesToHexString(std::stringstream& str, const uint8_t* data, uint64_t length)
 {
 	const auto* end = data + length;
 	while (data < end)
@@ -2774,7 +2784,7 @@ std::string BytesToHexString(const std::vector<uint8_t>& bytes)
 	return str.str();
 }
 
-std::string BytesToHexString(const uint8_t* data, uint32_t length)
+std::string BytesToHexString(const uint8_t* data, uint64_t length)
 {
     std::stringstream str;
     BytesToHexString(str, data, length);

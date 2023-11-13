@@ -243,8 +243,6 @@ bool ProjectManifest::LoadKey(const void* nodePtr, const fs::path& modulePath, P
 		ret->appHeaderName = XMLNodeValue(node);
 	else if (option == "Guid")
 		ret->guid = XMLNodeValue(node);
-	else if (option == "DeveloperOnly")
-		ret->optionDevOnly = XMLNodeValueBool(node, ret->optionDevOnly);
 	else if (option == "EngineOnly")
 		ret->optionEngineOnly = XMLNodeValueBool(node, ret->optionEngineOnly);
 	else if (option == "WarningLevel")
@@ -350,7 +348,7 @@ bool EvalPlatformFilters(const XMLNode* node, PlatformType platform)
 	return false;
 }
 
-bool EvalLinkFilters(const XMLNode* node, LinkingType linking)
+bool EvalSolutionFilters(const XMLNode* node, SolutionType solutionType)
 {
 	{
 		const auto txt = XMLNodeAttrbiute(node, "include");
@@ -360,7 +358,7 @@ bool EvalLinkFilters(const XMLNode* node, LinkingType linking)
 			SplitString(txt, ",", options);
 
 			for (const auto& txt : options)
-				if (MatchesLinking(linking, txt))
+				if (MatchesSolutionType(solutionType, txt))
 					return true;
 
 			return false;
@@ -375,7 +373,7 @@ bool EvalLinkFilters(const XMLNode* node, LinkingType linking)
 			SplitString(txt, ",", options);
 
 			for (const auto& txt : options)
-				if (MatchesLinking(linking, txt))
+				if (MatchesSolutionType(solutionType, txt))
 					return false;
 
 			return true;
@@ -398,16 +396,16 @@ bool ProjectManifest::LoadKeySet(const void* root, const fs::path& modulePath, P
 					valid &= LoadKeySet(node, modulePath, ret, config);
 				}
 			}
-			else if (option == "FilterLinking")
+			else if (option == "FilterSolutionType")
 			{
-				if (EvalLinkFilters(node, config.linking))
+				if (EvalSolutionFilters(node, config.solutionType))
 				{
 					valid &= LoadKeySet(node, modulePath, ret, config);
 				}
 			}
 			else
 			{
-				valid &= LoadKey(node, modulePath, ret);				
+				valid &= LoadKey(node, modulePath, ret);
 			}
 		});
 

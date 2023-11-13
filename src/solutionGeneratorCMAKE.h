@@ -15,6 +15,11 @@ public:
 private:
     fs::path m_cmakeScriptsPath;
 
+    fs::path m_platformToolchainFile;
+    fs::path m_platformIncludeDirectory;
+
+    bool initializePlatform();
+
     bool generateProjectFile(const SolutionProject* project, std::stringstream& outContent) const;
 
     bool shouldStaticLinkProject(const SolutionProject* project) const;

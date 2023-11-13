@@ -259,6 +259,46 @@ bool SolutionGeneratorVS::generateProjects(FileGenerator& gen)
     return true;
 }
 
+void SolutionGeneratorVS::extractSourceRoots(const SolutionProject* project, std::vector<fs::path>& outPaths) const
+{
+    for (const auto& sourceRoot : m_sourceRoots)
+        outPaths.push_back(sourceRoot);
+
+	for (const auto* dep : project->allDependencies)
+		for (const auto& path : dep->exportedIncludePaths)
+			outPaths.push_back(path);
+
+    // TODO: remove
+    if (!project->rootPath.empty())
+    {
+        if (project->optionLegacy)
+        {
+            outPaths.push_back(project->rootPath);
+        }
+		else if (project->optionThirdParty)
+		{
+			outPaths.push_back(project->rootPath);
+		}
+        else
+        {
+            outPaths.push_back(project->rootPath / "src");
+            outPaths.push_back(project->rootPath / "include");
+        }
+    }
+
+    outPaths.push_back(m_config.derivedSolutionPathBase / "generated/_shared");
+    outPaths.push_back(project->generatedPath);
+
+    for (const auto& path : project->additionalIncludePaths)
+        outPaths.push_back(path);
+
+    /*for (const auto& path : project->originalProject->localIncludeDirectories)
+    {
+        const auto fullPath = project->originalProject->rootPath / path;
+        outPaths.push_back(fullPath);
+    }*/
+}
+
 bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* project, std::stringstream& f) const
 {
     writeln(f, "<?xml version=\"1.0\" encoding=\"utf-8\"?>");
@@ -390,9 +430,6 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
     if (!project->optionUseWindowSubsystem)
         f  << "CONSOLE;";
 
-    if (m_config.flagDevBuild)
-        f << "DEVELOPMENT;";
-
     if (m_config.platform == PlatformType::UWP)
         f << "WINAPI_FAMILY=WINAPI_FAMILY_APP;";
 
@@ -403,8 +440,10 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
         if (dep->type == ProjectType::SharedLibrary)
             f << ToUpper(dep->name) << "_DLL;";
 
-    if (m_config.linking == LinkingType::Static || project->type == ProjectType::StaticLibrary)
-        f << "BUILD_AS_LIBS;";
+    if (m_config.solutionType == SolutionType::DevelopmentStatic || m_config.solutionType == SolutionType::DevelopmentStatic)
+        f << "BUILD_DEVELOPMENT";
+    if (m_config.solutionType == SolutionType::DevelopmentStatic || m_config.solutionType == SolutionType::ShipmentStatic)
+		f << "BUILD_STATIC";
 
     if (project->type == ProjectType::SharedLibrary)
         f << "BUILD_DLL;";
@@ -413,8 +452,8 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
 
     // custom defines
     {
-        std::vector<std::pair<std::string, std::string>> defs;
-        collectCustomDefines(project, &defs);
+        TDefines defs;
+        collectDefines(project, &defs);
 
         for (const auto& def : defs)
         {
@@ -446,7 +485,7 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
     writeln(f, "</ItemGroup>");
 
     writeln(f, "<ItemGroup>");
-    if (m_config.linking == LinkingType::Static)
+    if (m_config.solutionType == SolutionType::DevelopmentStatic || m_config.solutionType == SolutionType::ShipmentStatic)
     {
         // in lib mode only the application reports dependencies - this way ALL projects can be compiled at the same time
         if (project->type == ProjectType::Application || project->type == ProjectType::TestApplication)
@@ -469,7 +508,7 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
             }
         }
     }
-    else if (m_config.linking == LinkingType::Shared)
+    else if (m_config.solutionType == SolutionType::DevelopmentShared)
     {
         // in DLL mode we reference DIRECT dependencies only
         for (const auto* dep : project->directDependencies)

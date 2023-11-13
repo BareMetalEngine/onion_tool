@@ -29,6 +29,7 @@ enum class PlatformType : uint8_t {
 	Android,
     Darwin,
     DarwinArm,
+    Wasm,
 
     MAX,
 };
@@ -51,9 +52,10 @@ static const inline ConfigurationType CONFIGURATIONS[] = {
     ConfigurationType::Final,
 };
 
-enum class LinkingType : uint8_t {
-    Shared, // dlls
-    Static, // static libs
+enum class SolutionType : uint8_t {
+    DevelopmentShared, // development modules and dlls (local build)
+    DevelopmentStatic, // development modules static compilation (pre-build SDK)
+    ShipmentStatic, // no development modules and static compilation (single exe release)
 
     MAX,
 };

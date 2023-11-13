@@ -116,7 +116,7 @@ static bool IsValidProjectTag(std::string_view tag)
 }
 
 extern bool EvalPlatformFilters(const XMLNode* node, PlatformType platform);
-extern bool EvalLinkFilters(const XMLNode* node, LinkingType linking);
+extern bool EvalSolutionFilters(const XMLNode* node, SolutionType solutionType);
 
 bool ModuleManifest::LoadKeySet(ModuleManifest* ret, const void* nodePtr, const Configuration& config, bool topLevel)
 {
@@ -178,9 +178,9 @@ bool ModuleManifest::LoadKeySet(ModuleManifest* ret, const void* nodePtr, const 
 			}
 
 			// Filter by lib type
-			else if (name == "FilterLinking")
+			else if (name == "FilterSolutionType")
 			{
-				if (EvalLinkFilters(node, config.linking))
+				if (EvalSolutionFilters(node, config.solutionType))
 				{
 					valid &= LoadKeySet(ret, node, config, topLevel);
 				}

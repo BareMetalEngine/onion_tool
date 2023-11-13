@@ -287,7 +287,7 @@ namespace rapidxml
     {
 
         // Struct that contains lookup tables for the parser
-        // It must be a template to allow correct linking (because it has static data members, which are defined in a header file).
+        // It must be a template to allow correct solutionType (because it has static data members, which are defined in a header file).
         template<int Dummy>
         struct lookup_tables
         {

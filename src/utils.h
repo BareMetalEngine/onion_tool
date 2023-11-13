@@ -245,12 +245,12 @@ extern LogPrinter LogSuccess();
 //--
 
 extern std::string_view NameEnumOption(ConfigurationType type);
-extern std::string_view NameEnumOption(LinkingType type);
+extern std::string_view NameEnumOption(SolutionType type);
 extern std::string_view NameEnumOption(PlatformType type);
 extern std::string_view NameEnumOption(GeneratorType type);
 
 //extern bool ParseConfigurationType(std::string_view txt, ConfigurationType& outType);
-extern bool ParseLinkingType(std::string_view txt, LinkingType& outType);
+extern bool ParseLinkingType(std::string_view txt, SolutionType& outType);
 extern bool ParsePlatformType(std::string_view txt, PlatformType& outType);
 extern bool ParseGeneratorType(std::string_view txt, GeneratorType& outType);
 
@@ -258,7 +258,7 @@ extern PlatformType DefaultPlatform();
 extern std::string_view DefaultPlatformStr();
 
 extern bool MatchesPlatform(PlatformType platform, std::string_view view);
-extern bool MatchesLinking(LinkingType type, std::string_view view);
+extern bool MatchesSolutionType(SolutionType type, std::string_view view);
 
 template< typename T >
 struct PrintEnumOptions
@@ -368,9 +368,9 @@ typedef struct {
 } SHA256_HASH;
 
 extern void Sha256Initialise(Sha256Context* Context);
-extern void Sha256Update(Sha256Context* Context, void const* Buffer, uint32_t BufferSize);
+extern void Sha256Update(Sha256Context* Context, void const* Buffer, uint64_t BufferSize);
 extern void Sha256Finalise(Sha256Context* Context, SHA256_HASH* Digest);
-extern void Sha256Calculate(void const* Buffer, uint32_t BufferSize, SHA256_HASH* Digest);
+extern void Sha256Calculate(void const* Buffer, uint64_t BufferSize, SHA256_HASH* Digest);
 
 extern std::string Sha256OfText(std::string_view data);
 extern bool Sha256OfFile(const fs::path& path, std::string& outHashString);
@@ -385,13 +385,13 @@ extern std::string hmac_sha256_str(std::string_view key, std::string_view payloa
 
 extern std::string hmac_sha256_binstr(std::string_view key, std::string_view payload);
 
-extern std::string BytesToHexString(const uint8_t* data, uint32_t length);
+extern std::string BytesToHexString(const uint8_t* data, uint64_t length);
 
 extern std::string BytesToHexString(const std::vector<uint8_t>& bytes);
 
 extern std::string BytesToHexString(const std::string& bytes);
 
-extern void BytesToHexString(std::stringstream& str, const uint8_t* data, uint32_t length);
+extern void BytesToHexString(std::stringstream& str, const uint8_t* data, uint64_t length);
 
 extern void BytesToHexString(std::stringstream& str, const std::vector<uint8_t>& bytes);
 

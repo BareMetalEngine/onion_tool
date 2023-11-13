@@ -59,7 +59,6 @@ struct ProjectManifest
     ProjectTestFramework optionTestFramework = ProjectTestFramework::GTest;
 
     int optionWarningLevel = 4;
-    bool optionDevOnly = false; // project is development only project and will be skipped in final build
     bool optionDetached = false; // dynamic library only - do not link directly
     bool optionUseStaticInit = true; // project requires static dependencies initialization
     bool optionUsePrecompiledHeaders = true; // project uses precompiled headers

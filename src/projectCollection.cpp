@@ -54,7 +54,7 @@ bool ProjectCollection::populateFromModules(const std::vector<const ModuleManife
 			if (proj->type == ProjectType::AutoLibrary)
 			{
 				bool supportsShared = (config.platform == PlatformType::Windows);
-				bool makeShared = (config.linking == LinkingType::Shared) && supportsShared;
+				bool makeShared = (config.solutionType == SolutionType::DevelopmentShared) && supportsShared;
 
 				// HACK! Third party libraries without the proper macro definition can't compile as shared libs
 				if (proj->optionThirdParty && proj->thirdPartySharedLocalBuildDefine.empty())
@@ -177,13 +177,6 @@ bool ProjectCollection::filterProjects(const Configuration& config)
 	// applications are used in development mode
 	for (auto* proj : oldProjects)
 	{
-		// in the shipment config we don't emit tests and dev only projects
-		if (!config.flagDevBuild)
-		{
-			if (proj->manifest->optionDevOnly || proj->manifest->type == ProjectType::TestApplication)
-				continue;
-		}
-
 		// skip disabled projects
 		if (proj->manifest->type == ProjectType::Disabled)
 			continue;

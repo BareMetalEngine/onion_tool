@@ -687,6 +687,35 @@ bool SolutionGenerator::generateAutomaticCodeForProject(SolutionProject* project
         }
     }
 
+    // project runner for platforms that don't emit executables
+    if (m_config.platform == PlatformType::Wasm && (project->type == ProjectType::Application || project->type == ProjectType::TestApplication))
+    {
+		const char* ConfigurationNames[] = {
+    		"debug", "checked", "release", "profile", "final"
+		};
+
+        for (const auto* configName : ConfigurationNames)
+        {
+            auto runDirectory = m_config.derivedBinaryPathBase / configName;
+            auto localGlueHeader = runDirectory / project->name;
+            localGlueHeader += "_run.bat";
+
+            auto* info = new SolutionProjectFile;
+            info->absolutePath = localGlueHeader;
+            info->type = ProjectFileType::Unknown;
+            info->filterPath = "_generated";
+            info->name = project->name + "_run.bat";
+            project->files.push_back(info);
+
+            auto generatedFile = fileGenerator.createFile(info->absolutePath);
+            if (!generateProjectHostingBatchFile(project, generatedFile->content, runDirectory))
+            {
+                LogError() << "Failed to generate glue header file for project '" << project->name << "'";
+                valid = false;
+            }
+        }
+    }
+
     // embedded files
     {
         struct FileToEmbed
@@ -1594,6 +1623,13 @@ bool SolutionGenerator::generateProjectBuildHeaderFile(const SolutionProject* pr
     return true;
 }
 
+bool SolutionGenerator::generateProjectHostingBatchFile(const SolutionProject* project, std::stringstream& f, const fs::path& binaryPath)
+{
+    writelnf(f, "start chrome \"http://localhost:8000/%hs.html\"", project->name.c_str());
+    writelnf(f, "npx statikk --port 8000 --coi \"%hs\"", binaryPath.u8string().c_str());
+    return true;
+}
+
 #if 0
 bool SolutionGenerator::generateSolutionReflectionFileTlogList(std::stringstream& f)
 {
@@ -1840,106 +1876,90 @@ bool SolutionGenerator::generateSolutionFstabFile(const fs::path& binaryPath, st
 
 //--
 
-static void CollectDefineString(std::vector<std::pair<std::string, std::string>>& ar, std::string_view name, std::string_view value)
+void SolutionGenerator::CollectDefineString(std::string_view name, std::string_view value, TDefines* outDefines)
 {
-    for (auto& entry : ar)
-    {
-        if (entry.first == name)
-        {
-            entry.second = value;
-            return;
-        }
-    }
+	for (auto& entry : *outDefines)
+	{
+		if (entry.first == name)
+		{
+			entry.second = value;
+			return;
+		}
+	}
 
-    ar.emplace_back(std::make_pair(name, value));
+    outDefines->emplace_back(std::make_pair(name, value));
 }
 
-static void CollectDefineStrings(std::vector<std::pair<std::string, std::string>>& ar, const std::vector<std::pair<std::string, std::string>>& defs)
+void SolutionGenerator::CollectDefineStrings(const TDefines& defs, TDefines* outDefines)
 {
-    for (const auto& def : defs)
-        CollectDefineString(ar, def.first, def.second);
+	for (const auto& def : defs)
+		CollectDefineString(def.first, def.second, outDefines);
 }
 
-static void CollectDefineStringsFromSimpleList(std::vector<std::pair<std::string, std::string>>& ar, std::string_view txt)
+void SolutionGenerator::CollectDefineStringsFromSimpleList(std::string_view txt, TDefines* outDefines)
 {
-    std::vector<std::string_view> macros;
-    SplitString(txt, ";", macros);
+	std::vector<std::string_view> macros;
+	SplitString(txt, ";", macros);
 
-    for (auto part : macros)
-    {
-        part = Trim(part);
+	for (auto part : macros)
+	{
+		part = Trim(part);
         if (!part.empty())
-            ar.emplace_back(part, "1");
-    }
+        {
+            std::string_view key, value;
+            if (SplitString(part, "=", key, value))
+            {
+                key = Trim(key);
+                value = Trim(value);
+
+                if (!key.empty())
+                    CollectDefineString(key, value, outDefines);
+            }
+            else
+            {
+                CollectDefineString(part, "1", outDefines);
+            }
+        }
+	}
 }
 
-void SolutionGenerator::collectCustomDefines(const SolutionProject* project, SolutionGenerator::TDefines *outDefines) const
+void SolutionGenerator::collectDefines(const SolutionProject* project, TDefines* outDefines) const
 {
-    for (const auto* dep : project->allDependencies)
-        CollectDefineStrings(*outDefines, dep->globalDefines);
-    CollectDefineStrings(*outDefines, project->globalDefines);
-    CollectDefineStrings(*outDefines, project->localDefines);
+    CollectDefineString("__SSE__", "", outDefines);
+    CollectDefineString("__SSE2__", "", outDefines);
+    CollectDefineString("__SSE3__", "", outDefines);
+    CollectDefineString("__SSSE3__", "", outDefines); // I love to learn the story of this define
+    CollectDefineString("__SSE4_1__", "", outDefines);
+    CollectDefineString("__SSE4_2__", "", outDefines);
 
-    for (const auto* dep : project->allDependencies)
+    if (m_config.platform != PlatformType::Wasm)
     {
-        if (project->type == ProjectType::StaticLibrary && dep->type == ProjectType::SharedLibrary)
-        {
-            LogWarning() << "Static library '" << project->name << " is using a shared library (DLL) '" << dep->name << "' this is not allowed and may not work!";
-        }
-
-        if (dep->optionThirdParty && dep->type == ProjectType::SharedLibrary)
-            CollectDefineStringsFromSimpleList(*outDefines, dep->thirdPartySharedGlobalExportDefine);
+        CollectDefineString("__AVX__", "", outDefines);
+        CollectDefineString("__AVX2__", "", outDefines);
     }
 
-    if (project->type == ProjectType::SharedLibrary)
-    {
-        CollectDefineStringsFromSimpleList(*outDefines, project->thirdPartySharedGlobalExportDefine);
-        CollectDefineStringsFromSimpleList(*outDefines, project->thirdPartySharedLocalBuildDefine);
-    }
+	for (const auto* dep : project->allDependencies)
+		CollectDefineStrings(dep->globalDefines, outDefines);
+
+	CollectDefineStrings(project->globalDefines, outDefines);
+	CollectDefineStrings(project->localDefines, outDefines);
+
+	for (const auto* dep : project->allDependencies)
+	{
+		if (project->type == ProjectType::StaticLibrary && dep->type == ProjectType::SharedLibrary)
+		{
+			LogWarning() << "Static library '" << project->name << " is using a shared library (DLL) '" << dep->name << "' this is not allowed and may not work!";
+		}
+
+		if (dep->optionThirdParty && dep->type == ProjectType::SharedLibrary)
+			CollectDefineStringsFromSimpleList(dep->thirdPartySharedGlobalExportDefine, outDefines);
+	}
+
+	if (project->type == ProjectType::SharedLibrary)
+	{
+		CollectDefineStringsFromSimpleList(project->thirdPartySharedGlobalExportDefine, outDefines);
+		CollectDefineStringsFromSimpleList(project->thirdPartySharedLocalBuildDefine, outDefines);
+	}
 }
 
-void SolutionGenerator::collectSourceRoots(const SolutionProject* project, std::vector<fs::path>* outPaths) const
-{
-    if (!project->optionThirdParty) {
-        for (const auto &sourceRoot: m_sourceRoots)
-            outPaths->push_back(sourceRoot);
-    }
-
-    for (const auto* dep : project->allDependencies)
-        for (const auto &path: dep->exportedIncludePaths)
-            outPaths->push_back(path);
-
-    if (!project->rootPath.empty())
-    {
-        if (project->optionLegacy)
-        {
-            outPaths->push_back(project->rootPath);
-        }
-        else if (project->optionThirdParty)
-        {
-            outPaths->push_back(project->rootPath);
-        }
-        else
-        {
-            outPaths->push_back(project->rootPath / "src");
-            outPaths->push_back(project->rootPath / "include");
-        }
-    }
-
-    if (!project->optionThirdParty) {
-        outPaths->push_back(m_config.derivedSolutionPathBase / "generated/_shared");
-        outPaths->push_back(project->generatedPath);
-    }
-
-    for (const auto& path : project->additionalIncludePaths) {
-        LogInfo() << "Additional path for " << project->name << ": " << path;
-        outPaths->push_back(path);
-    }
-
-    /*for (const auto& path : project->originalProject->localIncludeDirectories)
-    {
-        const auto fullPath = project->originalProject->rootPath / path;
-        outPaths.push_back(fullPath);
-    }*/
-}
-
+//--

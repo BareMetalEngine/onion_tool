@@ -8,7 +8,7 @@ struct Configuration
 {
 	PlatformType platform; // target platform (windows, linux, etc)
 	GeneratorType generator; // code generator (cmake, vs2022, etc)
-    LinkingType linking;
+    SolutionType solutionType;
 
     fs::path executablePath; // path to onion.exe
 
@@ -22,7 +22,6 @@ struct Configuration
     fs::path derivedBinaryPathBase; // "bin" folder when all crap is written (Z:\projects\core\.temp\windows.vs2022.static.dev\bin\)
 
     bool flagStaticBuild = false; // build is "static" - no runtime code generation, all has to be pregenerated in the "generate" step
-    bool flagDevBuild = true; // dev build configuration - allows development only projects (that otherwise are stripped)
 
     Configuration();
 

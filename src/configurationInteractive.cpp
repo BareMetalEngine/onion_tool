@@ -112,7 +112,7 @@ static void PrintConfig(const Configuration& cfg)
 {
     LogInfo() << "  Platform  : " << NameEnumOption(cfg.platform);
     LogInfo() << "  Generator : " << NameEnumOption(cfg.generator);
-    LogInfo() << "  Linking   : " << NameEnumOption(cfg.linking);
+    LogInfo() << "  Linking   : " << NameEnumOption(cfg.solutionType);
 }
 
 bool RunInteractiveConfig(Configuration& cfg, const fs::path& configPath)
@@ -158,7 +158,7 @@ bool RunInteractiveConfig(Configuration& cfg, const fs::path& configPath)
     }
 
     ClearConsole();
-    if (!ConfigEnum(cfg.linking, "Select libraries type:"))
+    if (!ConfigEnum(cfg.solutionType, "Select libraries type:"))
         return false;
 
     ClearConsole();

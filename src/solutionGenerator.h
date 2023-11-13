@@ -180,10 +180,18 @@ protected:
 	bool generateProjectModuleSourceFile(const SolutionProject* project, std::stringstream& outContent);
 	bool generateProjectAppMainSourceFile(const SolutionProject* project, std::stringstream& outContent);
 	bool generateProjectTestMainSourceFile(const SolutionProject* project, std::stringstream& outContent);
+	bool generateProjectHostingBatchFile(const SolutionProject* project, std::stringstream& outContent, const fs::path& binaryPath);
 
     bool generateSolutionEmbeddFileList(std::stringstream& outContent);
 	bool generateSolutionReflectionFileProcessingList(std::stringstream& outContent);
 	bool generateSolutionFstabFile(const fs::path& binaryPath, std::stringstream& outContent);
+
+	typedef std::vector<std::pair<std::string, std::string>> TDefines;
+	void collectDefines(const SolutionProject* project, TDefines* outDefines) const;
+
+	static void CollectDefineStringsFromSimpleList(std::string_view txt, TDefines* outDefines);
+	static void CollectDefineStrings(const TDefines& defs, TDefines* outDefines);
+	static void CollectDefineString(std::string_view name, std::string_view value, TDefines* outDefines);
 
     SolutionGroup* findOrCreateGroup(std::string_view name, SolutionGroup* parent);
 
