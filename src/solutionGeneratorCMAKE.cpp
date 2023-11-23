@@ -191,7 +191,7 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
     // custom defines
     {
         std::vector<std::pair<std::string, std::string>> defs;
-        collectCustomDefines(p, &defs);
+        collectDefines(p, &defs);
 
         for (const auto& def : defs)
         {
@@ -282,7 +282,7 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
         writelnf(f, "add_definitions(-DBUILD_DEVELOPMENT)");
 
     std::vector<fs::path> paths;
-    extractSourceRoots(p, paths);
+    collectSourceRoots(p, &paths);
 
     {
         TDefines defs;
@@ -327,9 +327,6 @@ bool SolutionGeneratorCMAKE::generateProjectFile(const SolutionProject* p, std::
     writeln(f, "");
 
     //--
-
-	std::vector<fs::path> paths;
-	extractSourceRoots(p, paths);
 
 	if (!m_platformIncludeDirectory.empty())
 	{

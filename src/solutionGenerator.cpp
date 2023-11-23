@@ -907,33 +907,25 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
         writelnf(f, "#include \"%hs\"", project->appHeaderName.c_str());
     writeln(f, "");
 
+    if (m_config.platform == PlatformType::Windows)
+    {
+        writeln(f, "extern \"C\" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 711; }");
+        writeln(f, "extern \"C\" { __declspec(dllexport) extern const char* D3D12SDKPath = u8\".\\\\\"; }");
+        writeln(f, "");
+    }
+
     if (project->appHeaderName.empty())
     {
         writelnf(f, "extern int %hs_main(int argc, char** argv);", project->globalNamespace.c_str(), project->globalNamespace.c_str());
         writeln(f, "");
     }
 
-    bool windowsCommandLine = false;
-    if (m_config.platform == PlatformType::Windows)
+    if (m_config.platform == PlatformType::Windows && project->optionUseWindowSubsystem)
     {
-		writeln(f, "#include <Windows.h>");
-		writeln(f, "");
-
-        writeln(f, "#ifdef PLATFORM_WINDOWS");
-        writeln(f, "    extern \"C\" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 608; }");
-        writeln(f, "    extern \"C\" { __declspec(dllexport) extern const char* D3D12SDKPath = u8\".\\\\\"; }");
-        writeln(f, "#endif");
+        writeln(f, "#include <Windows.h>");
         writeln(f, "");
 
-        if (project->optionUseWindowSubsystem)
-        {
-			writeln(f, "int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {");
-			windowsCommandLine = true;
-        }
-        else
-        {
-			writeln(f, "int main(int argc, char** argv) {");
-        }
+        writeln(f, "int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {");
     }
     else
     {
@@ -962,7 +954,7 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
         writeln(f, "");
 
         writelnf(f, "    if (!%hs::modules::HasAllModulesInitialize()) {", project->globalNamespace.c_str());
-        writeln(f, "      TRACE_ERROR(\"No all required modules were initialized, application cannot start\");");        
+        writeln(f, "      TRACE_ERROR(\"No all required modules were initialized, application cannot start\");");
 		if (project->optionUseWindowSubsystem)
             writeln(f, "      MessageBoxA(NULL, \"No all required modules (DLLs) were initialized, application cannot start.\", \"Startup error\", MB_ICONERROR | MB_TASKMODAL);");
         writeln(f, "      return 5;");
@@ -972,35 +964,23 @@ bool SolutionGenerator::generateProjectAppMainSourceFile(const SolutionProject* 
 
 
 	writeln(f, "");
-	writeln(f, "  int ret = 0;");
-	writeln(f, "");
 
     // app init
     if (!project->appClassName.empty())
     {
-        writeln(f, "  {");
-        writelnf(f, "      %hs app;", project->appClassName.c_str());
+        writelnf(f, "    %hs app;", project->appClassName.c_str());
 
         if (m_config.platform == PlatformType::Windows && project->optionUseWindowSubsystem)
-            writelnf(f, "      if (app.init(__argc, __argv)) {");
+            writelnf(f, "    return platform_main(__argc, __argv, app);");
         else
-            writelnf(f, "      if (app.init(argc, argv)) {");
-
-        writelnf(f, "        while (app.update(&ret)) {};");
-        writelnf(f, "        app.close();");
-        writeln (f, "      } else {" );
-        writelnf(f, "        ret = -1;");
-        writeln (f, "      }");
-        writeln(f, "  }");
-        writeln(f, "");
+           writelnf(f, "    return platform_main(argc, argv, app);");
     }
     else
     {
-        writelnf(f, "    ret = %hs_main(argc, argv);", project->globalNamespace.c_str());
+        writelnf(f, "    return %hs_main(argc, argv);", project->globalNamespace.c_str());
     }
 
     // exit
-	writeln(f, "  return ret;");
     writeln(f, "}");
     return true;
 }
@@ -1032,7 +1012,7 @@ bool SolutionGenerator::generateProjectTestMainSourceFile(const SolutionProject*
         writeln(f, "");
     }
 
-    writeln(f, "int main(int argc, char** argv) {");        
+    writeln(f, "int main(int argc, char** argv) {");
 
 	writelnf(f, "    extern void InitModule_%hs(void*);", project->name.c_str());
     writelnf(f, "    InitModule_%hs(nullptr);", project->name.c_str());
@@ -1934,8 +1914,10 @@ void SolutionGenerator::collectDefines(const SolutionProject* project, TDefines*
 
     if (m_config.platform != PlatformType::Wasm)
     {
-        CollectDefineString("__AVX__", "", outDefines);
-        CollectDefineString("__AVX2__", "", outDefines);
+        if (project->optionAdvancedInstructionSet == "AVX" || project->optionAdvancedInstructionSet == "AVX2")
+            CollectDefineString("__AVX__", "", outDefines);
+        else if (project->optionAdvancedInstructionSet == "AVX2")
+            CollectDefineString("__AVX2__", "", outDefines);
     }
 
 	for (const auto* dep : project->allDependencies)
@@ -1960,6 +1942,46 @@ void SolutionGenerator::collectDefines(const SolutionProject* project, TDefines*
 		CollectDefineStringsFromSimpleList(project->thirdPartySharedGlobalExportDefine, outDefines);
 		CollectDefineStringsFromSimpleList(project->thirdPartySharedLocalBuildDefine, outDefines);
 	}
+}
+
+void SolutionGenerator::collectSourceRoots(const SolutionProject* project, std::vector<fs::path>* outPaths) const
+{
+    for (const auto& sourceRoot : m_sourceRoots)
+        outPaths->push_back(sourceRoot);
+
+    for (const auto* dep : project->allDependencies)
+        for (const auto& path : dep->exportedIncludePaths)
+            outPaths->push_back(path);
+
+    // TODO: remove
+    if (!project->rootPath.empty())
+    {
+        if (project->optionLegacy)
+        {
+            outPaths->push_back(project->rootPath);
+        }
+        else if (project->optionThirdParty)
+        {
+            outPaths->push_back(project->rootPath);
+        }
+        else
+        {
+            outPaths->push_back(project->rootPath / "src");
+            outPaths->push_back(project->rootPath / "include");
+        }
+    }
+
+    outPaths->push_back(m_config.derivedSolutionPathBase / "generated/_shared");
+    outPaths->push_back(project->generatedPath);
+
+    for (const auto& path : project->additionalIncludePaths)
+        outPaths->push_back(path);
+
+    /*for (const auto& path : project->originalProject->localIncludeDirectories)
+    {
+        const auto fullPath = project->originalProject->rootPath / path;
+        outPaths.push_back(fullPath);
+    }*/
 }
 
 //--

@@ -259,46 +259,6 @@ bool SolutionGeneratorVS::generateProjects(FileGenerator& gen)
     return true;
 }
 
-void SolutionGeneratorVS::extractSourceRoots(const SolutionProject* project, std::vector<fs::path>& outPaths) const
-{
-    for (const auto& sourceRoot : m_sourceRoots)
-        outPaths.push_back(sourceRoot);
-
-	for (const auto* dep : project->allDependencies)
-		for (const auto& path : dep->exportedIncludePaths)
-			outPaths.push_back(path);
-
-    // TODO: remove
-    if (!project->rootPath.empty())
-    {
-        if (project->optionLegacy)
-        {
-            outPaths.push_back(project->rootPath);
-        }
-		else if (project->optionThirdParty)
-		{
-			outPaths.push_back(project->rootPath);
-		}
-        else
-        {
-            outPaths.push_back(project->rootPath / "src");
-            outPaths.push_back(project->rootPath / "include");
-        }
-    }
-
-    outPaths.push_back(m_config.derivedSolutionPathBase / "generated/_shared");
-    outPaths.push_back(project->generatedPath);
-
-    for (const auto& path : project->additionalIncludePaths)
-        outPaths.push_back(path);
-
-    /*for (const auto& path : project->originalProject->localIncludeDirectories)
-    {
-        const auto fullPath = project->originalProject->rootPath / path;
-        outPaths.push_back(fullPath);
-    }*/
-}
-
 bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* project, std::stringstream& f) const
 {
     writeln(f, "<?xml version=\"1.0\" encoding=\"utf-8\"?>");
@@ -440,7 +400,7 @@ bool SolutionGeneratorVS::generateSourcesProjectFile(const SolutionProject* proj
         if (dep->type == ProjectType::SharedLibrary)
             f << ToUpper(dep->name) << "_DLL;";
 
-    if (m_config.solutionType == SolutionType::DevelopmentStatic || m_config.solutionType == SolutionType::DevelopmentStatic)
+    if (m_config.solutionType == SolutionType::DevelopmentStatic || m_config.solutionType == SolutionType::DevelopmentShared)
         f << "BUILD_DEVELOPMENT";
     if (m_config.solutionType == SolutionType::DevelopmentStatic || m_config.solutionType == SolutionType::ShipmentStatic)
 		f << "BUILD_STATIC";
